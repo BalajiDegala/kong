@@ -1,0 +1,24 @@
+### Dependencies / build output
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+
+### Env / secrets
+.env
+.env.*
+
+### Local data (do not upload)
+images/
+shotgridDB/
+*.sql
+
+### Editor / OS
+.DS_Store
+Thumbs.db
+
+### Internal backups (nested repo git dirs)
+.git-backups/
+

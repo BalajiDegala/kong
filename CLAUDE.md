@@ -1,0 +1,110 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Kong is a workflow management platform for production (VFX/animation) built on Supabase. Three product pillars:
+- **Apex** (Projects): Project management — sequences, assets, shots, tasks, pipeline steps
+- **Echo** (Chat): Team communication (future)
+- **Pulse** (Reviews): Versions, playlists, activity feed (future)
+
+The UI follows ShotGrid patterns — horizontal tabs per project, entity tables with grouping/sorting, and widget dashboards. See `UI_ARCHITECTURE_SHOTGRID.md` for detailed layout specs.
+
+## Development Commands
+
+All commands run from the `echo/` directory:
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Dev server at http://localhost:3000
+npm run build        # Production build
+npm run lint         # ESLint
+npm test             # Run tests — ALWAYS run after code changes
+```
+
+## Architecture
+
+### Tech Stack
+- **Next.js 16** with App Router, React 19 (async Server Components by default)
+- **Tailwind CSS v4** with PostCSS (not old JIT mode)
+- **Supabase** (self-hosted on Kubernetes at `http://10.100.222.197:8000`)
+- **Shadcn/ui** components, **Lucide** icons
+
+### Code Patterns
+
+**Always use async/await, never callbacks.**
+
+**Supabase Client — three contexts, never store in globals:**
+- `src/lib/supabase/client.ts` — browser (client components)
+- `src/lib/supabase/server.ts` — server (Server Components, route handlers)
+- `src/lib/supabase/middleware.ts` — middleware (session/cookie management). Must return the original `supabaseResponse` to maintain cookie sync.
+
+**Server Actions** (`src/actions/*.ts`): Each entity type has a `'use server'` file with CRUD operations. Pattern: create Supabase server client → verify auth → query → `revalidatePath()` → return `{ data }` or `{ error }`.
+
+**Reusable Queries** (`src/lib/supabase/queries.ts`): Functions that accept a `SupabaseClient` parameter for use in both server and client contexts. All respect RLS policies.
+
+**Entity Table System** (`src/components/table/`): Shared `EntityTable` component with `TableColumn` type definitions, toolbar, row actions, grouping, and sorting. Used across all entity pages.
+
+**Component conventions:**
+- Server Components by default; add `'use client'` only when needed
+- Shadcn/ui primitives in `components/ui/`
+- Feature components in `components/apex/`, `components/echo/`, `components/pulse/`
+- Layout components in `components/layout/` (Sidebar, TopBar, GlobalNav, UserMenu, ProjectTabs)
+
+### Route Structure
+
+```
+app/(dashboard)/              # Auth-protected layout with GlobalNav
+  apex/page.tsx               # Projects list
+  apex/[projectId]/layout.tsx # Project detail with horizontal tab navigation
+  apex/[projectId]/           # Overview, assets, sequences, shots, tasks, notes, versions, playlists
+  inbox/, my-tasks/, people/  # Global pages
+app/auth/                     # Login, OAuth callback, error
+```
+
+### Authentication
+- Middleware (`src/middleware.ts`) enforces Supabase auth + optional allowlist check
+- Never modify cookie behavior in middleware without understanding `@supabase/ssr` implications
+- Dashboard routes require authentication
+
+## Database
+
+### Schema
+- **Current schema**: `kong-schema-migration-v2.sql` (32 tables)
+- **Seed data**: `kong-seed-data.sql` (pipeline steps)
+- **Setup instructions**: `DATABASE_SETUP.md`
+
+### Critical Constraints (CHECK constraints — will reject invalid values)
+- `project_members.role`: `'lead'`, `'member'`, `'viewer'` (NOT 'alpha', 'admin', 'beta')
+- `notes.entity_type` and `versions.entity_type`: `'asset'`, `'shot'`
+
+Query constraints before implementing features:
+```sql
+SELECT pg_get_constraintdef(con.oid) FROM pg_constraint con
+JOIN pg_class rel ON rel.oid = con.conrelid
+WHERE rel.relname = 'table_name' AND con.contype = 'c';
+```
+
+### Entity Linking Pattern
+Notes and versions link to entities via `entity_type` ('asset'|'shot') + `entity_id`, with optional `task_id`.
+
+### Storage Buckets
+- `versions` — 50MB limit (images, videos, PDFs, ZIPs)
+- `note-attachments` — 10MB limit (images, PDFs)
+- Private buckets with signed URLs (1-hour expiry)
+
+## Environment
+
+`echo/.env.local` requires:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+JWT keys sourced from `supabase/supabase-kubernetes/charts/supabase/values.yaml` (lines 27-29).
+
+## Reference Documentation
+- `TROUBLESHOOTING.md` — Common issues and debug queries
+- `NEXT_SESSION_START.md` — Quick start guide
+- `UI_ARCHITECTURE_SHOTGRID.md` — UI layout patterns (horizontal tabs, entity tables)
+- `SESSION_SUMMARY_2026-02-06.md` — Latest session context

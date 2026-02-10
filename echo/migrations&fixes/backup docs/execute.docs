@@ -1,0 +1,3 @@
+kubectl -n default cp ./kong.backup demo-supabase-db-0:/tmp/kong.backup
+kubectl -n default exec -it demo-supabase-db-0 -- bash -lc 'pg_restore --clean --if-exists --no-owner --no-privileges -d "postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres" /tmp/kong.backup'
+kubectl -n default exec -it demo-supabase-db-0 -- ls -lh /tmp/kong.backup

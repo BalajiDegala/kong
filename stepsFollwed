@@ -1,0 +1,64 @@
+
+Please find the steps below for setting up the Supabase Kubernetes environment and the initial configuration for the "echo" chat application.
+
+1. Supabase Kubernetes Setup
+
+First, clone the repository into the specified directory:
+
+git clone https://github.com/supabase-community/supabase-kubernetes.git /dd/ayon/git/kong/supabase
+
+We will use Helm charts for the installation:
+
+helm repo add supabase https://supabase-community.github.io/supabase-kubernetes
+helm install demo supabase/supabase
+
+2. Configure Docker Registry Secret
+
+Create the registry secret using the following command:
+
+kubectl create secret docker-registry regcred \
+--docker-server=docker.io \
+--docker-username=balajidd \
+--docker-password=[Your Password] \
+--docker-email=balajidegalas@gmail.com
+
+3. Storage Class Configuration
+
+If you encounter any storage class issues, apply the local-path provisioner and set it as the default:
+
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
+kubectl patch storageclass local-path \
+-p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+4. Chat Application Initialization (echo)
+
+Create the project folder and initialize the Next.js app with Shadcn and the Supabase client:
+
+mkdir echo
+cd echo
+npx create-next-app@latest .
+npx shadcn@latest init
+npx shadcn@latest add @supabase/supabase-client-nextjs
+
+5. Database Cleanup Script
+
+To delete all tables in the public schema (except for allowed_users), you can use the following SQL:
+
+DO $$
+DECLARE
+r RECORD;
+BEGIN
+FOR r IN
+SELECT tablename
+FROM pg_tables
+WHERE schemaname = 'public'
+AND tablename <> 'allowed_users'
+LOOP
+EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+END LOOP;
+END $$;
+
+Best regards,
+
+Balaji Degala
