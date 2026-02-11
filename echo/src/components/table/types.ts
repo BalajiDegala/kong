@@ -10,9 +10,24 @@ export type TableColumn = {
     | 'number'
     | 'links'
     | 'pipeline'
+    | 'date'
+    | 'datetime'
+    | 'url'
+    | 'color'
+    | 'boolean'
+    | 'json'
   width?: string
   editable?: boolean
-  editor?: 'text' | 'textarea' | 'select' | 'checkbox'
+  editor?:
+    | 'text'
+    | 'textarea'
+    | 'select'
+    | 'checkbox'
+    | 'date'
+    | 'datetime'
+    | 'number'
+    | 'color'
+    | 'url'
   options?: Array<{ value: string; label: string }>
   formatValue?: (value: any, row: any) => string
   parseValue?: (value: string, row: any) => any

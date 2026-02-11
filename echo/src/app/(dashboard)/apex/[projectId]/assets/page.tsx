@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
 import { CreateAssetDialog } from '@/components/apex/create-asset-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { ApexPageShell } from '@/components/apex/apex-page-shell'
+import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { deleteAsset, updateAsset } from '@/actions/assets'
-import { Plus } from 'lucide-react'
+import { Package, Plus } from 'lucide-react'
 
 const ASSET_TYPES = [
   { value: 'character', label: 'Character' },
@@ -244,48 +246,44 @@ export default function AssetsPage({
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="flex h-full flex-col">
-        {/* Toolbar */}
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">Assets</h2>
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-            >
-              <Plus className="h-4 w-4" />
-              Add Asset
-            </button>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="flex-1 overflow-auto">
-          {assets.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="text-center">
-                <p className="mb-2 text-zinc-400">No assets yet</p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="text-sm text-amber-400 hover:text-amber-300"
-                >
-                  Create your first asset
-                </button>
-              </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={assets}
-              entityType="assets"
-              onAdd={() => setShowCreateDialog(true)}
-              groupBy="asset_type"
-              onDelete={handleDelete}
-              onCellUpdate={handleCellUpdate}
-            />
-          )}
-        </div>
-      </div>
+      <ApexPageShell
+        title="Assets"
+        action={
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add Asset
+          </button>
+        }
+      >
+        {assets.length === 0 ? (
+          <ApexEmptyState
+            icon={<Package className="h-12 w-12" />}
+            title="No assets yet"
+            description="Create your first asset to start tracking work."
+            action={
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              >
+                Create First Asset
+              </button>
+            }
+          />
+        ) : (
+          <EntityTable
+            columns={columns}
+            data={assets}
+            entityType="assets"
+            onAdd={() => setShowCreateDialog(true)}
+            groupBy="asset_type"
+            onDelete={handleDelete}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </ApexPageShell>
     </>
   )
 }

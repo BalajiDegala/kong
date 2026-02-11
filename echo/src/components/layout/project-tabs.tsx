@@ -17,6 +17,7 @@ const tabs = [
   { id: 'tasks', label: 'Tasks', href: '/tasks' },
   { id: 'notes', label: 'Notes', href: '/notes' },
   { id: 'versions', label: 'Versions', href: '/versions' },
+  { id: 'published-files', label: 'Published Files', href: '/published-files' },
   { id: 'playlists', label: 'Playlists', href: '/playlists' },
 ]
 

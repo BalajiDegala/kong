@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { formatDistanceToNow } from 'date-fns'
-import { User } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { format, isSameDay, isToday, isYesterday } from 'date-fns'
+import { Check, Copy, Pencil, Trash2, X } from 'lucide-react'
 
 interface Message {
   id: number
   content: string
   created_at: string
+  updated_at?: string
   author_id: string
   author?: {
     id: string
@@ -19,14 +20,113 @@ interface Message {
 
 interface MessageListProps {
   messages: Message[]
+  currentUserId?: string
+  onEditMessage?: (messageId: number, nextContent: string) => Promise<void> | void
+  onDeleteMessage?: (messageId: number) => Promise<void> | void
 }
 
-export function MessageList({ messages }: MessageListProps) {
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+const SCROLL_BOTTOM_THRESHOLD_PX = 140
+
+const avatarColors = [
+  'bg-amber-600',
+  'bg-blue-600',
+  'bg-emerald-600',
+  'bg-purple-600',
+  'bg-rose-600',
+  'bg-cyan-600',
+  'bg-orange-600',
+  'bg-indigo-600',
+]
+
+function getAvatarColor(seed: string) {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return avatarColors[Math.abs(hash) % avatarColors.length]
+}
+
+function formatDayLabel(d: Date) {
+  if (isToday(d)) return 'Today'
+  if (isYesterday(d)) return 'Yesterday'
+  return format(d, 'MMM d, yyyy')
+}
+
+export function MessageList({
+  messages,
+  currentUserId,
+  onEditMessage,
+  onDeleteMessage,
+}: MessageListProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const didInitialScrollRef = useRef(false)
+  const prevLengthRef = useRef(0)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const [isNearBottom, setIsNearBottom] = useState(true)
+  const [unseenCount, setUnseenCount] = useState(0)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [draft, setDraft] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    bottomRef.current?.scrollIntoView({ behavior, block: 'end' })
+  }, [])
+
+  const updateIsNearBottom = () => {
+    const el = containerRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    const nearBottom = distanceFromBottom < SCROLL_BOTTOM_THRESHOLD_PX
+    setIsNearBottom(nearBottom)
+    if (nearBottom) setUnseenCount(0)
+  }
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+    const prevLen = prevLengthRef.current
+    prevLengthRef.current = messages.length
+
+    // Initial load should jump immediately to latest.
+    if (!didInitialScrollRef.current) {
+      didInitialScrollRef.current = true
+      scrollToBottom('auto')
+      return
+    }
+
+    // Ignore edits/deletes that don't add new items.
+    if (messages.length <= prevLen) return
+
+    // Only auto-scroll if the user is already at the bottom.
+    if (isNearBottom) {
+      scrollToBottom('smooth')
+      setUnseenCount(0)
+    } else {
+      setUnseenCount((c) => c + (messages.length - prevLen))
+    }
+  }, [isNearBottom, messages.length, scrollToBottom])
+
+  const startEdit = (msg: Message) => {
+    setEditingId(msg.id)
+    setDraft(msg.content)
+    setIsSavingEdit(false)
+    setTimeout(() => editTextareaRef.current?.focus(), 0)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setDraft('')
+    setIsSavingEdit(false)
+  }
+
+  const copyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   if (messages.length === 0) {
     return (
@@ -39,36 +139,233 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-4">
-      <div className="mx-auto max-w-3xl space-y-4">
-        {messages.map((msg) => (
-          <div key={msg.id} className="group flex gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800">
-              {msg.author?.avatar_url ? (
-                <img
-                  src={msg.author.avatar_url}
-                  alt=""
-                  className="h-9 w-9 rounded-full object-cover"
-                />
-              ) : (
-                <User className="h-4 w-4 text-zinc-500" />
+    <div
+      ref={containerRef}
+      onScroll={updateIsNearBottom}
+      className="relative flex-1 overflow-auto p-4"
+    >
+      <div className="mx-auto max-w-3xl space-y-3">
+        {messages.map((msg, idx) => {
+          const prev = idx > 0 ? messages[idx - 1] : null
+          const msgDate = new Date(msg.created_at)
+          const prevDate = prev ? new Date(prev.created_at) : null
+
+          const showDateSeparator = !prevDate || !isSameDay(msgDate, prevDate)
+          const showAuthor =
+            !prev ||
+            showDateSeparator ||
+            prev.author_id !== msg.author_id ||
+            (prevDate && msgDate.getTime() - prevDate.getTime() > GROUP_WINDOW_MS)
+
+          const isOwn = !!currentUserId && msg.author_id === currentUserId
+          const authorLabel =
+            (isOwn ? 'You' : null) ||
+            msg.author?.display_name ||
+            msg.author?.email ||
+            'Unknown'
+
+          const initial = authorLabel.trim().charAt(0).toUpperCase() || '?'
+          const avatarSeed = msg.author_id || authorLabel
+          const avatarColor = isOwn ? 'bg-amber-500 text-black' : `${getAvatarColor(avatarSeed)} text-white`
+
+          const createdAtLabel = format(msgDate, 'h:mm a')
+          const createdAtTitle = format(msgDate, 'PPpp')
+
+          const updatedAt = msg.updated_at ? new Date(msg.updated_at) : null
+          const isEdited =
+            !!updatedAt && Math.abs(updatedAt.getTime() - msgDate.getTime()) > 2000
+
+          const isEditing = editingId === msg.id
+
+          const canEdit = isOwn && !!onEditMessage
+          const canDelete = isOwn && !!onDeleteMessage
+
+          return (
+            <div key={msg.id}>
+              {showDateSeparator && (
+                <div className="flex items-center gap-3 py-2">
+                  <div className="h-px flex-1 bg-zinc-800" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {formatDayLabel(msgDate)}
+                  </span>
+                  <div className="h-px flex-1 bg-zinc-800" />
+                </div>
               )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-zinc-100">
-                  {msg.author?.display_name || msg.author?.email || 'Unknown'}
-                </span>
-                <span className="text-xs text-zinc-600">
-                  {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                </span>
+
+              <div className="group flex gap-3">
+                <div className="w-9 shrink-0">
+                  {showAuthor ? (
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full ${avatarColor}`}
+                      title={authorLabel}
+                    >
+                      {msg.author?.avatar_url ? (
+                        <img
+                          src={msg.author.avatar_url}
+                          alt=""
+                          className="h-9 w-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[11px] font-semibold">{initial}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <time
+                      className="mt-1 block text-right text-[10px] text-zinc-600 opacity-0 transition group-hover:opacity-100"
+                      dateTime={msg.created_at}
+                      title={createdAtTitle}
+                    >
+                      {createdAtLabel}
+                    </time>
+                  )}
+                </div>
+
+                <div className="relative min-w-0 flex-1 pr-16">
+                  <div className="absolute right-0 top-0 flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/80 p-1 opacity-0 backdrop-blur transition group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => copyMessage(msg.content)}
+                      className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                      title="Copy message"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    {canEdit && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(msg)}
+                        className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        title="Edit message"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {canDelete && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm('Delete this message?')) return
+                          await onDeleteMessage?.(msg.id)
+                        }}
+                        className="rounded p-1 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-300"
+                        title="Delete message"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {showAuthor && (
+                    <div className="flex items-baseline gap-2">
+                      <span className={isOwn ? 'text-sm font-medium text-amber-200' : 'text-sm font-medium text-zinc-100'}>
+                        {authorLabel}
+                      </span>
+                      <time
+                        className="text-xs text-zinc-600"
+                        dateTime={msg.created_at}
+                        title={createdAtTitle}
+                      >
+                        {createdAtLabel}
+                      </time>
+                      {isEdited && (
+                        <span className="text-[11px] text-zinc-600">(edited)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {isEditing ? (
+                    <div className={showAuthor ? 'mt-1' : ''}>
+                      <textarea
+                        ref={editTextareaRef}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            cancelEdit()
+                            return
+                          }
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault()
+                            const trimmed = draft.trim()
+                            if (!trimmed || isSavingEdit || !onEditMessage) return
+                            setIsSavingEdit(true)
+                            try {
+                              await onEditMessage(msg.id, trimmed)
+                              cancelEdit()
+                            } finally {
+                              setIsSavingEdit(false)
+                            }
+                          }
+                        }}
+                        placeholder="Edit message..."
+                        rows={2}
+                        className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                        style={{ maxHeight: '180px' }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${Math.min(target.scrollHeight, 180)}px`
+                        }}
+                      />
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-800"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!draft.trim() || isSavingEdit || !onEditMessage}
+                          onClick={async () => {
+                            const trimmed = draft.trim()
+                            if (!trimmed || isSavingEdit || !onEditMessage) return
+                            setIsSavingEdit(true)
+                            try {
+                              await onEditMessage(msg.id, trimmed)
+                              cancelEdit()
+                            } finally {
+                              setIsSavingEdit(false)
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {isSavingEdit ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-zinc-600">
+                        Tip: Ctrl+Enter to save, Esc to cancel.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className={`${showAuthor ? 'mt-0.5' : ''} whitespace-pre-wrap text-sm text-zinc-300`}>
+                      {msg.content}
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="mt-0.5 whitespace-pre-wrap text-sm text-zinc-300">{msg.content}</p>
             </div>
-          </div>
-        ))}
+          )
+        })}
+
         <div ref={bottomRef} />
       </div>
+
+      {!isNearBottom && unseenCount > 0 && (
+        <div className="sticky bottom-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => scrollToBottom('smooth')}
+            className="rounded-full border border-zinc-700 bg-zinc-900/90 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-sm backdrop-blur hover:bg-zinc-800"
+          >
+            {unseenCount} new {unseenCount === 1 ? 'message' : 'messages'} · Jump to latest
+          </button>
+        </div>
+      )}
     </div>
   )
 }

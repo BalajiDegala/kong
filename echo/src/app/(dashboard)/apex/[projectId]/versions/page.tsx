@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
 import { UploadVersionDialog } from '@/components/apex/upload-version-dialog'
-import { updateVersion } from '@/actions/versions'
+import { ApexPageShell } from '@/components/apex/apex-page-shell'
+import { ApexEmptyState } from '@/components/apex/apex-empty-state'
+import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { deleteVersion, updateVersion } from '@/actions/versions'
 import { Upload } from 'lucide-react'
 
 export default function VersionsPage({
@@ -15,7 +18,10 @@ export default function VersionsPage({
   const [projectId, setProjectId] = useState<string>('')
   const [versions, setVersions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedVersion, setSelectedVersion] = useState<any>(null)
   const listToString = (value: any) =>
     Array.isArray(value) ? value.join(', ') : ''
   const stringToList = (value: string) =>
@@ -34,6 +40,7 @@ export default function VersionsPage({
   async function loadVersions(projId: string) {
     try {
       setIsLoading(true)
+      setLoadError(null)
       const supabase = createClient()
 
       const { data: versionsData, error } = await supabase
@@ -41,7 +48,7 @@ export default function VersionsPage({
         .select(`
           *,
           task:tasks(id, name),
-          artist:profiles(id, display_name, full_name),
+          artist:profiles!versions_created_by_fkey(id, display_name, full_name),
           project:projects(id, code, name)
         `)
         .eq('project_id', projId)
@@ -49,6 +56,7 @@ export default function VersionsPage({
 
       if (error) {
         console.error('Error loading versions:', error)
+        setLoadError(error.message)
         setVersions([])
         return
       }
@@ -64,10 +72,21 @@ export default function VersionsPage({
       setVersions(normalized)
     } catch (error) {
       console.error('Error loading versions:', error)
+      setLoadError(error instanceof Error ? error.message : 'Error loading versions')
       setVersions([])
     } finally {
       setIsLoading(false)
     }
+  }
+
+  function handleDelete(version: any) {
+    setSelectedVersion(version)
+    setShowDeleteDialog(true)
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selectedVersion) return { error: 'No version selected' }
+    return await deleteVersion(selectedVersion.id, projectId)
   }
 
   if (isLoading) {
@@ -89,40 +108,50 @@ export default function VersionsPage({
         projectId={projectId}
       />
 
-      <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">Versions</h2>
-            <button
-              onClick={() => setShowUploadDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-            >
-              <Upload className="h-4 w-4" />
-              Upload Version
-            </button>
-          </div>
-        </div>
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Version"
+        description="Are you sure you want to delete this version? This will remove any linked publishes."
+        itemName={selectedVersion?.code || ''}
+        onConfirm={handleDeleteConfirm}
+      />
 
-        <div className="flex-1 overflow-auto">
-          {versions.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="text-center">
-                <Upload className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">No versions yet</h3>
-                <p className="mb-4 text-sm text-zinc-400">
-                  Upload your first version to start tracking deliverables.
-                </p>
-                <button
-                  onClick={() => setShowUploadDialog(true)}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-                >
-                  Upload First Version
-                </button>
-              </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={[
+      <ApexPageShell
+        title="Versions"
+        action={
+          <button
+            onClick={() => setShowUploadDialog(true)}
+            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+          >
+            <Upload className="h-4 w-4" />
+            Upload Version
+          </button>
+        }
+      >
+        {loadError && (
+          <div className="mb-4 rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+            Failed to load versions: {loadError}
+          </div>
+        )}
+
+        {versions.length === 0 ? (
+          <ApexEmptyState
+            icon={<Upload className="h-12 w-12" />}
+            title="No versions yet"
+            description="Upload your first version to start tracking deliverables."
+            action={
+              <button
+                onClick={() => setShowUploadDialog(true)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              >
+                Upload First Version
+              </button>
+            }
+          />
+        ) : (
+          <EntityTable
+            columns={[
                 { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '80px' },
                 {
                   id: 'code',
@@ -137,9 +166,18 @@ export default function VersionsPage({
                 { id: 'status', label: 'Status', type: 'status' as const, width: '90px', editable: true, editor: 'text' as const },
                 { id: 'artist_label', label: 'Artist', type: 'text' as const, width: '140px' },
                 { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },
-                { id: 'created_at', label: 'Date Created', type: 'text' as const, width: '140px' },
-                { id: 'cuts', label: 'Cuts', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-                { id: 'date_viewed', label: 'Date Viewed', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+                 { id: 'created_at', label: 'Date Created', type: 'datetime' as const, width: '140px' },
+                {
+                  id: 'cuts',
+                  label: 'Cuts',
+                  type: 'text' as const,
+                  width: '120px',
+                  editable: true,
+                  editor: 'text' as const,
+                  formatValue: listToString,
+                  parseValue: stringToList,
+                },
+                 { id: 'date_viewed', label: 'Date Viewed', type: 'datetime' as const, width: '140px', editable: true, editor: 'datetime' as const },
                 { id: 'department', label: 'Department', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
                 { id: 'editorial_qc', label: 'Editorial QC', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
                 { id: 'first_frame', label: 'First Frame', type: 'number' as const, width: '110px', editable: true, editor: 'text' as const },
@@ -192,6 +230,7 @@ export default function VersionsPage({
               data={versions}
               entityType="versions"
               onAdd={() => setShowUploadDialog(true)}
+              onDelete={handleDelete}
               onCellUpdate={async (row, column, value) => {
                 const result = await updateVersion(row.id, { [column.id]: value }, { revalidate: false })
                 if (result.error) {
@@ -204,9 +243,8 @@ export default function VersionsPage({
                 )
               }}
             />
-          )}
-        </div>
-      </div>
+        )}
+      </ApexPageShell>
     </>
   )
 }

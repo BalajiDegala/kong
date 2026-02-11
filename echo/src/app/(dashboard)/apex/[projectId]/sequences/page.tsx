@@ -6,8 +6,10 @@ import { EntityTable } from '@/components/table/entity-table'
 import { CreateSequenceDialog } from '@/components/apex/create-sequence-dialog'
 import { EditSequenceDialog } from '@/components/apex/edit-sequence-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { ApexPageShell } from '@/components/apex/apex-page-shell'
+import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { deleteSequence, updateSequence } from '@/actions/sequences'
-import { Plus } from 'lucide-react'
+import { Layers, Plus } from 'lucide-react'
 
 export default function SequencesPage({
   params,
@@ -128,10 +130,28 @@ export default function SequencesPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'cc', label: 'Cc', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'cc',
+      label: 'Cc',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'client_name', label: 'Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'id', label: 'Id', type: 'text' as const, width: '80px' },
-    { id: 'plates', label: 'Plates', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'plates',
+      label: 'Plates',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
     {
       id: 'tags',
@@ -146,7 +166,16 @@ export default function SequencesPage({
     { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'sequence_type', label: 'Type', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'dd_client_name', label: 'DD Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-    { id: 'cuts', label: 'Cuts', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'cuts',
+      label: 'Cuts',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
   ]
 
   if (isLoading) {
@@ -186,46 +215,44 @@ export default function SequencesPage({
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">Sequences</h2>
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-            >
-              <Plus className="h-4 w-4" />
-              Add Sequence
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {sequences.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="text-center">
-                <p className="mb-2 text-zinc-400">No sequences yet</p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="text-sm text-amber-400 hover:text-amber-300"
-                >
-                  Create your first sequence
-                </button>
-              </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={sequences}
-              entityType="sequences"
-              onAdd={() => setShowCreateDialog(true)}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onCellUpdate={handleCellUpdate}
-            />
-          )}
-        </div>
-      </div>
+      <ApexPageShell
+        title="Sequences"
+        action={
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add Sequence
+          </button>
+        }
+      >
+        {sequences.length === 0 ? (
+          <ApexEmptyState
+            icon={<Layers className="h-12 w-12" />}
+            title="No sequences yet"
+            description="Create your first sequence to organize shots and assets."
+            action={
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              >
+                Create First Sequence
+              </button>
+            }
+          />
+        ) : (
+          <EntityTable
+            columns={columns}
+            data={sequences}
+            entityType="sequences"
+            onAdd={() => setShowCreateDialog(true)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </ApexPageShell>
     </>
   )
 }

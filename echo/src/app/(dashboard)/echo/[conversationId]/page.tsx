@@ -1,8 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { fetchConversationData, sendMessage } from '@/actions/echo'
+import {
+  deleteMessage,
+  fetchConversationData,
+  markConversationRead,
+  sendMessage,
+  updateMessage,
+} from '@/actions/echo'
 import { MessageList } from '@/components/echo/message-list'
 import { Hash, MessageCircle, Users, Send } from 'lucide-react'
 
@@ -22,6 +28,40 @@ export default function ConversationPage({
   // Message input state
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const profilesByUserIdRef = useRef<Record<string, any>>({})
+  const markReadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const requestMarkRead = useCallback(async (convId: number) => {
+    if (!convId) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
+    const now = new Date().toISOString()
+    window.dispatchEvent(
+      new CustomEvent('echo:conversationMetaPatch', {
+        detail: {
+          conversationId: convId,
+          meta: { unread: false, lastReadAt: now },
+        },
+      })
+    )
+
+    if (markReadTimeoutRef.current) clearTimeout(markReadTimeoutRef.current)
+    markReadTimeoutRef.current = setTimeout(async () => {
+      try {
+        await markConversationRead(convId)
+      } catch (err) {
+        console.error('Failed to mark conversation read:', err)
+      }
+    }, 700)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (markReadTimeoutRef.current) clearTimeout(markReadTimeoutRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     params.then((p) => {
@@ -47,6 +87,9 @@ export default function ConversationPage({
       setMessages(result.data.messages)
       setMembers(result.data.members)
       setCurrentUserId(result.data.userId)
+
+      // Mark read after we successfully load, and refresh sidebar meta.
+      void requestMarkRead(convId)
     } catch (err) {
       console.error('Failed to load conversation:', err)
       setError('Failed to load conversation')
@@ -54,6 +97,14 @@ export default function ConversationPage({
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    const map: Record<string, any> = {}
+    for (const m of members) {
+      if (m?.user_id) map[m.user_id] = m.profile || null
+    }
+    profilesByUserIdRef.current = map
+  }, [members])
 
   // Subscribe to realtime messages
   useEffect(() => {
@@ -66,16 +117,49 @@ export default function ConversationPage({
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        async () => {
-          // Reload all messages from server to get full author data
-          const result = await fetchConversationData(conversationId)
-          if (result.data) {
-            setMessages(result.data.messages)
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const inserted = payload.new as any
+            const insertedWithAuthor = {
+              ...inserted,
+              author: profilesByUserIdRef.current[inserted.author_id] || null,
+            }
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === inserted.id)) return prev
+              return [
+                ...prev,
+                insertedWithAuthor,
+              ]
+            })
+            void requestMarkRead(conversationId)
+            window.dispatchEvent(
+              new CustomEvent('echo:conversationMetaPatch', {
+                detail: {
+                  conversationId,
+                  meta: { lastMessage: insertedWithAuthor, unread: false },
+                  conversation: { updated_at: inserted.created_at },
+                },
+              })
+            )
+            return
+          }
+
+          if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as any
+            setMessages((prev) =>
+              prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m))
+            )
+            return
+          }
+
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as any
+            setMessages((prev) => prev.filter((m) => m.id !== deleted.id))
           }
         }
       )
@@ -93,6 +177,7 @@ export default function ConversationPage({
 
     setIsSending(true)
     setContent('')
+    textareaRef.current && (textareaRef.current.style.height = 'auto')
 
     const result = await sendMessage({
       conversation_id: conversationId,
@@ -103,21 +188,85 @@ export default function ConversationPage({
       setContent(trimmed)
       console.error('Failed to send message:', result.error)
     } else if (result.data) {
-      // Optimistic: add message to list immediately
+      // Optimistic: add message immediately (realtime will also deliver it; we dedupe by id)
+      const now = new Date().toISOString()
       setMessages((prev) => {
         if (prev.some((m) => m.id === result.data.id)) return prev
-        return [...prev, {
-          ...result.data,
-          author: { id: currentUserId, display_name: null, email: null, avatar_url: null },
-        }]
+        return [
+          ...prev,
+          {
+            ...result.data,
+            author: profilesByUserIdRef.current[currentUserId] || null,
+          },
+        ]
       })
-      // Reload to get proper author data
-      const refreshed = await fetchConversationData(conversationId)
-      if (refreshed.data) setMessages(refreshed.data.messages)
+
+      window.dispatchEvent(
+        new CustomEvent('echo:conversationMetaPatch', {
+          detail: {
+            conversationId,
+            meta: {
+              lastMessage: {
+                ...result.data,
+                author: profilesByUserIdRef.current[currentUserId] || null,
+              },
+              unread: false,
+              lastReadAt: now,
+            },
+            conversation: { updated_at: result.data.created_at || now },
+          },
+        })
+      )
     }
 
     setIsSending(false)
+    textareaRef.current?.focus()
   }, [content, conversationId, isSending, currentUserId])
+
+  const handleEditMessage = useCallback(async (messageId: number, nextContent: string) => {
+    const result = await updateMessage({ message_id: messageId, content: nextContent })
+    if (result.error || !result.data) {
+      console.error('Failed to update message:', result.error)
+      return
+    }
+
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.id === messageId ? { ...m, ...result.data } : m))
+      const last = next[next.length - 1]
+      if (conversationId && last?.id === messageId) {
+        window.dispatchEvent(
+          new CustomEvent('echo:conversationMetaPatch', {
+            detail: { conversationId, meta: { lastMessage: last } },
+          })
+        )
+      }
+      return next
+    })
+  }, [conversationId])
+
+  const handleDeleteMessage = useCallback(async (messageId: number) => {
+    const result = await deleteMessage(messageId)
+    if (result.error) {
+      console.error('Failed to delete message:', result.error)
+      return
+    }
+
+    setMessages((prev) => {
+      const deletedWasLast = prev[prev.length - 1]?.id === messageId
+      const next = prev.filter((m) => m.id !== messageId)
+
+      if (conversationId && deletedWasLast) {
+        const last = next[next.length - 1] || null
+        window.dispatchEvent(
+          new CustomEvent('echo:conversationMetaPatch', {
+            detail: { conversationId, meta: { lastMessage: last } },
+          })
+        )
+      }
+
+      return next
+    })
+  }, [conversationId])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -187,12 +336,19 @@ export default function ConversationPage({
       </div>
 
       {/* Messages */}
-      <MessageList messages={messages} />
+      <MessageList
+        key={conversationId}
+        messages={messages}
+        currentUserId={currentUserId}
+        onEditMessage={handleEditMessage}
+        onDeleteMessage={handleDeleteMessage}
+      />
 
       {/* Inline Message Input */}
       <div className="border-t border-zinc-800 bg-zinc-950 p-4">
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <textarea
+            ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}

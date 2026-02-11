@@ -15,14 +15,25 @@ export async function fetchConversations() {
 
   const service = createServiceClient()
 
-  // Get user's conversation IDs
-  const { data: memberships } = await service
+  // Get user's conversation IDs + read state
+  const { data: memberships, error: membershipsError } = await service
     .from('conversation_members')
-    .select('conversation_id')
+    .select('conversation_id, last_read_at')
     .eq('user_id', user.id)
 
+  if (membershipsError) {
+    return { error: membershipsError.message, data: null }
+  }
+
   if (!memberships || memberships.length === 0) {
-    return { data: { conversations: [], dmDisplayNames: {}, userId: user.id } }
+    return {
+      data: {
+        conversations: [],
+        dmDisplayNames: {},
+        conversationMeta: {},
+        userId: user.id,
+      },
+    }
   }
 
   const convIds = memberships.map((m) => m.conversation_id)
@@ -33,6 +44,75 @@ export async function fetchConversations() {
     .select('id, type, name, project_id, created_by, created_at, updated_at, project:projects(id, code, name)')
     .in('id', convIds)
     .order('updated_at', { ascending: false })
+
+  // Fetch last message per conversation (best-effort)
+  const lastMessages = await Promise.all(
+    convIds.map(async (convId) => {
+      const { data } = await service
+        .from('messages')
+        .select('id, conversation_id, author_id, content, created_at, updated_at')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data || null
+    })
+  )
+
+  const lastMessageByConversationId: Record<number, any> = {}
+  for (const m of lastMessages) {
+    if (m?.conversation_id != null) lastMessageByConversationId[m.conversation_id] = m
+  }
+
+  const lastAuthorIds = [
+    ...new Set(
+      lastMessages
+        .filter((m) => !!m?.author_id)
+        .map((m) => m!.author_id)
+    ),
+  ]
+
+  let lastAuthorProfilesMap: Record<string, any> = {}
+  if (lastAuthorIds.length > 0) {
+    const { data: profiles } = await service
+      .from('profiles')
+      .select('id, display_name, email, avatar_url')
+      .in('id', lastAuthorIds)
+
+    for (const p of profiles || []) {
+      lastAuthorProfilesMap[p.id] = p
+    }
+  }
+
+  const membershipByConversationId: Record<number, any> = {}
+  for (const m of memberships) {
+    membershipByConversationId[m.conversation_id] = m
+  }
+
+  const conversationMeta: Record<number, any> = {}
+  for (const convId of convIds) {
+    const membership = membershipByConversationId[convId]
+    const lastMessage = lastMessageByConversationId[convId] || null
+    const lastReadAt = membership?.last_read_at || null
+
+    const unread = (() => {
+      if (!lastMessage) return false
+      if (lastMessage.author_id === user.id) return false
+      if (!lastReadAt) return true
+      return new Date(lastMessage.created_at).getTime() > new Date(lastReadAt).getTime()
+    })()
+
+    conversationMeta[convId] = {
+      lastReadAt,
+      unread,
+      lastMessage: lastMessage
+        ? {
+            ...lastMessage,
+            author: lastAuthorProfilesMap[lastMessage.author_id] || null,
+          }
+        : null,
+    }
+  }
 
   // Build DM display names — fetch profiles separately to avoid FK join issues
   const dmDisplayNames: Record<number, string> = {}
@@ -80,7 +160,14 @@ export async function fetchConversations() {
     }
   }
 
-  return { data: { conversations: conversations || [], dmDisplayNames, userId: user.id } }
+  return {
+    data: {
+      conversations: conversations || [],
+      dmDisplayNames,
+      conversationMeta,
+      userId: user.id,
+    },
+  }
 }
 
 export async function fetchConversationData(conversationId: number) {
@@ -270,6 +357,142 @@ export async function sendMessage(formData: {
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Best-effort: bump conversation activity + mark sender as read.
+  // We don't fail the send if these updates error out.
+  const now = new Date().toISOString()
+  await Promise.all([
+    service.from('conversations').update({ updated_at: now }).eq('id', formData.conversation_id),
+    service
+      .from('conversation_members')
+      .update({ last_read_at: now })
+      .eq('conversation_id', formData.conversation_id)
+      .eq('user_id', user.id),
+  ])
+
+  return { data }
+}
+
+export async function markConversationRead(conversationId: number) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated', data: null }
+  }
+
+  const service = createServiceClient()
+  const now = new Date().toISOString()
+
+  const { data, error } = await service
+    .from('conversation_members')
+    .update({ last_read_at: now })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id)
+    .select('conversation_id, last_read_at')
+    .maybeSingle()
+
+  if (error) {
+    return { error: error.message, data: null }
+  }
+
+  return { data: data || { conversation_id: conversationId, last_read_at: now } }
+}
+
+export async function updateMessage(formData: { message_id: number; content: string }) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated', data: null }
+  }
+
+  const trimmed = formData.content.trim()
+  if (!trimmed) {
+    return { error: 'Message content cannot be empty', data: null }
+  }
+
+  const service = createServiceClient()
+
+  const { data: existing, error: existingError } = await service
+    .from('messages')
+    .select('id, author_id')
+    .eq('id', formData.message_id)
+    .maybeSingle()
+
+  if (existingError) {
+    return { error: existingError.message, data: null }
+  }
+
+  if (!existing) {
+    return { error: 'Message not found', data: null }
+  }
+
+  if (existing.author_id !== user.id) {
+    return { error: 'Not allowed', data: null }
+  }
+
+  const { data, error } = await service
+    .from('messages')
+    .update({ content: trimmed })
+    .eq('id', formData.message_id)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    return { error: error.message, data: null }
+  }
+
+  return { data }
+}
+
+export async function deleteMessage(messageId: number) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated', data: null }
+  }
+
+  const service = createServiceClient()
+
+  const { data: existing, error: existingError } = await service
+    .from('messages')
+    .select('id, author_id')
+    .eq('id', messageId)
+    .maybeSingle()
+
+  if (existingError) {
+    return { error: existingError.message, data: null }
+  }
+
+  if (!existing) {
+    return { error: 'Message not found', data: null }
+  }
+
+  if (existing.author_id !== user.id) {
+    return { error: 'Not allowed', data: null }
+  }
+
+  const { data, error } = await service
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    return { error: error.message, data: null }
   }
 
   return { data }

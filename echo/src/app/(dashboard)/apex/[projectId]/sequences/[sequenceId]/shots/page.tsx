@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
 import { updateShot } from '@/actions/shots'
+import { CreateShotDialog } from '@/components/apex/create-shot-dialog'
 
 export default function SequenceShotsPage({
   params,
@@ -14,6 +15,7 @@ export default function SequenceShotsPage({
   const [sequenceId, setSequenceId] = useState('')
   const [shots, setShots] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   const listToString = (value: any) => (Array.isArray(value) ? value.join(', ') : '')
   const stringToList = (value: string) =>
@@ -102,17 +104,26 @@ export default function SequenceShotsPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'cc', label: 'Cc', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'cc',
+      label: 'Cc',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'client_name', label: 'Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'comp_note', label: 'Comp Note', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-    { id: 'cut_order', label: 'Cut Order', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    { id: 'cut_order', label: 'Cut Order', type: 'number' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'dd_client_name', label: 'DD Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'dd_location', label: 'DD Location', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-    { id: 'delivery_date', label: 'Delivery Date', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'delivery_date', label: 'Delivery Date', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     { id: 'head_duration', label: 'Head Duration', type: 'number' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'head_in', label: 'Head In', type: 'number' as const, width: '100px', editable: true, editor: 'text' as const },
     { id: 'id', label: 'Id', type: 'text' as const, width: '80px' },
-    { id: 'next_review', label: 'Next Review', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'next_review', label: 'Next Review', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     {
       id: 'open_notes',
       label: 'Open Notes',
@@ -134,18 +145,25 @@ export default function SequenceShotsPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'plates', label: 'Plates', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'plates',
+      label: 'Plates',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
     { id: 'seq_shot', label: 'Seq Shot', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     {
       id: 'shot_notes',
       label: 'Shot Notes',
       type: 'text' as const,
-      width: '160px',
+      width: '220px',
       editable: true,
-      editor: 'text' as const,
-      formatValue: listToString,
-      parseValue: stringToList,
+      editor: 'textarea' as const,
     },
     {
       id: 'sub_shots',
@@ -158,7 +176,7 @@ export default function SequenceShotsPage({
       parseValue: stringToList,
     },
     { id: 'tail_out', label: 'Tail Out', type: 'number' as const, width: '100px', editable: true, editor: 'text' as const },
-    { id: 'target_date', label: 'Target Date', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'target_date', label: 'Target Date', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     {
       id: 'vendor_groups',
@@ -173,24 +191,44 @@ export default function SequenceShotsPage({
   ]
 
   return (
-    <div className="p-6">
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
-          Loading shots...
-        </div>
-      ) : shots.length === 0 ? (
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-          <h3 className="text-sm font-semibold text-zinc-100">Shots</h3>
-          <p className="mt-2 text-sm text-zinc-400">No shots linked to this sequence yet.</p>
-        </div>
-      ) : (
-        <EntityTable
-          columns={columns}
-          data={shots}
-          entityType="shots"
-          onCellUpdate={handleCellUpdate}
-        />
-      )}
-    </div>
+    <>
+      <CreateShotDialog
+        open={showCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open)
+          if (!open) loadShots(projectId, sequenceId)
+        }}
+        projectId={projectId}
+        defaultSequenceId={sequenceId}
+        lockSequence
+      />
+
+      <div className="p-6">
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
+            Loading shots...
+          </div>
+        ) : shots.length === 0 ? (
+          <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
+            <h3 className="text-sm font-semibold text-zinc-100">Shots</h3>
+            <p className="mt-2 text-sm text-zinc-400">No shots linked to this sequence yet.</p>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="mt-4 rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+            >
+              Add Shot
+            </button>
+          </div>
+        ) : (
+          <EntityTable
+            columns={columns}
+            data={shots}
+            entityType="shots_sequence"
+            onAdd={() => setShowCreateDialog(true)}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </div>
+    </>
   )
 }

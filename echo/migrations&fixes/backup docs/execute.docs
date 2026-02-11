@@ -1,3 +1,11 @@
 kubectl -n default cp ./kong.backup demo-supabase-db-0:/tmp/kong.backup
 kubectl -n default exec -it demo-supabase-db-0 -- bash -lc 'pg_restore --clean --if-exists --no-owner --no-privileges -d "postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres" /tmp/kong.backup'
 kubectl -n default exec -it demo-supabase-db-0 -- ls -lh /tmp/kong.backup
+
+
+kubectl -n default exec demo-supabase-db-0 -- bash -lc "pg_dump -Fc --no-owner --no-privileges -d 'postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres' -f kong.backup"
+kubectl -n default cp demo-supabase-db-0:kong.backup ./kong.backup
+
+
+kubectl -n default exec demo-supabase-db-0 -- bash -lc "pg_dump -Fp --clean --if-exists --no-owner --no-privileges -d 'postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres' -f kong.sql"
+kubectl -n default cp demo-supabase-db-0:kong.sql ./kong.sql                                                                                                                                                      

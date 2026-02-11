@@ -1,10 +1,22 @@
-export default async function AssetNotesPage() {
-  return (
-    <div className="p-6">
-      <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-        <h3 className="text-sm font-semibold text-zinc-100">Notes</h3>
-        <p className="mt-2 text-sm text-zinc-400">No notes yet.</p>
-      </div>
-    </div>
-  )
+'use client'
+
+import { useEffect, useState } from 'react'
+import { EntityNotesPanel } from '@/components/apex/entity-notes-panel'
+
+export default function AssetNotesPage({
+  params,
+}: {
+  params: Promise<{ projectId: string; assetId: string }>
+}) {
+  const [projectId, setProjectId] = useState('')
+  const [assetId, setAssetId] = useState('')
+
+  useEffect(() => {
+    params.then((p) => {
+      setProjectId(p.projectId)
+      setAssetId(p.assetId)
+    })
+  }, [params])
+
+  return <EntityNotesPanel projectId={projectId} entityType="asset" entityId={assetId} />
 }

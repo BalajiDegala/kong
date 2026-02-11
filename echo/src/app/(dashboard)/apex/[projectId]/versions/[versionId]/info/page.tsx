@@ -14,7 +14,7 @@ export default async function VersionInfoPage({
     .select(
       `
       *,
-      artist:profiles(id, display_name, full_name),
+      artist:profiles!versions_created_by_fkey(id, display_name, full_name),
       task:tasks(id, name),
       project:projects(id, code, name)
     `

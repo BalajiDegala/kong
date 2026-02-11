@@ -6,8 +6,10 @@ import { EntityTable } from '@/components/table/entity-table'
 import { CreateTaskDialog } from '@/components/apex/create-task-dialog'
 import { EditTaskDialog } from '@/components/apex/edit-task-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { ApexPageShell } from '@/components/apex/apex-page-shell'
+import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { deleteTask, updateTask } from '@/actions/tasks'
-import { Plus } from 'lucide-react'
+import { ListTodo, Plus } from 'lucide-react'
 
 export default function TasksPage({
   params,
@@ -57,6 +59,7 @@ export default function TasksPage({
       // Get entity IDs grouped by type
       const assetIds = tasksData?.filter(t => t.entity_type === 'asset').map(t => t.entity_id).filter(Boolean) || []
       const shotIds = tasksData?.filter(t => t.entity_type === 'shot').map(t => t.entity_id).filter(Boolean) || []
+      const sequenceIds = tasksData?.filter(t => t.entity_type === 'sequence').map(t => t.entity_id).filter(Boolean) || []
       const assignedUserIds = [...new Set(tasksData?.map(t => t.assigned_to).filter(Boolean) || [])]
 
       // Fetch assets
@@ -80,6 +83,19 @@ export default function TasksPage({
           .select('id, name, code')
           .in('id', shotIds)
         shotsMap = (shots || []).reduce((acc, s) => {
+          acc[s.id] = s
+          return acc
+        }, {} as Record<number, any>)
+      }
+
+      // Fetch sequences
+      let sequencesMap: Record<number, any> = {}
+      if (sequenceIds.length > 0) {
+        const { data: sequences } = await supabase
+          .from('sequences')
+          .select('id, name, code')
+          .in('id', sequenceIds)
+        sequencesMap = (sequences || []).reduce((acc, s) => {
           acc[s.id] = s
           return acc
         }, {} as Record<number, any>)
@@ -111,6 +127,10 @@ export default function TasksPage({
           const shot = shotsMap[task.entity_id]
           entityName = shot?.name || 'Unknown Shot'
           entityCode = shot?.code || '-'
+        } else if (task.entity_type === 'sequence' && task.entity_id) {
+          const sequence = sequencesMap[task.entity_id]
+          entityName = sequence?.name || 'Unknown Sequence'
+          entityCode = sequence?.code || '-'
         }
 
         const entityType = task.entity_type || 'unknown'
@@ -175,33 +195,48 @@ export default function TasksPage({
       linkHref: (row: any) => `/apex/${projectId}/tasks/${row.id}`,
     },
     { id: 'step_name', label: 'Pipeline Step', type: 'text' as const, width: '140px' },
-    { id: 'link', label: 'Link', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
     { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },
     { id: 'status', label: 'Status', type: 'status' as const, width: '80px', editable: true, editor: 'text' as const },
     { id: 'assignee_name', label: 'Assigned To', type: 'text' as const, width: '150px' },
-    { id: 'reviewer', label: 'Reviewer', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-    { id: 'start_date', label: 'Start Date', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-    { id: 'end_date', label: 'End Date', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'reviewer',
+      label: 'Reviewer',
+      type: 'text' as const,
+      width: '140px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
+    { id: 'start_date', label: 'Start Date', type: 'date' as const, width: '120px', editable: true, editor: 'date' as const },
+    { id: 'end_date', label: 'End Date', type: 'date' as const, width: '120px', editable: true, editor: 'date' as const },
     { id: 'bid', label: 'Bid', type: 'number' as const, width: '80px', editable: true, editor: 'text' as const },
     { id: 'duration', label: 'Duration', type: 'number' as const, width: '90px', editable: true, editor: 'text' as const },
     { id: 'bid_breakdown', label: 'Bid Breakdown', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-    { id: 'buffer_days', label: 'Buffer days', type: 'number' as const, width: '110px', editable: true, editor: 'text' as const },
-    { id: 'buffer_days2', label: 'Buffer days2', type: 'number' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'casting', label: 'Casting', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-    { id: 'cc', label: 'Cc', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'cc',
+      label: 'Cc',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'ddna_bid', label: 'DDNA Bid', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'ddna_id', label: 'DDNA ID#', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'ddna_to', label: 'DDNA TO#', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-    { id: 'due_date', label: 'Due Date', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    { id: 'due_date', label: 'Due Date', type: 'date' as const, width: '120px', editable: true, editor: 'date' as const },
     { id: 'gantt_bar_color', label: 'Gantt Bar Color', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
     { id: 'id', label: 'Id', type: 'text' as const, width: '80px' },
-    { id: 'inventory_date', label: 'Inventory Date', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-    { id: 'milestone', label: 'Milestone', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'inventory_date', label: 'Inventory Date', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
+    { id: 'milestone', label: 'Milestone', type: 'text' as const, width: '140px', editable: true, editor: 'checkbox' as const },
     { id: 'priority', label: 'Priority', type: 'text' as const, width: '90px', editable: true, editor: 'text' as const },
     { id: 'notes', label: 'Notes', type: 'text' as const, width: '160px', editable: true, editor: 'textarea' as const },
     { id: 'prod_comments', label: 'Prod Comments', type: 'text' as const, width: '160px', editable: true, editor: 'textarea' as const },
     { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
-    { id: 'proposed_start_date', label: 'Proposed Start Date', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
+    { id: 'proposed_start_date', label: 'Proposed Start Date', type: 'date' as const, width: '160px', editable: true, editor: 'date' as const },
     { id: 'publish_version_number', label: 'Publish Version Number', type: 'text' as const, width: '180px', editable: true, editor: 'text' as const },
     {
       id: 'tags',
@@ -226,7 +261,6 @@ export default function TasksPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'workload', label: 'Workload', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
   ]
 
   if (isLoading) {
@@ -266,47 +300,45 @@ export default function TasksPage({
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">Tasks</h2>
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-            >
-              <Plus className="h-4 w-4" />
-              Add Task
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {tasks.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="text-center">
-                <p className="mb-2 text-zinc-400">No tasks yet</p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="text-sm text-amber-400 hover:text-amber-300"
-                >
-                  Create your first task
-                </button>
-              </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={tasks}
-              entityType="tasks"
-              onAdd={() => setShowCreateDialog(true)}
-              groupBy="step_name"
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onCellUpdate={handleCellUpdate}
-            />
-          )}
-        </div>
-      </div>
+      <ApexPageShell
+        title="Tasks"
+        action={
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add Task
+          </button>
+        }
+      >
+        {tasks.length === 0 ? (
+          <ApexEmptyState
+            icon={<ListTodo className="h-12 w-12" />}
+            title="No tasks yet"
+            description="Create your first task to start tracking work."
+            action={
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              >
+                Create First Task
+              </button>
+            }
+          />
+        ) : (
+          <EntityTable
+            columns={columns}
+            data={tasks}
+            entityType="tasks"
+            onAdd={() => setShowCreateDialog(true)}
+            groupBy="step_name"
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </ApexPageShell>
     </>
   )
 }

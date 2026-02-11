@@ -1,0 +1,36 @@
+name: Schema Column Audit
+
+on:
+  pull_request:
+    paths:
+      - 'images/schema/**'
+      - 'tools/schema/**'
+      - 'echo/src/lib/schema/**'
+      - 'echo/src/components/table/**'
+      - 'echo/src/app/**'
+      - '.github/workflows/schema-column-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'images/schema/**'
+      - 'tools/schema/**'
+      - 'echo/src/lib/schema/**'
+      - 'echo/src/components/table/**'
+      - 'echo/src/app/**'
+      - '.github/workflows/schema-column-audit.yml'
+
+jobs:
+  schema-column-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Audit hardcoded page columns against CSV schema
+        run: python tools/schema/audit_page_columns.py --check --verbose

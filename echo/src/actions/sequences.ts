@@ -2,13 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { pickEntityColumns } from '@/lib/schema'
 
-export async function createSequence(formData: {
-  project_id: string
-  name: string
-  code: string
-  description?: string
-}) {
+export async function createSequence(
+  formData: Record<string, unknown> & {
+    project_id: string
+    name: string
+    code: string
+  }
+) {
   const supabase = await createClient()
 
   const {
@@ -19,14 +21,18 @@ export async function createSequence(formData: {
     return { error: 'Not authenticated' }
   }
 
+  const extra = pickEntityColumns('sequence', formData, {
+    deny: new Set(['project_id', 'created_by', 'updated_by']),
+  })
+
   const { data, error } = await supabase
     .from('sequences')
     .insert({
+      ...extra,
       project_id: formData.project_id,
       name: formData.name,
       code: formData.code.toUpperCase(),
-      description: formData.description || null,
-      status: 'active',
+      status: typeof formData.status === 'string' && formData.status ? formData.status : 'active',
     })
     .select()
     .single()
@@ -42,25 +48,7 @@ export async function createSequence(formData: {
 
 export async function updateSequence(
   sequenceId: string,
-  formData: {
-    name?: string
-    code?: string
-    description?: string
-    status?: string
-    client_name?: string | null
-    dd_client_name?: string | null
-    cc?: string | null
-    task_template?: string | null
-    sequence_type?: string | null
-    tags?: string[]
-    shots?: string[]
-    assets?: string[]
-    plates?: string | null
-    cuts?: string | null
-    open_notes_count?: number
-    published_file_links?: string[]
-    created_by?: string | null
-  },
+  formData: Record<string, unknown>,
   options?: {
     revalidate?: boolean
     projectId?: string
@@ -76,24 +64,14 @@ export async function updateSequence(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = {}
-  if (formData.name !== undefined) updateData.name = formData.name
-  if (formData.code !== undefined) updateData.code = formData.code.toUpperCase()
-  if (formData.description !== undefined) updateData.description = formData.description
-  if (formData.status !== undefined) updateData.status = formData.status
-  if (formData.client_name !== undefined) updateData.client_name = formData.client_name
-  if (formData.dd_client_name !== undefined) updateData.dd_client_name = formData.dd_client_name
-  if (formData.cc !== undefined) updateData.cc = formData.cc
-  if (formData.task_template !== undefined) updateData.task_template = formData.task_template
-  if (formData.sequence_type !== undefined) updateData.sequence_type = formData.sequence_type
-  if (formData.tags !== undefined) updateData.tags = formData.tags
-  if (formData.shots !== undefined) updateData.shots = formData.shots
-  if (formData.assets !== undefined) updateData.assets = formData.assets
-  if (formData.plates !== undefined) updateData.plates = formData.plates
-  if (formData.cuts !== undefined) updateData.cuts = formData.cuts
-  if (formData.open_notes_count !== undefined) updateData.open_notes_count = formData.open_notes_count
-  if (formData.published_file_links !== undefined) updateData.published_file_links = formData.published_file_links
-  if (formData.created_by !== undefined) updateData.created_by = formData.created_by
+  const updateData: any = pickEntityColumns('sequence', formData, {
+    deny: new Set(['id', 'project_id', 'created_by', 'created_at', 'updated_at']),
+  })
+
+  const maybeCode = formData.code
+  if (typeof maybeCode === 'string') {
+    updateData.code = maybeCode.toUpperCase()
+  }
 
   const { data, error } = await supabase
     .from('sequences')

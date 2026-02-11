@@ -2,16 +2,19 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { pickEntityColumns } from '@/lib/schema'
 
-export async function createNote(formData: {
-  project_id: string
-  subject?: string
-  content: string
-  entity_type?: 'asset' | 'shot'
-  entity_id?: string
-  task_id?: string
-  status?: string
-}) {
+export async function createNote(
+  formData: Record<string, unknown> & {
+    project_id: string
+    subject?: string
+    content: string
+    entity_type?: 'asset' | 'shot' | 'sequence' | 'task' | 'version' | 'project' | 'published_file'
+    entity_id?: string
+    task_id?: string
+    status?: string
+  }
+) {
   const supabase = await createClient()
 
   const {
@@ -22,9 +25,14 @@ export async function createNote(formData: {
     return { error: 'Not authenticated' }
   }
 
+  const extra = pickEntityColumns('note', formData, {
+    deny: new Set(['project_id', 'created_by', 'updated_by', 'author_id']),
+  })
+
   const { data, error } = await supabase
     .from('notes')
     .insert({
+      ...extra,
       project_id: formData.project_id,
       subject: formData.subject || null,
       content: formData.content,
@@ -33,6 +41,7 @@ export async function createNote(formData: {
       task_id: formData.task_id ? parseInt(formData.task_id) : null,
       status: formData.status || 'open',
       created_by: user.id,
+      author_id: user.id,
     })
     .select()
     .single()
@@ -47,11 +56,7 @@ export async function createNote(formData: {
 
 export async function updateNote(
   noteId: string,
-  formData: {
-    subject?: string
-    content?: string
-    status?: string
-  }
+  formData: Record<string, unknown>
 ) {
   const supabase = await createClient()
 
@@ -63,10 +68,9 @@ export async function updateNote(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = {}
-  if (formData.subject !== undefined) updateData.subject = formData.subject
-  if (formData.content !== undefined) updateData.content = formData.content
-  if (formData.status) updateData.status = formData.status
+  const updateData: any = pickEntityColumns('note', formData, {
+    deny: new Set(['id', 'project_id', 'created_by', 'author_id', 'created_at', 'updated_at']),
+  })
 
   const { data, error } = await supabase
     .from('notes')

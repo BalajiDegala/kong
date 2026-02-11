@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "schema:audit": "python ../tools/schema/audit_page_columns.py --check --verbose"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

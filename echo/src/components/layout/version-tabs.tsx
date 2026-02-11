@@ -11,6 +11,7 @@ interface VersionTabsProps {
 const tabs = [
   { id: 'activity', label: 'Activity', href: '/activity' },
   { id: 'info', label: 'Version Info', href: '/info' },
+  { id: 'publishes', label: 'Publishes', href: '/publishes' },
 ]
 
 export function VersionTabs({ projectId, versionId }: VersionTabsProps) {

@@ -6,8 +6,10 @@ import { EntityTable } from '@/components/table/entity-table'
 import { CreateShotDialog } from '@/components/apex/create-shot-dialog'
 import { EditShotDialog } from '@/components/apex/edit-shot-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { ApexPageShell } from '@/components/apex/apex-page-shell'
+import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { deleteShot, updateShot } from '@/actions/shots'
-import { Plus } from 'lucide-react'
+import { Clapperboard, Plus } from 'lucide-react'
 
 export default function ShotsPage({
   params,
@@ -124,17 +126,26 @@ export default function ShotsPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'cc', label: 'Cc', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    {
+      id: 'cc',
+      label: 'Cc',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+      formatValue: listToString,
+      parseValue: stringToList,
+    },
     { id: 'client_name', label: 'Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'comp_note', label: 'Comp Note', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-    { id: 'cut_order', label: 'Cut Order', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    { id: 'cut_order', label: 'Cut Order', type: 'number' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'dd_client_name', label: 'DD Client Name', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'dd_location', label: 'DD Location', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-    { id: 'delivery_date', label: 'Delivery Date', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'delivery_date', label: 'Delivery Date', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     { id: 'head_duration', label: 'Head Duration', type: 'number' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'head_in', label: 'Head In', type: 'number' as const, width: '100px', editable: true, editor: 'text' as const },
     { id: 'id', label: 'Id', type: 'text' as const, width: '80px' },
-    { id: 'next_review', label: 'Next Review', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'next_review', label: 'Next Review', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     {
       id: 'open_notes',
       label: 'Open Notes',
@@ -156,19 +167,19 @@ export default function ShotsPage({
       formatValue: listToString,
       parseValue: stringToList,
     },
-    { id: 'plates', label: 'Plates', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-    { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
-    { id: 'seq_shot', label: 'Seq Shot', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     {
-      id: 'shot_notes',
-      label: 'Shot Notes',
+      id: 'plates',
+      label: 'Plates',
       type: 'text' as const,
-      width: '160px',
+      width: '120px',
       editable: true,
       editor: 'text' as const,
       formatValue: listToString,
       parseValue: stringToList,
     },
+    { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
+    { id: 'seq_shot', label: 'Seq Shot', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
+    { id: 'shot_notes', label: 'Shot Notes', type: 'text' as const, width: '220px', editable: true, editor: 'textarea' as const },
     {
       id: 'sub_shots',
       label: 'Sub Shots',
@@ -180,7 +191,7 @@ export default function ShotsPage({
       parseValue: stringToList,
     },
     { id: 'tail_out', label: 'Tail Out', type: 'number' as const, width: '100px', editable: true, editor: 'text' as const },
-    { id: 'target_date', label: 'Target Date', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
+    { id: 'target_date', label: 'Target Date', type: 'date' as const, width: '140px', editable: true, editor: 'date' as const },
     { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     {
       id: 'vendor_groups',
@@ -231,47 +242,45 @@ export default function ShotsPage({
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-100">Shots</h2>
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
-            >
-              <Plus className="h-4 w-4" />
-              Add Shot
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {shots.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="text-center">
-                <p className="mb-2 text-zinc-400">No shots yet</p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="text-sm text-amber-400 hover:text-amber-300"
-                >
-                  Create your first shot
-                </button>
-              </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={shots}
-              entityType="shots"
-              onAdd={() => setShowCreateDialog(true)}
-              groupBy="sequence_name"
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onCellUpdate={handleCellUpdate}
-            />
-          )}
-        </div>
-      </div>
+      <ApexPageShell
+        title="Shots"
+        action={
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add Shot
+          </button>
+        }
+      >
+        {shots.length === 0 ? (
+          <ApexEmptyState
+            icon={<Clapperboard className="h-12 w-12" />}
+            title="No shots yet"
+            description="Create your first shot to start tracking work."
+            action={
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              >
+                Create First Shot
+              </button>
+            }
+          />
+        ) : (
+          <EntityTable
+            columns={columns}
+            data={shots}
+            entityType="shots"
+            onAdd={() => setShowCreateDialog(true)}
+            groupBy="sequence_name"
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </ApexPageShell>
     </>
   )
 }

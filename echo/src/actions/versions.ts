@@ -2,18 +2,21 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { pickEntityColumns } from '@/lib/schema'
 
-export async function createVersion(formData: {
-  project_id: string
-  entity_type: 'asset' | 'shot'
-  entity_id: string
-  task_id?: string
-  code: string
-  version_number: number
-  description?: string
-  file_path?: string
-  movie_url?: string
-}) {
+export async function createVersion(
+  formData: Record<string, unknown> & {
+    project_id: string
+    entity_type: 'asset' | 'shot' | 'sequence'
+    entity_id: string
+    task_id?: string
+    code: string
+    version_number: number
+    description?: string
+    file_path?: string
+    movie_url?: string
+  }
+) {
   const supabase = await createClient()
 
   const {
@@ -24,9 +27,14 @@ export async function createVersion(formData: {
     return { error: 'Not authenticated' }
   }
 
+  const extra = pickEntityColumns('version', formData, {
+    deny: new Set(['project_id', 'created_by', 'updated_by']),
+  })
+
   const { data, error } = await supabase
     .from('versions')
     .insert({
+      ...extra,
       project_id: formData.project_id,
       entity_type: formData.entity_type,
       entity_id: formData.entity_id,
@@ -36,7 +44,7 @@ export async function createVersion(formData: {
       description: formData.description || null,
       file_path: formData.file_path || null,
       movie_url: formData.movie_url || null,
-      status: 'pending',
+      status: typeof formData.status === 'string' && formData.status ? formData.status : 'pending',
       created_by: user.id,
     })
     .select()
@@ -52,33 +60,7 @@ export async function createVersion(formData: {
 
 export async function updateVersion(
   versionId: string,
-  formData: {
-    code?: string
-    description?: string
-    status?: string
-    client_approved?: boolean
-    link?: string | null
-    cuts?: string | null
-    date_viewed?: string | null
-    department?: string | null
-    editorial_qc?: string | null
-    flagged?: boolean
-    movie_aspect_ratio?: string | null
-    movie_has_slate?: boolean
-    nuke_script?: string | null
-    playlists?: string[]
-    published_files?: string[]
-    send_exrs?: boolean
-    source_clip?: string | null
-    tags?: string[]
-    task_template?: string | null
-    version_type?: string | null
-    uploaded_movie?: string | null
-    viewed_status?: string | null
-    client_approved_at?: string | null
-    client_approved_by?: string | null
-    client_version_name?: string | null
-  },
+  formData: Record<string, unknown>,
   options?: {
     revalidate?: boolean
     projectId?: string
@@ -94,32 +76,9 @@ export async function updateVersion(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = {}
-  if (formData.code !== undefined) updateData.code = formData.code
-  if (formData.description !== undefined) updateData.description = formData.description
-  if (formData.status !== undefined) updateData.status = formData.status
-  if (formData.client_approved !== undefined) updateData.client_approved = formData.client_approved
-  if (formData.link !== undefined) updateData.link = formData.link
-  if (formData.cuts !== undefined) updateData.cuts = formData.cuts
-  if (formData.date_viewed !== undefined) updateData.date_viewed = formData.date_viewed
-  if (formData.department !== undefined) updateData.department = formData.department
-  if (formData.editorial_qc !== undefined) updateData.editorial_qc = formData.editorial_qc
-  if (formData.flagged !== undefined) updateData.flagged = formData.flagged
-  if (formData.movie_aspect_ratio !== undefined) updateData.movie_aspect_ratio = formData.movie_aspect_ratio
-  if (formData.movie_has_slate !== undefined) updateData.movie_has_slate = formData.movie_has_slate
-  if (formData.nuke_script !== undefined) updateData.nuke_script = formData.nuke_script
-  if (formData.playlists !== undefined) updateData.playlists = formData.playlists
-  if (formData.published_files !== undefined) updateData.published_files = formData.published_files
-  if (formData.send_exrs !== undefined) updateData.send_exrs = formData.send_exrs
-  if (formData.source_clip !== undefined) updateData.source_clip = formData.source_clip
-  if (formData.tags !== undefined) updateData.tags = formData.tags
-  if (formData.task_template !== undefined) updateData.task_template = formData.task_template
-  if (formData.version_type !== undefined) updateData.version_type = formData.version_type
-  if (formData.uploaded_movie !== undefined) updateData.uploaded_movie = formData.uploaded_movie
-  if (formData.viewed_status !== undefined) updateData.viewed_status = formData.viewed_status
-  if (formData.client_approved_at !== undefined) updateData.client_approved_at = formData.client_approved_at
-  if (formData.client_approved_by !== undefined) updateData.client_approved_by = formData.client_approved_by
-  if (formData.client_version_name !== undefined) updateData.client_version_name = formData.client_version_name
+  const updateData: any = pickEntityColumns('version', formData, {
+    deny: new Set(['id', 'project_id', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at']),
+  })
 
   const { data, error } = await supabase
     .from('versions')

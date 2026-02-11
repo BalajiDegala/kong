@@ -18,6 +18,7 @@ interface Conversation {
 interface EchoSidebarProps {
   conversations: Conversation[]
   dmDisplayNames: Record<number, string>
+  conversationMeta?: Record<number, any>
   currentUserId: string
   onRefresh: () => void
 }
@@ -41,9 +42,32 @@ function getAvatarColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length]
 }
 
+function formatRelativeShort(d: Date) {
+  const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000))
+  if (diffSec < 60) return 'now'
+  const diffMin = Math.round(diffSec / 60)
+  if (diffMin < 60) return `${diffMin}m`
+  const diffHr = Math.round(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h`
+  const diffDay = Math.round(diffHr / 24)
+  if (diffDay < 7) return `${diffDay}d`
+  const diffWk = Math.round(diffDay / 7)
+  if (diffWk < 5) return `${diffWk}w`
+  const diffMo = Math.round(diffDay / 30)
+  if (diffMo < 12) return `${diffMo}mo`
+  const diffYr = Math.round(diffDay / 365)
+  return `${diffYr}y`
+}
+
+function cleanPreviewText(input: unknown) {
+  if (typeof input !== 'string') return ''
+  return input.replace(/\s+/g, ' ').trim()
+}
+
 export function EchoSidebar({
   conversations,
   dmDisplayNames,
+  conversationMeta = {},
   currentUserId,
   onRefresh,
 }: EchoSidebarProps) {
@@ -136,23 +160,47 @@ export function EchoSidebar({
               <div className="space-y-0.5">
                 {filteredChannels.map((conv) => {
                   const isActive = pathname === `/echo/${conv.id}`
+                  const meta = conversationMeta[conv.id] || {}
+                  const last = meta.lastMessage || null
+                  const lastAt = last?.created_at ? new Date(last.created_at) : null
+                  const timeLabel = lastAt ? formatRelativeShort(lastAt) : ''
+                  const unread = !!meta.unread && !isActive
+                  const preview = last
+                    ? `${last.author_id === currentUserId ? 'You' : (last.author?.display_name || last.author?.email || 'Someone')}: ${cleanPreviewText(last.content)}`
+                    : 'No messages yet'
                   return (
                     <Link
                       key={conv.id}
                       href={`/echo/${conv.id}`}
-                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition ${
+                      className={`rounded-md px-2 py-2 text-sm transition ${
                         isActive
                           ? 'border-l-2 border-amber-400 bg-zinc-800 pl-1.5 text-zinc-100'
                           : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
                       }`}
                     >
-                      <Hash className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <span className="truncate">{conv.name}</span>
-                      {conv.project && (
-                        <span className="ml-auto shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
-                          {conv.project.code}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Hash className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <span className="min-w-0 flex-1 truncate font-medium">{conv.name}</span>
+                        {conv.project && (
+                          <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                            {conv.project.code}
+                          </span>
+                        )}
+                        {timeLabel && (
+                          <span className="shrink-0 text-[10px] font-medium text-zinc-600">
+                            {timeLabel}
+                          </span>
+                        )}
+                        {unread && (
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full bg-amber-400"
+                            aria-label="Unread"
+                          />
+                        )}
+                      </div>
+                      <p className="mt-0.5 line-clamp-1 pl-[22px] text-[11px] text-zinc-600">
+                        {preview}
+                      </p>
                     </Link>
                   )
                 })}
@@ -172,24 +220,52 @@ export function EchoSidebar({
                 {filteredDms.map((conv) => {
                   const isActive = pathname === `/echo/${conv.id}`
                   const displayName = dmDisplayNames[conv.id] || 'Direct Message'
+                  const meta = conversationMeta[conv.id] || {}
+                  const last = meta.lastMessage || null
+                  const lastAt = last?.created_at ? new Date(last.created_at) : null
+                  const timeLabel = lastAt ? formatRelativeShort(lastAt) : ''
+                  const unread = !!meta.unread && !isActive
+                  const preview = last
+                    ? last.author_id === currentUserId
+                      ? `You: ${cleanPreviewText(last.content)}`
+                      : cleanPreviewText(last.content)
+                    : 'No messages yet'
                   const initial = displayName.charAt(0).toUpperCase()
                   const colorClass = getAvatarColor(displayName)
                   return (
                     <Link
                       key={conv.id}
                       href={`/echo/${conv.id}`}
-                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition ${
+                      className={`rounded-md px-2 py-2 text-sm transition ${
                         isActive
                           ? 'border-l-2 border-amber-400 bg-zinc-800 pl-1.5 text-zinc-100'
                           : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
                       }`}
                     >
-                      <div
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium text-white ${colorClass}`}
-                      >
-                        {initial}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium text-white ${colorClass}`}
+                        >
+                          {initial}
+                        </div>
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {displayName}
+                        </span>
+                        {timeLabel && (
+                          <span className="shrink-0 text-[10px] font-medium text-zinc-600">
+                            {timeLabel}
+                          </span>
+                        )}
+                        {unread && (
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full bg-amber-400"
+                            aria-label="Unread"
+                          />
+                        )}
                       </div>
-                      <span className="truncate">{displayName}</span>
+                      <p className="mt-0.5 line-clamp-1 pl-[32px] text-[11px] text-zinc-600">
+                        {preview}
+                      </p>
                     </Link>
                   )
                 })}
