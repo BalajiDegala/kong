@@ -4,6 +4,34 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumns } from '@/lib/schema'
 
+function toPublishedFilePolicyError(
+  operation: 'create' | 'update' | 'delete',
+  error: any,
+  context?: { projectId?: string | number | null; userId?: string | null }
+) {
+  const message = String(error?.message || '')
+  if (!/row-level security|permission denied|violates row-level security policy/i.test(message)) {
+    return message || 'Database operation failed'
+  }
+
+  const actionLabel =
+    operation === 'create'
+      ? 'create'
+      : operation === 'update'
+        ? 'update'
+        : 'delete'
+
+  const details = [
+    context?.projectId !== undefined ? `project_id=${context.projectId}` : null,
+    context?.userId ? `user_id=${context.userId}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+
+  const suffix = details ? ` (${details})` : ''
+  return `Unable to ${actionLabel} Published File: database RLS policy blocked this action. Run the published_files RLS fix SQL and ensure your user is a member of this project.${suffix}`
+}
+
 export async function createPublishedFile(formData: {
   project_id: string
   entity_type: 'shot' | 'sequence' | 'asset' | 'task' | 'version' | 'note' | 'project'
@@ -43,10 +71,6 @@ export async function createPublishedFile(formData: {
     return { error: 'Not authenticated' }
   }
 
-  const extra = pickEntityColumns('published_file', formData as any, {
-    deny: new Set(['project_id', 'published_by', 'created_by', 'updated_by']),
-  })
-
   const parseMaybeNumber = (value?: string | number | null) => {
     if (value === undefined || value === null || value === '') return null
     if (typeof value === 'number') return value
@@ -54,9 +78,28 @@ export async function createPublishedFile(formData: {
     return Number.isNaN(parsed) ? value : parsed
   }
 
+  const normalizedProjectId = parseMaybeNumber(formData.project_id)
+  const { data: membership } = await supabase
+    .from('project_members')
+    .select('project_id')
+    .eq('project_id', normalizedProjectId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!membership) {
+    return {
+      error:
+        `Unable to create Published File: your user is not a member of this project in project_members (project_id=${normalizedProjectId}, user_id=${user.id}).`,
+    }
+  }
+
+  const extra = pickEntityColumns('published_file', formData as any, {
+    deny: new Set(['project_id', 'published_by', 'created_by', 'updated_by']),
+  })
+
   const insertData: any = {
     ...extra,
-    project_id: parseMaybeNumber(formData.project_id),
+    project_id: normalizedProjectId,
     code: formData.code,
     name: formData.name ?? formData.code,
     status: formData.status ?? 'pending',
@@ -101,7 +144,12 @@ export async function createPublishedFile(formData: {
     .single()
 
   if (error) {
-    return { error: error.message }
+    return {
+      error: toPublishedFilePolicyError('create', error, {
+        projectId: normalizedProjectId,
+        userId: user.id,
+      }),
+    }
   }
 
   revalidatePath(`/apex/${formData.project_id}/published-files`)
@@ -138,7 +186,7 @@ export async function updatePublishedFile(
     .single()
 
   if (error) {
-    return { error: error.message }
+    return { error: toPublishedFilePolicyError('update', error, { userId: user.id }) }
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -177,7 +225,7 @@ export async function deletePublishedFile(publishedFileId: string, projectId: st
     .eq('id', publishedFileId)
 
   if (error) {
-    return { error: error.message }
+    return { error: toPublishedFilePolicyError('delete', error, { userId: user.id }) }
   }
 
   revalidatePath(`/apex/${projectId}/published-files`)

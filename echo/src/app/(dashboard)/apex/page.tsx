@@ -7,7 +7,8 @@ import { EntityTable } from '@/components/table/entity-table'
 import { CreateProjectDialog } from '@/components/apex/create-project-dialog'
 import { EditProjectDialog } from '@/components/apex/edit-project-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
-import { deleteProject } from '@/actions/projects'
+import { deleteProject, updateProject } from '@/actions/projects'
+import type { TableColumn } from '@/components/table/types'
 import { Plus } from 'lucide-react'
 
 export default function ApexPage() {
@@ -54,26 +55,82 @@ export default function ApexPage() {
     return await deleteProject(selectedProject.id)
   }
 
+  async function handleCellUpdate(row: any, column: TableColumn, value: any) {
+    const payload: Record<string, any> = {}
+
+    if (column.id === 'name') {
+      payload.name = String(value ?? '').trim()
+      if (!payload.name) {
+        throw new Error('Project name is required')
+      }
+    } else if (column.id === 'code') {
+      payload.code = String(value ?? '').trim()
+      if (!payload.code) {
+        throw new Error('Project code is required')
+      }
+    } else if (column.id === 'status') {
+      payload.status = String(value ?? '').trim() || 'active'
+    } else if (column.id === 'description') {
+      payload.description = String(value ?? '')
+    } else {
+      return
+    }
+
+    const result = await updateProject(String(row.id), payload)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+
+    await loadProjects()
+  }
+
   // Prepare columns for table view
   const columns = [
     { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '90px' },
-    { id: 'name', label: 'Project Name', type: 'link' as const, width: '160px' },
-    { id: 'code', label: 'Code', type: 'text' as const, width: '120px' },
-    { id: 'status', label: 'Status', type: 'status' as const, width: '90px' },
-    { id: 'description', label: 'Description', type: 'text' as const, width: '220px' },
+    {
+      id: 'name',
+      label: 'Project Name',
+      type: 'link' as const,
+      width: '160px',
+      editable: true,
+      editor: 'text' as const,
+      linkHref: (row: any) => `/apex/${row.id}`,
+    },
+    {
+      id: 'code',
+      label: 'Code',
+      type: 'text' as const,
+      width: '120px',
+      editable: true,
+      editor: 'text' as const,
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'status' as const,
+      width: '90px',
+      editable: true,
+      editor: 'select' as const,
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'on_hold', label: 'On Hold' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'archived', label: 'Archived' },
+      ],
+    },
+    {
+      id: 'description',
+      label: 'Description',
+      type: 'text' as const,
+      width: '220px',
+      editable: true,
+      editor: 'textarea' as const,
+    },
     { id: 'project_type', label: 'Type', type: 'text' as const, width: '120px' },
-    { id: 'updated_at', label: 'Date Updated', type: 'text' as const, width: '180px' },
-    { id: 'archived', label: 'Archived', type: 'text' as const, width: '90px' },
-    { id: 'updated_by', label: 'Updated By', type: 'text' as const, width: '140px' },
     { id: 'tags', label: 'Tags', type: 'text' as const, width: '160px' },
-    { id: 'billboard', label: 'Billboard', type: 'text' as const, width: '140px' },
-    { id: 'duration', label: 'Duration', type: 'text' as const, width: '100px' },
-    { id: 'end_date', label: 'End Date', type: 'text' as const, width: '120px' },
-    { id: 'favorite', label: 'Favorite', type: 'text' as const, width: '90px' },
-    { id: 'sg_id', label: 'Id', type: 'text' as const, width: '90px' },
-    { id: 'tank_name', label: 'Tank Name', type: 'text' as const, width: '140px' },
-    { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px' },
-    { id: 'users', label: 'Users', type: 'text' as const, width: '160px' },
+    { id: 'created_at', label: 'Date Created', type: 'datetime' as const, width: '180px' },
+    { id: 'updated_at', label: 'Date Updated', type: 'datetime' as const, width: '180px' },
+    { id: 'archived', label: 'Archived', type: 'boolean' as const, width: '90px' },
   ]
 
   if (isLoading) {
@@ -161,11 +218,9 @@ export default function ApexPage() {
             data={projects}
             entityType="projects"
             onAdd={() => setShowCreateDialog(true)}
-            onRowClick={(project) => {
-              window.location.href = `/apex/${project.id}`
-            }}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onCellUpdate={handleCellUpdate}
           />
         </div>
       )}

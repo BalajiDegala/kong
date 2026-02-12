@@ -2,8 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { TableRowActions } from './table-row-actions'
+import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { TableToolbar } from './table-toolbar'
 import type { TableColumn, TableSort } from './types'
 import { createClient } from '@/lib/supabase/client'
@@ -245,13 +244,23 @@ interface EntityTableProps {
   groupBy?: string
   entityType?: string
   onRowClick?: (row: any) => void
+  onRowContextMenu?: (row: any, event: React.MouseEvent<HTMLTableRowElement>) => void
   onEdit?: (row: any) => void
   onDelete?: (row: any) => void
   onAdd?: () => void
   onCellUpdate?: (row: any, column: TableColumn, value: any) => Promise<void> | void
+  cellEditTrigger?: 'double_click' | 'icon' | 'both'
+  rowActions?: (row: any) => RowActionItem[]
   showToolbar?: boolean
   showFiltersPanel?: boolean
   emptyState?: React.ReactNode
+}
+
+type RowActionItem = {
+  label: string
+  icon?: React.ReactNode
+  onClick: () => void
+  variant?: 'default' | 'destructive'
 }
 
 export function EntityTable({
@@ -260,10 +269,13 @@ export function EntityTable({
   groupBy,
   entityType = 'projects',
   onRowClick,
+  onRowContextMenu,
   onEdit,
   onDelete,
   onAdd,
   onCellUpdate,
+  cellEditTrigger = 'icon',
+  rowActions,
   showToolbar = true,
   showFiltersPanel = true,
   emptyState,
@@ -273,7 +285,6 @@ export function EntityTable({
     [columns, entityType]
   )
 
-  const showActions = Boolean(onEdit || onDelete)
   const [view, setView] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [sort, setSort] = useState<TableSort | null>(null)
@@ -305,10 +316,28 @@ export function EntityTable({
   const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>(
     {}
   )
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    actions: RowActionItem[]
+  } | null>(null)
 
   useEffect(() => {
     setGroupById(groupBy ?? null)
   }, [groupBy])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null)
+      }
+    }
+    window.addEventListener('keydown', onEscape)
+    return () => {
+      window.removeEventListener('keydown', onEscape)
+    }
+  }, [contextMenu])
 
   useEffect(() => {
     setColumnOrder((prev) => {
@@ -1007,6 +1036,76 @@ export function EntityTable({
     }
   }
 
+  const resolveRowActions = (row: any): RowActionItem[] => {
+    const actions: RowActionItem[] = []
+
+    if (onEdit) {
+      actions.push({
+        label: 'Edit',
+        onClick: () => onEdit(row),
+      })
+    } else if (onCellUpdate) {
+      const editableColumn = displayColumns.find(
+        (column) => column.editable && column.editor !== 'checkbox'
+      )
+      if (editableColumn) {
+        actions.push({
+          label: 'Edit',
+          onClick: () => startEditing(row, editableColumn),
+        })
+      }
+    }
+
+    if (onDelete) {
+      actions.push({
+        label: 'Delete',
+        onClick: () => onDelete(row),
+        variant: 'destructive',
+      })
+    }
+
+    if (rowActions) {
+      actions.push(...rowActions(row))
+    }
+
+    return actions
+  }
+
+  const openBuiltInContextMenu = (
+    row: any,
+    event: React.MouseEvent<HTMLElement>
+  ) => {
+    const actions = resolveRowActions(row)
+    if (actions.length === 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      actions,
+    })
+  }
+
+  const handleListRowContextMenu = (
+    row: any,
+    event: React.MouseEvent<HTMLTableRowElement>
+  ) => {
+    setContextMenu(null)
+    if (onRowContextMenu) {
+      onRowContextMenu(row, event)
+      return
+    }
+    openBuiltInContextMenu(row, event)
+  }
+
+  const handleGridCardContextMenu = (
+    row: any,
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    if (onRowContextMenu) return
+    openBuiltInContextMenu(row, event)
+  }
+
   return (
     <div className="flex h-full flex-col gap-3">
       {showToolbar && (
@@ -1115,6 +1214,7 @@ export function EntityTable({
                           key={row.id || index}
                           className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 text-left shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition hover:border-zinc-700"
                           onClick={() => onRowClick?.(row)}
+                          onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                         >
                           <div className="flex aspect-square w-full items-center justify-center bg-zinc-900 text-xs text-zinc-500">
                             {thumb ? (
@@ -1139,6 +1239,7 @@ export function EntityTable({
                         key={row.id || index}
                         className="flex flex-col gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 p-3 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
                         onClick={() => onRowClick?.(row)}
+                        onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                       >
                         {displayColumns.slice(0, 3).map((column) => (
                           <div key={column.id}>
@@ -1183,13 +1284,6 @@ export function EntityTable({
                           </div>
                         </th>
                       ))}
-                      {showActions && (
-                        <th
-                          className={`${densityClasses.header} w-12 text-center font-semibold uppercase tracking-[0.2em] text-zinc-400`}
-                        >
-                          Actions
-                        </th>
-                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1197,9 +1291,7 @@ export function EntityTable({
                       <tr className="border-b border-zinc-800">
                         <td
                           colSpan={
-                            displayColumns.length +
-                            (groupById ? 1 : 0) +
-                            (showActions ? 1 : 0)
+                            displayColumns.length + (groupById ? 1 : 0)
                           }
                           className="px-6 py-16"
                         >
@@ -1215,7 +1307,7 @@ export function EntityTable({
                           {groupById && (
                             <tr className="border-b border-zinc-800 bg-zinc-950">
                               <td
-                                colSpan={displayColumns.length + 1 + (showActions ? 1 : 0)}
+                                colSpan={displayColumns.length + 1}
                                 className="px-2.5 py-2 text-sm cursor-pointer hover:bg-zinc-900"
                                 onClick={() => toggleGroup(groupKey)}
                               >
@@ -1236,9 +1328,11 @@ export function EntityTable({
                                 key={row.id || rowIndex}
                                 className="cursor-pointer border-b border-zinc-800 transition hover:bg-zinc-900"
                                 onClick={() => onRowClick?.(row)}
+                                onContextMenu={(event) => handleListRowContextMenu(row, event)}
                               >
                                 {groupById && <td className="w-8" />}
                                 {displayColumns.map((column) => (
+                                  // Cell edit affordance can be icon-only, double-click, or both.
                                   <td
                                     key={column.id}
                                     className={`${densityClasses.cell}`}
@@ -1247,6 +1341,10 @@ export function EntityTable({
                                       minWidth: 80,
                                     }}
                                     onDoubleClick={(event) => {
+                                      const useDoubleClick =
+                                        cellEditTrigger === 'double_click' ||
+                                        cellEditTrigger === 'both'
+                                      if (!useDoubleClick) return
                                       event.stopPropagation()
                                       startEditing(row, column)
                                     }}
@@ -1323,18 +1421,31 @@ export function EntityTable({
                                         />
                                       )
                                     ) : (
-                                      renderCell(column, row[column.id], row)
+                                      <div className="group/cell relative min-h-[18px]">
+                                        {renderCell(column, row[column.id], row)}
+
+                                        {(cellEditTrigger === 'icon' || cellEditTrigger === 'both') &&
+                                        column.editable &&
+                                        onCellUpdate &&
+                                        column.editor !== 'checkbox' ? (
+                                          <button
+                                            type="button"
+                                            aria-label={`Edit ${column.label}`}
+                                            title={`Edit ${column.label}`}
+                                            onClick={(event) => {
+                                              event.preventDefault()
+                                              event.stopPropagation()
+                                              startEditing(row, column)
+                                            }}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 rounded-sm p-1 text-zinc-500 opacity-0 transition hover:bg-zinc-800 hover:text-zinc-200 group-hover/cell:opacity-100"
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </button>
+                                        ) : null}
+                                      </div>
                                     )}
                                   </td>
                                 ))}
-                                {showActions && (
-                                  <td className={`${densityClasses.cell} w-12 text-center`}>
-                                    <TableRowActions
-                                      onEdit={onEdit ? () => onEdit(row) : undefined}
-                                      onDelete={onDelete ? () => onDelete(row) : undefined}
-                                    />
-                                  </td>
-                                )}
                               </tr>
                             ))}
                         </React.Fragment>
@@ -1351,6 +1462,40 @@ export function EntityTable({
 
         {null}
       </div>
+
+      {contextMenu ? (
+        <div
+          className="fixed inset-0 z-50"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            setContextMenu(null)
+          }}
+        >
+          <div
+            className="absolute min-w-[180px] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-2xl"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {contextMenu.actions.map((action, index) => (
+              <button
+                key={`${action.label}-${index}`}
+                type="button"
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-zinc-800 ${
+                  action.variant === 'destructive' ? 'text-red-400' : 'text-zinc-100'
+                }`}
+                onClick={() => {
+                  action.onClick()
+                  setContextMenu(null)
+                }}
+              >
+                {action.icon ? <span className="h-4 w-4">{action.icon}</span> : null}
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -12,6 +12,11 @@ export async function createUser(formData: {
   lastname?: string
   department_name?: string
   role?: string
+  avatar_url?: string | null
+  project_memberships?: Array<{
+    project_id: string | number
+    role?: string
+  }>
 }) {
   const supabase = await createClient()
 
@@ -80,6 +85,7 @@ export async function createUser(formData: {
       display_name: formData.display_name,
       firstname: formData.firstname || null,
       lastname: formData.lastname || null,
+      avatar_url: formData.avatar_url ?? null,
       department_id: departmentId,
       role: formData.role || 'member',
       active: true,
@@ -92,6 +98,39 @@ export async function createUser(formData: {
     return { error: error.message }
   }
 
+  const membershipRole = new Set(['lead', 'member', 'viewer'])
+  const membershipsByProject = new Map<number, 'lead' | 'member' | 'viewer'>()
+  for (const membership of formData.project_memberships || []) {
+    const parsedProjectId =
+      typeof membership.project_id === 'number'
+        ? membership.project_id
+        : Number.parseInt(String(membership.project_id), 10)
+    if (Number.isNaN(parsedProjectId)) continue
+    const normalizedRole = membershipRole.has(String(membership.role))
+      ? (membership.role as 'lead' | 'member' | 'viewer')
+      : 'member'
+    membershipsByProject.set(parsedProjectId, normalizedRole)
+  }
+
+  if (membershipsByProject.size > 0) {
+    const membershipRows = Array.from(membershipsByProject.entries()).map(
+      ([project_id, role]) => ({
+        project_id,
+        user_id: authData.user!.id,
+        role,
+      })
+    )
+    const { error: membershipError } = await serviceClient
+      .from('project_members')
+      .upsert(membershipRows, { onConflict: 'project_id,user_id' })
+
+    if (membershipError) {
+      return {
+        error: `User created, but assigning project access failed: ${membershipError.message}`,
+      }
+    }
+  }
+
   revalidatePath('/people')
   return { data }
 }
@@ -100,8 +139,9 @@ export async function updateProfile(
   userId: string,
   formData: {
     display_name?: string
-    firstname?: string
-    lastname?: string
+    firstname?: string | null
+    lastname?: string | null
+    avatar_url?: string | null
     department_id?: number | null
     role?: string
     active?: boolean
@@ -132,4 +172,96 @@ export async function updateProfile(
 
   revalidatePath('/people')
   return { data }
+}
+
+export async function setUserProjectAccess(
+  userId: string,
+  memberships: Array<{
+    project_id: string | number
+    role?: string
+  }>
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
+
+  if (!currentUser) {
+    return { error: 'Not authenticated' }
+  }
+
+  const serviceClient = createServiceClient()
+  const membershipRole = new Set(['lead', 'member', 'viewer'])
+  const membershipsByProject = new Map<number, 'lead' | 'member' | 'viewer'>()
+
+  for (const membership of memberships || []) {
+    const parsedProjectId =
+      typeof membership.project_id === 'number'
+        ? membership.project_id
+        : Number.parseInt(String(membership.project_id), 10)
+    if (Number.isNaN(parsedProjectId)) continue
+    const normalizedRole = membershipRole.has(String(membership.role))
+      ? (membership.role as 'lead' | 'member' | 'viewer')
+      : 'member'
+    membershipsByProject.set(parsedProjectId, normalizedRole)
+  }
+
+  const { error: deleteError } = await serviceClient
+    .from('project_members')
+    .delete()
+    .eq('user_id', userId)
+
+  if (deleteError) {
+    return { error: deleteError.message }
+  }
+
+  if (membershipsByProject.size > 0) {
+    const rows = Array.from(membershipsByProject.entries()).map(
+      ([project_id, role]) => ({
+        project_id,
+        user_id: userId,
+        role,
+      })
+    )
+    const { error: insertError } = await serviceClient
+      .from('project_members')
+      .insert(rows)
+
+    if (insertError) {
+      return { error: insertError.message }
+    }
+  }
+
+  revalidatePath('/people')
+  return { success: true }
+}
+
+export async function deleteUser(userId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
+
+  if (!currentUser) {
+    return { error: 'Not authenticated' }
+  }
+
+  const serviceClient = createServiceClient()
+
+  const { error } = await serviceClient
+    .from('profiles')
+    .update({
+      active: false,
+      login_enabled: false,
+    })
+    .eq('id', userId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/people')
+  return { success: true }
 }

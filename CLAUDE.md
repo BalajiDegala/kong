@@ -18,16 +18,18 @@ All commands run from the `echo/` directory:
 ```bash
 npm install          # Install dependencies
 npm run dev          # Dev server at http://localhost:3000
-npm run build        # Production build
-npm run lint         # ESLint
-npm test             # Run tests — ALWAYS run after code changes
+npm run build        # Production build — ALWAYS run after code changes to verify no errors
+npm run lint         # ESLint (v9 flat config)
+npm run schema:audit # Audit entity pages against schema columns (Python)
 ```
+
+No test framework is configured yet. Use `npm run build` to catch type errors and broken imports.
 
 ## Architecture
 
 ### Tech Stack
 - **Next.js 16** with App Router, React 19 (async Server Components by default)
-- **Tailwind CSS v4** with PostCSS (not old JIT mode)
+- **Tailwind CSS v4** with PostCSS (no tailwind.config file — v4 uses `@tailwindcss/postcss` plugin only)
 - **Supabase** (self-hosted on Kubernetes at `http://10.100.222.197:8000`)
 - **Shadcn/ui** components, **Lucide** icons
 
@@ -44,7 +46,13 @@ npm test             # Run tests — ALWAYS run after code changes
 
 **Reusable Queries** (`src/lib/supabase/queries.ts`): Functions that accept a `SupabaseClient` parameter for use in both server and client contexts. All respect RLS policies.
 
-**Entity Table System** (`src/components/table/`): Shared `EntityTable` component with `TableColumn` type definitions, toolbar, row actions, grouping, and sorting. Used across all entity pages.
+**Schema System** (`src/lib/schema/`): Generated schema definitions drive entity tables and server actions.
+- `schema.generated.ts` — auto-generated entity/field definitions
+- `getEntitySchema(entity)` — get schema for an entity
+- `pickEntityColumns(entity, input, { deny })` — filter form data to valid columns (used in all server actions to safely extract fields)
+- `getEntityColumns(entity)` — get valid column names as a Set
+
+**Entity Table System** (`src/components/table/`): Schema-driven `EntityTable` component with column persistence (saved to `user_table_preferences` table with localStorage fallback), inline editing, drag-and-drop column reordering, resizing, grouping, filtering, and sorting. Used across all entity pages.
 
 **Component conventions:**
 - Server Components by default; add `'use client'` only when needed
@@ -59,6 +67,7 @@ app/(dashboard)/              # Auth-protected layout with GlobalNav
   apex/page.tsx               # Projects list
   apex/[projectId]/layout.tsx # Project detail with horizontal tab navigation
   apex/[projectId]/           # Overview, assets, sequences, shots, tasks, notes, versions, playlists
+  departments/                # Department management
   inbox/, my-tasks/, people/  # Global pages
 app/auth/                     # Login, OAuth callback, error
 ```

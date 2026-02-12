@@ -135,6 +135,9 @@ export function TableToolbar({
     published_files: 'Published File',
     playlists: 'Playlist',
     projects: 'Project',
+    profiles: 'User',
+    people: 'User',
+    departments: 'Department',
   }
   const entityLabel =
     entityLabels[entityType] ??

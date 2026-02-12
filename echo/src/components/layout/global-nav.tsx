@@ -17,6 +17,7 @@ const navItems = [
   { id: 'projects', label: 'Projects', href: '/apex' },
   { id: 'echo', label: 'Echo', href: '/echo' },
   { id: 'people', label: 'People', href: '/people' },
+  { id: 'departments', label: 'Departments', href: '/departments' },
 ]
 
 export function GlobalNav({ user, profile }: GlobalNavProps) {
