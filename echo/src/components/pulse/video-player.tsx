@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import ReactPlayer from 'react-player'
+import dynamic from 'next/dynamic'
+
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 import {
   Play, Pause, SkipBack, SkipForward,
   ChevronLeft, ChevronRight, Maximize2
@@ -26,7 +28,7 @@ export function VideoPlayer({
   width = '100%',
   height = '100%',
 }: VideoPlayerProps) {
-  const playerRef = useRef<ReactPlayer>(null)
+  const playerRef = useRef<any>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)

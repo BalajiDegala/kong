@@ -39,10 +39,7 @@ export function AnnotationList({
     const supabase = createClient()
     let query = supabase
       .from('annotations')
-      .select(`
-        id, frame_number, timecode, annotation_text, status, created_at,
-        author:profiles!annotations_author_id_fkey(id, display_name)
-      `)
+      .select('id, frame_number, timecode, annotation_text, status, created_at, author_id')
       .order('frame_number', { ascending: true })
 
     if (postMediaId) {
@@ -59,7 +56,22 @@ export function AnnotationList({
       return
     }
 
-    setAnnotations(data || [])
+    // Resolve author profiles in a second query
+    const rows = data || []
+    const authorIds = [...new Set(rows.map(a => a.author_id).filter(Boolean))]
+    const profileMap: Record<string, any> = {}
+
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', authorIds)
+      if (profiles) {
+        for (const p of profiles) profileMap[p.id] = p
+      }
+    }
+
+    setAnnotations(rows.map(a => ({ ...a, author: profileMap[a.author_id] || null })) as any)
     setIsLoading(false)
   }
 

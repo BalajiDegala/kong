@@ -148,13 +148,15 @@ export async function toggleReaction(
 
     // Update denormalized count
     if (target.post_id) {
-      await supabase.rpc('decrement_post_reaction_count', { p_post_id: target.post_id }).catch(() => {
-        // Fallback: update manually
-        return supabase
-          .from('posts')
-          .update({ reaction_count: Math.max(0, -1) })
-          .eq('id', target.post_id!)
-      })
+      const { count } = await supabase
+        .from('post_reactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('post_id', target.post_id)
+
+      await supabase
+        .from('posts')
+        .update({ reaction_count: count || 0 })
+        .eq('id', target.post_id)
     }
 
     revalidatePath('/pulse')

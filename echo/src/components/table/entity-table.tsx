@@ -91,6 +91,18 @@ function stringToList(value: string) {
     .filter(Boolean)
 }
 
+function unknownToStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return stringToList(value)
+  }
+  return []
+}
+
 function resolveSchemaEntityKey(entityType: string): EntityKey | null {
   const normalized = entityType.toLowerCase()
 
@@ -198,6 +210,19 @@ function buildSchemaColumn(field: SchemaField): TableColumn | null {
   return column
 }
 
+function shouldSkipSchemaColumn(field: SchemaField, existing: Set<string>): boolean {
+  const column = field.column
+  if (!column) return false
+  if (!column.endsWith('_id')) return false
+
+  const base = column.slice(0, -3)
+  if (!base) return false
+
+  // If a human-readable label column is already explicitly configured
+  // (e.g. sequence_label), hide the raw numeric/UUID id schema column.
+  return existing.has(`${base}_label`)
+}
+
 function withSchemaColumns(columns: TableColumn[], entityType: string): TableColumn[] {
   const schemaEntity = resolveSchemaEntityKey(entityType)
   if (!schemaEntity) return columns
@@ -210,6 +235,7 @@ function withSchemaColumns(columns: TableColumn[], entityType: string): TableCol
     const column = buildSchemaColumn(field)
     if (!column) continue
     if (existing.has(column.id)) continue
+    if (shouldSkipSchemaColumn(field, existing)) continue
     schemaColumns.push(column)
   }
 
@@ -299,6 +325,8 @@ export function EntityTable({
     columnId: string
   } | null>(null)
   const [draftValue, setDraftValue] = useState('')
+  const [draftListValue, setDraftListValue] = useState<string[]>([])
+  const [multiselectOpen, setMultiselectOpen] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
     () => new Set(resolvedColumns.map((column) => column.id))
   )
@@ -721,6 +749,15 @@ export function EntityTable({
     if (!onCellUpdate || !column.editable || column.editor === 'checkbox') return
     const rawValue = row[column.id]
 
+    if (column.editor === 'multiselect') {
+      const initialValues = unknownToStringList(rawValue)
+      setDraftListValue(initialValues)
+      setDraftValue(initialValues.join(', '))
+      setMultiselectOpen(true)
+      setEditingCell({ rowId: row.id, columnId: column.id })
+      return
+    }
+
     const temporal = inferTemporalKind(column)
     if (temporal === 'date') {
       setDraftValue(toDateInputValue(rawValue))
@@ -745,6 +782,8 @@ export function EntityTable({
   const cancelEditing = () => {
     setEditingCell(null)
     setDraftValue('')
+    setDraftListValue([])
+    setMultiselectOpen(false)
   }
 
   const commitEditing = async () => {
@@ -757,7 +796,12 @@ export function EntityTable({
     }
 
     let nextValue: any = draftValue
-    if (column.parseValue) {
+    if (column.editor === 'multiselect') {
+      nextValue = [...draftListValue]
+      if (column.parseValue) {
+        nextValue = column.parseValue(nextValue, row)
+      }
+    } else if (column.parseValue) {
       nextValue = column.parseValue(draftValue, row)
     } else {
       const inputType = resolveInputType(column)
@@ -1354,7 +1398,86 @@ export function EntityTable({
                                     column.editable &&
                                     onCellUpdate &&
                                     column.editor !== 'checkbox' ? (
-                                      column.editor === 'textarea' ? (
+                                      column.editor === 'multiselect' ? (
+                                        <div
+                                          className="relative w-full"
+                                          onClick={(event) => event.stopPropagation()}
+                                        >
+                                          <button
+                                            type="button"
+                                            onMouseDown={(event) => event.preventDefault()}
+                                            onClick={(event) => {
+                                              event.stopPropagation()
+                                              setMultiselectOpen((previous) => {
+                                                const next = !previous
+                                                if (!next) {
+                                                  cancelEditing()
+                                                }
+                                                return next
+                                              })
+                                            }}
+                                            className="flex w-full items-center justify-between rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left text-xs text-zinc-100"
+                                          >
+                                            <span className="truncate">
+                                              {draftListValue.length > 0
+                                                ? draftListValue.join(', ')
+                                                : `Select ${column.label.toLowerCase()}`}
+                                            </span>
+                                            <ChevronDown
+                                              className={`h-3.5 w-3.5 text-zinc-400 transition ${
+                                                multiselectOpen ? 'rotate-180' : ''
+                                              }`}
+                                            />
+                                          </button>
+
+                                          {multiselectOpen ? (
+                                            <div className="absolute left-0 top-full z-20 mt-1 w-full rounded border border-zinc-700 bg-zinc-900 p-2 shadow-2xl">
+                                              <div className="max-h-40 space-y-1 overflow-y-auto">
+                                                {(column.options ?? []).length === 0 ? (
+                                                  <p className="text-xs text-zinc-500">No options</p>
+                                                ) : (
+                                                  (column.options ?? []).map((option) => (
+                                                    <label
+                                                      key={option.value}
+                                                      className="flex items-center gap-2 text-xs text-zinc-200"
+                                                    >
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={draftListValue.includes(option.value)}
+                                                        onChange={async (event) => {
+                                                          const { checked } = event.target
+                                                          const nextValues = checked
+                                                            ? draftListValue.includes(option.value)
+                                                              ? draftListValue
+                                                              : [...draftListValue, option.value]
+                                                            : draftListValue.filter((item) => item !== option.value)
+
+                                                          setDraftListValue(nextValues)
+                                                          setDraftValue(nextValues.join(', '))
+
+                                                          try {
+                                                            await onCellUpdate(
+                                                              row,
+                                                              column,
+                                                              column.parseValue
+                                                                ? column.parseValue(nextValues, row)
+                                                                : nextValues
+                                                            )
+                                                          } catch (error) {
+                                                            console.error('Failed to update cell:', error)
+                                                          }
+                                                        }}
+                                                        className="h-3.5 w-3.5 rounded border border-zinc-600 bg-zinc-900"
+                                                      />
+                                                      <span>{option.label}</span>
+                                                    </label>
+                                                  ))
+                                                )}
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      ) : column.editor === 'textarea' ? (
                                         <textarea
                                           value={draftValue}
                                           onChange={(event) =>

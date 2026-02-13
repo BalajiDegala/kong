@@ -19,12 +19,13 @@ export function PostFeed({ projectId, currentUserId }: PostFeedProps) {
 
   const loadPosts = useCallback(async (pageNum: number, append = false) => {
     const supabase = createClient()
+
+    // Step 1: fetch posts with project, media, reactions (no profile join — FK points to auth.users)
     let query = supabase
       .from('posts')
       .select(`
         *,
-        author:profiles!posts_author_id_fkey(id, display_name, avatar_url),
-        project:projects!posts_project_id_fkey(id, name, code),
+        project:projects(id, name, code),
         post_media(*),
         post_reactions(reaction_type, user_id)
       `)
@@ -43,13 +44,36 @@ export function PostFeed({ projectId, currentUserId }: PostFeedProps) {
       return
     }
 
-    const newPosts = data || []
-    setHasMore(newPosts.length === pageSize)
+    const rawPosts = data || []
+    setHasMore(rawPosts.length === pageSize)
+
+    // Step 2: resolve author profiles
+    const authorIds = [...new Set(rawPosts.map(p => p.author_id).filter(Boolean))]
+    let profileMap: Record<string, any> = {}
+
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', authorIds)
+
+      if (profiles) {
+        for (const p of profiles) {
+          profileMap[p.id] = p
+        }
+      }
+    }
+
+    // Step 3: merge
+    const enriched = rawPosts.map(post => ({
+      ...post,
+      author: profileMap[post.author_id] || null,
+    }))
 
     if (append) {
-      setPosts(prev => [...prev, ...newPosts])
+      setPosts(prev => [...prev, ...enriched])
     } else {
-      setPosts(newPosts)
+      setPosts(enriched)
     }
     setIsLoading(false)
   }, [projectId])
@@ -73,7 +97,6 @@ export function PostFeed({ projectId, currentUserId }: PostFeedProps) {
           ...(projectId ? { filter: `project_id=eq.${projectId}` } : {}),
         },
         () => {
-          // Reload feed on any change
           loadPosts(0)
         }
       )

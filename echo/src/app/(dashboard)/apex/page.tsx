@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProjects } from '@/lib/supabase/queries'
 import { EntityTable } from '@/components/table/entity-table'
@@ -9,10 +9,14 @@ import { EditProjectDialog } from '@/components/apex/edit-project-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 import { deleteProject, updateProject } from '@/actions/projects'
 import type { TableColumn } from '@/components/table/types'
+import { listTagNames, parseTagsValue } from '@/lib/tags/options'
+import { listStatusNames } from '@/lib/status/options'
 import { Plus } from 'lucide-react'
 
 export default function ApexPage() {
   const [projects, setProjects] = useState<any[]>([])
+  const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -20,8 +24,33 @@ export default function ApexPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null)
 
   useEffect(() => {
-    loadProjects()
+    void loadProjects()
+    void loadTagOptions()
+    void loadStatusOptions()
   }, [])
+
+  const tagOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...availableTags,
+          ...projects.flatMap((project) => parseTagsValue(project?.tags)),
+        ])
+      ).sort((a, b) => a.localeCompare(b)),
+    [availableTags, projects]
+  )
+  const statusOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...availableStatuses,
+          ...projects
+            .map((project) => String(project?.status ?? '').trim())
+            .filter(Boolean),
+        ])
+      ),
+    [availableStatuses, projects]
+  )
 
   async function loadProjects() {
     try {
@@ -37,6 +66,24 @@ export default function ApexPage() {
       console.error('Error fetching projects:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function loadTagOptions() {
+    try {
+      setAvailableTags(await listTagNames())
+    } catch (error) {
+      console.error('Error fetching tags:', error)
+      setAvailableTags([])
+    }
+  }
+
+  async function loadStatusOptions() {
+    try {
+      setAvailableStatuses(await listStatusNames('project'))
+    } catch (error) {
+      console.error('Error fetching status options:', error)
+      setAvailableStatuses([])
     }
   }
 
@@ -72,6 +119,8 @@ export default function ApexPage() {
       payload.status = String(value ?? '').trim() || 'active'
     } else if (column.id === 'description') {
       payload.description = String(value ?? '')
+    } else if (column.id === 'tags') {
+      payload.tags = parseTagsValue(value)
     } else {
       return
     }
@@ -112,10 +161,7 @@ export default function ApexPage() {
       editable: true,
       editor: 'select' as const,
       options: [
-        { value: 'active', label: 'Active' },
-        { value: 'on_hold', label: 'On Hold' },
-        { value: 'completed', label: 'Completed' },
-        { value: 'archived', label: 'Archived' },
+        ...statusOptions.map((status) => ({ value: status, label: status })),
       ],
     },
     {
@@ -127,7 +173,17 @@ export default function ApexPage() {
       editor: 'textarea' as const,
     },
     { id: 'project_type', label: 'Type', type: 'text' as const, width: '120px' },
-    { id: 'tags', label: 'Tags', type: 'text' as const, width: '160px' },
+    {
+      id: 'tags',
+      label: 'Tags',
+      type: 'text' as const,
+      width: '220px',
+      editable: true,
+      editor: 'multiselect' as const,
+      options: tagOptions.map((tag) => ({ value: tag, label: tag })),
+      formatValue: (value: unknown) => parseTagsValue(value).join(', '),
+      parseValue: (value: unknown) => parseTagsValue(value),
+    },
     { id: 'created_at', label: 'Date Created', type: 'datetime' as const, width: '180px' },
     { id: 'updated_at', label: 'Date Updated', type: 'datetime' as const, width: '180px' },
     { id: 'archived', label: 'Archived', type: 'boolean' as const, width: '90px' },
@@ -147,7 +203,11 @@ export default function ApexPage() {
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) loadProjects()
+          if (!open) {
+            void loadProjects()
+            void loadTagOptions()
+            void loadStatusOptions()
+          }
         }}
       />
 
@@ -155,7 +215,11 @@ export default function ApexPage() {
         open={showEditDialog}
         onOpenChange={(open) => {
           setShowEditDialog(open)
-          if (!open) loadProjects()
+          if (!open) {
+            void loadProjects()
+            void loadTagOptions()
+            void loadStatusOptions()
+          }
         }}
         project={selectedProject}
       />

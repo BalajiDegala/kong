@@ -269,7 +269,7 @@ export default function AssetShotsPage({
           </div>
         ) : (
           <EntityTable
-            columns={columns}
+            columns={columns as any}
             data={shots}
             entityType="shots_asset"
             onAdd={() => setShowCreateDialog(true)}

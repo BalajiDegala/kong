@@ -22,6 +22,7 @@ export type TableColumn = {
     | 'text'
     | 'textarea'
     | 'select'
+    | 'multiselect'
     | 'checkbox'
     | 'date'
     | 'datetime'
@@ -30,7 +31,7 @@ export type TableColumn = {
     | 'url'
   options?: Array<{ value: string; label: string }>
   formatValue?: (value: any, row: any) => string
-  parseValue?: (value: string, row: any) => any
+  parseValue?: (value: any, row?: any) => any
   linkHref?: (row: any) => string
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { createAsset } from '@/actions/assets'
@@ -29,6 +29,20 @@ interface CreateAssetDialogProps {
   lockShot?: boolean
 }
 
+type SequenceOption = {
+  id: number
+  code?: string | null
+  name?: string | null
+}
+
+type ShotOption = {
+  id: number
+  code?: string | null
+  name?: string | null
+  sequence_id?: number | null
+  sequence?: { code?: string | null } | null
+}
+
 const ASSET_TYPES = [
   { value: 'character', label: 'Character' },
   { value: 'prop', label: 'Prop' },
@@ -50,6 +64,58 @@ function parseList(value: string) {
     .filter(Boolean)
 }
 
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
+function formatSequenceEntityCode(sequence: { code?: unknown; name?: unknown } | null | undefined): string {
+  if (!sequence) return ''
+  const code = asText(sequence.code).trim()
+  if (code) return code
+  return asText(sequence.name).trim()
+}
+
+function formatShotEntityCode(shotCode: unknown, sequenceCode?: unknown): string {
+  const shot = asText(shotCode).trim()
+  const sequence = asText(sequenceCode).trim()
+  if (!shot) return ''
+  if (!sequence) return shot
+  if (shot.toLowerCase().startsWith(sequence.toLowerCase())) return shot
+  return `${sequence}${shot}`
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function optimizeThumbnailDataUrl(file: File) {
+  const rawDataUrl = await fileToDataUrl(file)
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Invalid image file'))
+    img.src = rawDataUrl
+  })
+
+  const maxSide = 256
+  const ratio = Math.min(maxSide / img.width, maxSide / img.height, 1)
+  const width = Math.max(1, Math.round(img.width * ratio))
+  const height = Math.max(1, Math.round(img.height * ratio))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Failed to process image')
+  ctx.drawImage(img, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', 0.84)
+}
+
 export function CreateAssetDialog({
   open,
   onOpenChange,
@@ -62,15 +128,18 @@ export function CreateAssetDialog({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sequences, setSequences] = useState<any[]>([])
-  const [shots, setShots] = useState<any[]>([])
+  const [sequences, setSequences] = useState<SequenceOption[]>([])
+  const [shots, setShots] = useState<ShotOption[]>([])
   const [projectLabel, setProjectLabel] = useState(projectId)
   const [showMoreFields, setShowMoreFields] = useState(false)
-  const [extraFields, setExtraFields] = useState<Record<string, any>>({})
+  const [extraFields, setExtraFields] = useState<Record<string, unknown>>({})
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
+  const [thumbnailFileName, setThumbnailFileName] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
     code: '',
+    thumbnail_blur_hash: '',
     asset_type: 'prop',
     description: '',
     client_name: '',
@@ -88,44 +157,27 @@ export function CreateAssetDialog({
     sequences: '',
   })
 
-  useEffect(() => {
-    if (!open) return
-    setShowMoreFields(false)
-    loadSequences()
-    loadShots()
-    loadProject()
-  }, [open, projectId])
-
-  useEffect(() => {
-    if (!open) return
-    setFormData((prev) => ({
-      ...prev,
-      sequence_id: defaultSequenceId ? String(defaultSequenceId) : prev.sequence_id,
-      shot_id: defaultShotId ? String(defaultShotId) : prev.shot_id,
-    }))
-  }, [open, defaultSequenceId, defaultShotId])
-
-  async function loadSequences() {
+  const loadSequences = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('sequences')
       .select('id, code, name')
       .eq('project_id', projectId)
       .order('code')
-    setSequences(data || [])
-  }
+    setSequences((data || []) as SequenceOption[])
+  }, [projectId])
 
-  async function loadShots() {
+  const loadShots = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('shots')
-      .select('id, code, name')
+      .select('id, code, name, sequence_id, sequence:sequences!shots_sequence_id_fkey(code)')
       .eq('project_id', projectId)
       .order('code')
-    setShots(data || [])
-  }
+    setShots((data || []) as ShotOption[])
+  }, [projectId])
 
-  async function loadProject() {
+  const loadProject = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('projects')
@@ -140,6 +192,49 @@ export function CreateAssetDialog({
 
     const label = data.code || data.name || projectId
     setProjectLabel(label)
+  }, [projectId])
+
+  useEffect(() => {
+    if (!open) return
+    setShowMoreFields(false)
+    void loadSequences()
+    void loadShots()
+    void loadProject()
+  }, [loadProject, loadSequences, loadShots, open])
+
+  useEffect(() => {
+    if (open) return
+    setThumbnailDataUrl(null)
+    setThumbnailFileName('')
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    setFormData((prev) => ({
+      ...prev,
+      sequence_id: defaultSequenceId ? String(defaultSequenceId) : prev.sequence_id,
+      shot_id: defaultShotId ? String(defaultShotId) : prev.shot_id,
+    }))
+  }, [open, defaultSequenceId, defaultShotId])
+
+  async function handleThumbnailSelect(file: File | null) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Thumbnail must be an image file')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Thumbnail image is too large (max 8MB before compression)')
+      return
+    }
+    try {
+      const optimized = await optimizeThumbnailDataUrl(file)
+      setThumbnailDataUrl(optimized)
+      setThumbnailFileName(file.name)
+      setError('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to process thumbnail')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,6 +257,8 @@ export function CreateAssetDialog({
         project_id: projectId,
         name: normalizedName,
         code: normalizedCode,
+        thumbnail_url: thumbnailDataUrl || null,
+        thumbnail_blur_hash: formData.thumbnail_blur_hash.trim() || null,
         asset_type: formData.asset_type,
         description: formData.description,
         client_name: formData.client_name || null,
@@ -191,6 +288,7 @@ export function CreateAssetDialog({
       setFormData({
         name: '',
         code: '',
+        thumbnail_blur_hash: '',
         asset_type: 'prop',
         description: '',
         client_name: '',
@@ -207,6 +305,8 @@ export function CreateAssetDialog({
         parent_assets: '',
         sequences: '',
       })
+      setThumbnailDataUrl(null)
+      setThumbnailFileName('')
       setExtraFields({})
       setShowMoreFields(false)
       onOpenChange(false)
@@ -356,6 +456,61 @@ export function CreateAssetDialog({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label className="text-sm font-medium text-zinc-300">Thumbnail</Label>
+                    <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+                      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-zinc-800">
+                        {thumbnailDataUrl ? (
+                          <img src={thumbnailDataUrl} alt="" className="h-12 w-12 object-cover" />
+                        ) : (
+                          <span className="text-xs text-zinc-500">No Img</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => void handleThumbnailSelect(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200 hover:file:bg-zinc-700"
+                          disabled={isLoading}
+                        />
+                        <p className="mt-1 truncate text-xs text-zinc-500">
+                          {thumbnailFileName || 'Optional'}
+                        </p>
+                      </div>
+                      {thumbnailDataUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setThumbnailDataUrl(null)
+                            setThumbnailFileName('')
+                          }}
+                          className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-zinc-600"
+                          disabled={isLoading}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="thumbnail_blur_hash" className="text-sm font-medium text-zinc-300">
+                      Thumbnail Hash
+                    </Label>
+                    <Input
+                      id="thumbnail_blur_hash"
+                      placeholder="Optional blur hash"
+                      value={formData.thumbnail_blur_hash}
+                      onChange={(e) =>
+                        setFormData({ ...formData, thumbnail_blur_hash: e.target.value })
+                      }
+                      disabled={isLoading}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-[110px_1fr] items-start gap-3">
                   <Label htmlFor="sequence" className={labelClass}>
                     Sequence:
@@ -372,7 +527,7 @@ export function CreateAssetDialog({
                       <SelectItem value="none">None</SelectItem>
                       {sequences.map((seq) => (
                         <SelectItem key={seq.id} value={seq.id.toString()}>
-                          {seq.code} - {seq.name}
+                          {formatSequenceEntityCode(seq)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -395,7 +550,7 @@ export function CreateAssetDialog({
                       <SelectItem value="none">None</SelectItem>
                       {shots.map((shot) => (
                         <SelectItem key={shot.id} value={shot.id.toString()}>
-                          {shot.code} - {shot.name}
+                          {formatShotEntityCode(shot.code, shot.sequence?.code)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -563,6 +718,7 @@ export function CreateAssetDialog({
                     'sequences',
                     'asset_type',
                     'thumbnail_url',
+                    'thumbnail_blur_hash',
                   ])}
                 />
               </div>

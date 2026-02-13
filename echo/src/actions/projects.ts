@@ -3,10 +3,17 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
+function sanitizeTags(value?: string[] | null): string[] {
+  return (value || [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+}
+
 export async function createProject(formData: {
   name: string
   code: string
   description?: string
+  tags?: string[]
 }) {
   const supabase = await createClient()
 
@@ -24,6 +31,7 @@ export async function createProject(formData: {
       name: formData.name,
       code: formData.code.toUpperCase(),
       description: formData.description || null,
+      tags: sanitizeTags(formData.tags),
       status: 'active',
       created_by: user.id,
     })
@@ -45,6 +53,7 @@ export async function updateProject(
     code?: string
     description?: string
     status?: string
+    tags?: string[]
   }
 ) {
   const supabase = await createClient()
@@ -57,11 +66,12 @@ export async function updateProject(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = {}
+  const updateData: Record<string, unknown> = {}
   if (formData.name) updateData.name = formData.name
   if (formData.code) updateData.code = formData.code.toUpperCase()
   if (formData.description !== undefined) updateData.description = formData.description
   if (formData.status) updateData.status = formData.status
+  if (formData.tags !== undefined) updateData.tags = sanitizeTags(formData.tags)
 
   const { data, error } = await supabase
     .from('projects')

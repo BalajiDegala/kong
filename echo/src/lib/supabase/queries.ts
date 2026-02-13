@@ -534,6 +534,142 @@ export async function getConversationMembers(supabase: SupabaseClient, conversat
 }
 
 // =============================================================================
+// PULSE — POST QUERIES
+// =============================================================================
+
+export async function getPosts(
+  supabase: SupabaseClient,
+  options?: {
+    projectId?: number
+    limit?: number
+    offset?: number
+  }
+) {
+  // Two-step query: posts first, then resolve author profiles
+  // (posts.author_id FK points to auth.users, not profiles)
+  let query = supabase
+    .from('posts')
+    .select(`
+      *,
+      project:projects(id, name, code),
+      post_media(*),
+      post_reactions(reaction_type, user_id)
+    `)
+    .order('created_at', { ascending: false })
+
+  if (options?.projectId) {
+    query = query.eq('project_id', options.projectId)
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit)
+  }
+
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 20) - 1)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  if (!data || data.length === 0) return data || []
+
+  // Resolve author profiles
+  const authorIds = [...new Set(data.map((p: any) => p.author_id).filter(Boolean))]
+  const profileMap: Record<string, any> = {}
+
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', authorIds)
+
+    if (profiles) {
+      for (const p of profiles) profileMap[p.id] = p
+    }
+  }
+
+  return data.map((post: any) => ({
+    ...post,
+    author: profileMap[post.author_id] || null,
+  }))
+}
+
+export async function getPostComments(
+  supabase: SupabaseClient,
+  postId: number
+) {
+  const { data, error } = await supabase
+    .from('notes')
+    .select(`
+      *,
+      author:profiles!notes_author_id_fkey(id, display_name, avatar_url)
+    `)
+    .eq('entity_type', 'post')
+    .eq('entity_id', postId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function getAnnotations(
+  supabase: SupabaseClient,
+  options: {
+    postMediaId?: number
+    versionId?: number
+    frameNumber?: number
+    status?: string
+  }
+) {
+  // Two-step: annotations first, then resolve author profiles
+  let query = supabase
+    .from('annotations')
+    .select('*')
+    .order('frame_number', { ascending: true })
+
+  if (options.postMediaId) {
+    query = query.eq('post_media_id', options.postMediaId)
+  }
+
+  if (options.versionId) {
+    query = query.eq('version_id', options.versionId)
+  }
+
+  if (options.frameNumber !== undefined) {
+    query = query.eq('frame_number', options.frameNumber)
+  }
+
+  if (options.status) {
+    query = query.eq('status', options.status)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  if (!data || data.length === 0) return data || []
+
+  const authorIds = [...new Set(data.map((a: any) => a.author_id).filter(Boolean))]
+  const profileMap: Record<string, any> = {}
+
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', authorIds)
+
+    if (profiles) {
+      for (const p of profiles) profileMap[p.id] = p
+    }
+  }
+
+  return data.map((ann: any) => ({
+    ...ann,
+    author: profileMap[ann.author_id] || null,
+  }))
+}
+
+// =============================================================================
 // CONNECTION TEST
 // =============================================================================
 

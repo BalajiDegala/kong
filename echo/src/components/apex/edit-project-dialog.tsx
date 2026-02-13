@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateProject } from '@/actions/projects'
+import { listTagNames, parseTagsValue } from '@/lib/tags/options'
+import { listStatusNames } from '@/lib/status/options'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -26,19 +28,23 @@ import {
 interface EditProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  project: any
+  project: {
+    id: string | number
+    name?: string | null
+    code?: string | null
+    description?: string | null
+    status?: string | null
+    tags?: unknown
+  } | null
 }
-
-const PROJECT_STATUSES = [
-  { value: 'active', label: 'Active' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-]
 
 export function EditProjectDialog({ open, onOpenChange, project }: EditProjectDialogProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingTags, setIsLoadingTags] = useState(false)
+  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false)
+  const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -46,6 +52,7 @@ export function EditProjectDialog({ open, onOpenChange, project }: EditProjectDi
     code: project?.code || '',
     description: project?.description || '',
     status: project?.status || 'active',
+    tags: parseTagsValue(project?.tags),
   })
 
   useEffect(() => {
@@ -55,17 +62,80 @@ export function EditProjectDialog({ open, onOpenChange, project }: EditProjectDi
         code: project.code || '',
         description: project.description || '',
         status: project.status || 'active',
+        tags: parseTagsValue(project.tags),
       })
     }
   }, [project])
 
+  useEffect(() => {
+    if (!open) return
+    void loadTags()
+    void loadStatuses()
+  }, [open])
+
+  const tagOptions = useMemo(
+    () => Array.from(new Set([...availableTags, ...formData.tags])).sort((a, b) => a.localeCompare(b)),
+    [availableTags, formData.tags]
+  )
+  const statusOptions = useMemo(
+    () => Array.from(new Set([...availableStatuses, formData.status])).filter(Boolean),
+    [availableStatuses, formData.status]
+  )
+
+  async function loadTags() {
+    try {
+      setIsLoadingTags(true)
+      setAvailableTags(await listTagNames())
+    } catch (err) {
+      console.error('Failed to load tags:', err)
+      setAvailableTags([])
+    } finally {
+      setIsLoadingTags(false)
+    }
+  }
+
+  async function loadStatuses() {
+    try {
+      setIsLoadingStatuses(true)
+      const statuses = await listStatusNames('project')
+      setAvailableStatuses(statuses)
+      setFormData((previous) => {
+        if (!previous.status && statuses.length > 0) {
+          return { ...previous, status: statuses[0] }
+        }
+        return previous
+      })
+    } catch (err) {
+      console.error('Failed to load statuses:', err)
+      setAvailableStatuses([])
+    } finally {
+      setIsLoadingStatuses(false)
+    }
+  }
+
+  function toggleTag(tag: string) {
+    setFormData((previous) => {
+      const hasTag = previous.tags.includes(tag)
+      return {
+        ...previous,
+        tags: hasTag
+          ? previous.tags.filter((item) => item !== tag)
+          : [...previous.tags, tag],
+      }
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!project?.id) {
+      setError('Invalid project selected')
+      return
+    }
     setIsLoading(true)
     setError(null)
 
     try {
-      const result = await updateProject(project.id, formData)
+      const result = await updateProject(String(project.id), formData)
 
       if (result.error) throw new Error(result.error)
 
@@ -124,15 +194,15 @@ export function EditProjectDialog({ open, onOpenChange, project }: EditProjectDi
               <Select
                 value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
-                disabled={isLoading}
+                disabled={isLoading || isLoadingStatuses}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROJECT_STATUSES.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
+                  {(statusOptions.length > 0 ? statusOptions : ['active']).map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -148,6 +218,31 @@ export function EditProjectDialog({ open, onOpenChange, project }: EditProjectDi
                 rows={3}
                 disabled={isLoading}
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Tags</Label>
+              {isLoadingTags ? (
+                <p className="text-xs text-zinc-500">Loading tags...</p>
+              ) : tagOptions.length === 0 ? (
+                <p className="text-xs text-zinc-500">No tags found. Create tags on the Tags page first.</p>
+              ) : (
+                <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-zinc-800 p-2">
+                  {tagOptions.map((tag) => (
+                    <label key={tag} className="flex items-center gap-2 text-sm text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={formData.tags.includes(tag)}
+                        onChange={() => toggleTag(tag)}
+                        disabled={isLoading}
+                        className="h-4 w-4 rounded border border-zinc-600 bg-zinc-900"
+                      />
+                      <span>{tag}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-zinc-500">Select one or more tags from the Tags page.</p>
             </div>
           </div>
 

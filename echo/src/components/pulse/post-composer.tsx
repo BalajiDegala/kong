@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -19,8 +19,15 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const editor = useEditor({
+    immediatelyRender: typeof window !== 'undefined',
     extensions: [
       StarterKit,
       Placeholder.configure({
@@ -33,6 +40,16 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
       },
     },
   })
+
+  useEffect(() => {
+    if (isMounted) {
+      console.log('Component mounted. Editor state:', { editor: !!editor, isDestroyed: editor?.isDestroyed })
+      if (editor) {
+        console.log('Editor initialized successfully')
+        console.log('Editor can be used:', editor.can())
+      }
+    }
+  }, [editor, isMounted])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -53,12 +70,27 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
   }, [mediaPreviews])
 
   const handleSubmit = async () => {
-    if (!editor || (!editor.getText().trim() && mediaFiles.length === 0)) return
+    console.log('handleSubmit called', { editor: !!editor, editorText: editor?.getText(), mediaFiles: mediaFiles.length })
+
+    if (!editor) {
+      console.error('Editor not initialized')
+      setError('Editor not ready. Please try again.')
+      return
+    }
+
+    const text = editor.getText().trim()
+    if (!text && mediaFiles.length === 0) {
+      console.log('No content to post')
+      return
+    }
 
     setIsSubmitting(true)
+    setError(null)
     try {
       const content = editor.getText()
       const contentHtml = editor.getHTML()
+
+      console.log('Creating post:', { content, contentHtml, project_id: projectId })
 
       const result = await createPost({
         content,
@@ -66,8 +98,11 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
         project_id: projectId || null,
       })
 
+      console.log('createPost result:', result)
+
       if (result.error) {
         console.error('Failed to create post:', result.error)
+        setError(result.error)
         return
       }
 
@@ -130,6 +165,13 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
         )}
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="mx-4 mt-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 text-sm text-red-500">
+          {error}
+        </div>
+      )}
+
       {/* Editor */}
       <EditorContent editor={editor} />
 
@@ -187,9 +229,23 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
         </div>
 
         <button
-          onClick={handleSubmit}
+          onClick={() => {
+            console.log('Post button clicked', {
+              editor: !!editor,
+              text: editor?.getText(),
+              trimmed: editor?.getText().trim(),
+              hasMedia: mediaFiles.length > 0
+            })
+            handleSubmit()
+          }}
           disabled={isSubmitting || (!editor?.getText().trim() && mediaFiles.length === 0)}
           className="flex items-center gap-2 rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-zinc-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title={
+            !editor ? 'Editor not ready' :
+            !editor?.getText().trim() && mediaFiles.length === 0 ? 'Type something or add media' :
+            isSubmitting ? 'Posting...' :
+            'Click to post'
+          }
         >
           {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -17,7 +17,10 @@
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
       "Bash(npm test:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(node -e:*)",
+      "Bash(PGPASSWORD='postgres' psql:*)",
+      "Bash(node:*)"
     ]
   }
 }

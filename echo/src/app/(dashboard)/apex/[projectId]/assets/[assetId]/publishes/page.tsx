@@ -212,7 +212,7 @@ export default function AssetPublishesPage({
           </div>
         ) : (
           <EntityTable
-            columns={columns}
+            columns={columns as any}
             data={publishes}
             entityType="publishes_asset"
             onAdd={() => setShowCreateDialog(true)}

@@ -32,12 +32,11 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
     setIsLoading(true)
     try {
       const supabase = createClient()
+
+      // Step 1: Fetch comments (notes.author_id references auth.users, not profiles)
       const { data, error } = await supabase
         .from('notes')
-        .select(`
-          id, content, created_at, parent_note_id,
-          author:profiles!notes_author_id_fkey(id, display_name, avatar_url)
-        `)
+        .select('id, content, created_at, parent_note_id, author_id')
         .eq('entity_type', 'post')
         .eq('entity_id', postId)
         .order('created_at', { ascending: true })
@@ -47,7 +46,32 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
         return
       }
 
-      setComments(data || [])
+      const rawComments = data || []
+
+      // Step 2: Resolve author profiles separately
+      const authorIds = [...new Set(rawComments.map(c => c.author_id).filter(Boolean))]
+      const profileMap: Record<string, any> = {}
+
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', authorIds)
+
+        if (profiles) {
+          for (const p of profiles) {
+            profileMap[p.id] = p
+          }
+        }
+      }
+
+      // Step 3: Merge
+      const enrichedComments = rawComments.map(comment => ({
+        ...comment,
+        author: profileMap[comment.author_id] || null,
+      }))
+
+      setComments(enrichedComments as any)
     } finally {
       setIsLoading(false)
     }

@@ -317,23 +317,50 @@ export default function DepartmentsPage() {
     }
 
     const payload: Record<string, any> = {}
+    const localPatch: Record<string, any> = {}
     if (column.id === 'department_name') {
-      payload.name = asText(value)
+      const nextValue = asText(value)
+      payload.name = nextValue
+      localPatch[keys.name] = nextValue
     } else if (column.id === 'department_short_name') {
-      payload.short_name = asText(value) || null
+      const nextValue = asText(value) || null
+      payload.short_name = nextValue
+      if (keys.shortName) {
+        localPatch[keys.shortName] = nextValue
+      }
     } else if (column.id === 'department_type') {
-      payload.department_type = asText(value) || null
+      const nextValue = asText(value) || null
+      payload.department_type = nextValue
+      if (keys.type) {
+        localPatch[keys.type] = nextValue
+      }
     } else if (column.id === 'status_label') {
-      payload.status = asText(value) || null
+      const nextValue = asText(value) || null
+      payload.status = nextValue
+      if (keys.status) {
+        localPatch[keys.status] = nextValue
+      }
     } else if (column.id === 'order_value') {
-      payload.order = value === null || value === '' ? null : Number(value)
+      const nextValue = value === null || value === '' ? null : Number(value)
+      payload.order = nextValue
+      if (keys.order) {
+        localPatch[keys.order] = nextValue
+      }
     } else if (column.id === 'color_value') {
-      payload.color = asText(value) || null
+      const nextValue = asText(value) || null
+      payload.color = nextValue
+      if (keys.color) {
+        localPatch[keys.color] = nextValue
+      }
     } else if (column.id === 'tags_label') {
-      payload.tags = asText(value)
+      const nextValue = asText(value)
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean)
+      payload.tags = nextValue
+      if (keys.tags) {
+        localPatch[keys.tags] = nextValue
+      }
     } else {
       return
     }
@@ -343,7 +370,18 @@ export default function DepartmentsPage() {
       throw new Error(result.error)
     }
 
-    await loadDepartmentData()
+    setDepartments((previous) =>
+      previous.map((departmentRow) => {
+        const currentDepartmentId = Number(departmentRow?.[keys.id])
+        if (currentDepartmentId !== departmentId) {
+          return departmentRow
+        }
+        return {
+          ...departmentRow,
+          ...localPatch,
+        }
+      })
+    )
   }
 
   function openEditDialog(row: any) {

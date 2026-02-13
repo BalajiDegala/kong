@@ -135,6 +135,8 @@ export function TableToolbar({
     published_files: 'Published File',
     playlists: 'Playlist',
     projects: 'Project',
+    fields: 'Field',
+    schema_fields: 'Field',
     profiles: 'User',
     people: 'User',
     departments: 'Department',

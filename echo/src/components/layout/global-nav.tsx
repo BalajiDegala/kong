@@ -8,16 +8,23 @@ import type { User } from '@supabase/supabase-js'
 
 interface GlobalNavProps {
   user: User
-  profile: any
+  profile: {
+    display_name?: string | null
+    role?: string | null
+  } | null
 }
 
 const navItems = [
   { id: 'inbox', label: 'Inbox', href: '/inbox' },
   { id: 'my-tasks', label: 'My Tasks', href: '/my-tasks' },
   { id: 'projects', label: 'Projects', href: '/apex' },
+  { id: 'fields', label: 'Fields', href: '/fields' },
+  { id: 'pulse', label: 'Pulse', href: '/pulse' },
   { id: 'echo', label: 'Echo', href: '/echo' },
   { id: 'people', label: 'People', href: '/people' },
   { id: 'departments', label: 'Departments', href: '/departments' },
+  { id: 'status', label: 'Status', href: '/status' },
+  { id: 'tags', label: 'Tags', href: '/tags' },
 ]
 
 export function GlobalNav({ user, profile }: GlobalNavProps) {
