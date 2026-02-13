@@ -2,67 +2,126 @@
 
 import { useState } from 'react'
 import { Activity } from 'lucide-react'
-import { PostComposer } from '@/components/pulse/post-composer'
 import { SimplePostComposer } from '@/components/pulse/simple-post-composer'
 import { PostFeed } from '@/components/pulse/post-feed'
-import { TestPostButton } from './test-post-button'
+import { PulseFilterBarCompact } from '@/components/pulse/pulse-filter-bar-compact'
+
+interface FilterState {
+  scope: 'global' | 'filtered'
+  projectIds: number[]
+  sequenceIds: number[]
+  shotIds: number[]
+  taskIds: number[]
+  userIds: string[]
+}
 
 interface PulseFeedPageProps {
   currentUserId: string
   profile: { id: string; display_name: string; avatar_url: string | null } | null
-  projectId?: number
-  projectName?: string
 }
 
-export function PulseFeedPage({ currentUserId, profile, projectId, projectName }: PulseFeedPageProps) {
+export function PulseFeedPage({ currentUserId, profile }: PulseFeedPageProps) {
   const [refreshKey, setRefreshKey] = useState(0)
+  const [filters, setFilters] = useState<FilterState>({
+    scope: 'global',
+    projectIds: [],
+    sequenceIds: [],
+    shotIds: [],
+    taskIds: [],
+    userIds: [],
+  })
 
   const handlePostCreated = () => {
     // Trigger feed refresh without full page reload
-    setRefreshKey(prev => prev + 1)
+    setRefreshKey((prev) => prev + 1)
   }
 
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters)
+    setRefreshKey((prev) => prev + 1) // Refresh feed when filters change
+  }
+
+  const handleEntityClick = (entityType: string, entityId: string | number) => {
+    // When a tag is clicked, add it to filters and switch to filtered mode
+    setFilters((prev) => {
+      const newFilters = { ...prev, scope: 'filtered' as const }
+
+      switch (entityType) {
+        case 'project':
+          if (!prev.projectIds.includes(entityId as number)) {
+            newFilters.projectIds = [...prev.projectIds, entityId as number]
+          }
+          break
+        case 'sequence':
+          if (!prev.sequenceIds.includes(entityId as number)) {
+            newFilters.sequenceIds = [...prev.sequenceIds, entityId as number]
+          }
+          break
+        case 'shot':
+          if (!prev.shotIds.includes(entityId as number)) {
+            newFilters.shotIds = [...prev.shotIds, entityId as number]
+          }
+          break
+        case 'task':
+          if (!prev.taskIds.includes(entityId as number)) {
+            newFilters.taskIds = [...prev.taskIds, entityId as number]
+          }
+          break
+        case 'user':
+          if (!prev.userIds.includes(entityId as string)) {
+            newFilters.userIds = [...prev.userIds, entityId as string]
+          }
+          break
+      }
+
+      return newFilters
+    })
+
+    setRefreshKey((prev) => prev + 1)
+  }
+
+  // Build filter object for PostFeed
+  const feedFilters =
+    filters.scope === 'global'
+      ? undefined
+      : {
+          projectIds: filters.projectIds,
+          sequenceIds: filters.sequenceIds,
+          shotIds: filters.shotIds,
+          taskIds: filters.taskIds,
+          userIds: filters.userIds,
+        }
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto max-w-4xl px-4 py-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Activity className="h-5 w-5 text-amber-400" />
-          <h1 className="text-lg font-semibold text-zinc-100">
-            {projectName ? `${projectName} — Pulse` : 'Pulse'}
-          </h1>
+          <h1 className="text-lg font-semibold text-zinc-100">Pulse</h1>
         </div>
         <p className="text-sm text-zinc-500">
-          {projectName
-            ? 'Share updates, review media, and collaborate with your team.'
-            : 'Company-wide feed — share updates, review media, and collaborate.'}
+          Share updates, review media, and collaborate across projects.
         </p>
       </div>
 
-      {/* Composer (Simple version for now) */}
+      {/* Filter Bar */}
+      <PulseFilterBarCompact onFilterChange={handleFilterChange} />
+
+      {/* Composer */}
       <div className="mb-6">
         <SimplePostComposer
-          projectId={projectId}
           authorProfile={profile || undefined}
           onPostCreated={handlePostCreated}
         />
       </div>
 
-      {/* Original Tiptap Composer (debugging) */}
-      {false && (
-        <div className="mb-6">
-          <PostComposer
-            projectId={projectId}
-            authorProfile={profile || undefined}
-          />
-        </div>
-      )}
-
       {/* Feed */}
       <PostFeed
         key={refreshKey}
-        projectId={projectId}
+        filters={feedFilters}
         currentUserId={currentUserId}
+        onEntityClick={handleEntityClick}
       />
     </div>
   )

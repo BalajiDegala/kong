@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
-import { updateAsset } from '@/actions/assets'
+import { deleteAsset, updateAsset } from '@/actions/assets'
 import { CreateAssetDialog } from '@/components/apex/create-asset-dialog'
+import { EditAssetDialog } from '@/components/apex/edit-asset-dialog'
+import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 
 const ASSET_TYPES = [
   { value: 'character', label: 'Character' },
@@ -33,6 +35,9 @@ export default function SequenceAssetsPage({
   const [assets, setAssets] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState<any>(null)
   const listToString = (value: any) => (Array.isArray(value) ? value.join(', ') : '')
   const stringToList = (value: string) =>
     value
@@ -108,6 +113,26 @@ export default function SequenceAssetsPage({
     setAssets((prev) =>
       prev.map((asset) => (asset.id === row.id ? { ...asset, [column.id]: value } : asset))
     )
+  }
+
+  function refreshAssets() {
+    if (!projectId || !sequenceId) return
+    void loadAssets(projectId, sequenceId)
+  }
+
+  function handleEdit(asset: any) {
+    setSelectedAsset(asset)
+    setShowEditDialog(true)
+  }
+
+  function handleDelete(asset: any) {
+    setSelectedAsset(asset)
+    setShowDeleteDialog(true)
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selectedAsset) return { error: 'No asset selected' }
+    return deleteAsset(String(selectedAsset.id), projectId)
   }
 
   const columns = [
@@ -223,11 +248,29 @@ export default function SequenceAssetsPage({
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) loadAssets(projectId, sequenceId)
+          if (!open) refreshAssets()
         }}
         projectId={projectId}
         defaultSequenceId={sequenceId}
         lockSequence
+      />
+
+      <EditAssetDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open)
+          if (!open) refreshAssets()
+        }}
+        asset={selectedAsset}
+      />
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Asset"
+        description="Are you sure you want to delete this asset? This will also delete all associated tasks."
+        itemName={selectedAsset?.name || ''}
+        onConfirm={handleDeleteConfirm}
       />
 
       <div className="p-6">
@@ -252,6 +295,8 @@ export default function SequenceAssetsPage({
             data={assets}
             entityType="assets_sequence"
             onAdd={() => setShowCreateDialog(true)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             onCellUpdate={handleCellUpdate}
           />
         )}

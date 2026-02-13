@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { pickEntityColumns } from '@/lib/schema'
+import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
 
 export async function createTask(
   formData: Record<string, unknown> & {
@@ -28,7 +28,7 @@ export async function createTask(
     return { error: 'Not authenticated' }
   }
 
-  const extra = pickEntityColumns('task', formData, {
+  const extra = await pickEntityColumnsForWrite(supabase, 'task', formData, {
     deny: new Set(['project_id', 'created_by', 'updated_by']),
   })
 
@@ -77,19 +77,33 @@ export async function updateTask(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('task', formData, {
+  const updateData: any = await pickEntityColumnsForWrite(supabase, 'task', formData, {
     deny: new Set(['id', 'project_id', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at']),
   })
 
-  const { data, error } = await supabase
+  // No-op updates can happen when a UI-only/computed column is edited.
+  if (Object.keys(updateData).length === 0) {
+    return { data: null }
+  }
+
+  const { error } = await supabase
     .from('tasks')
     .update(updateData)
     .eq('id', taskId)
-    .select()
-    .single()
 
   if (error) {
     return { error: error.message }
+  }
+
+  let data: any = null
+  // Best-effort fetch only; some policies may allow UPDATE but restrict SELECT.
+  const updatedRow = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .maybeSingle()
+  if (!updatedRow.error) {
+    data = updatedRow.data
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -98,7 +112,7 @@ export async function updateTask(
     if (projectId) {
       revalidatePath(`/apex/${projectId}/tasks`)
     } else {
-      const task = await supabase.from('tasks').select('project_id').eq('id', taskId).single()
+      const task = await supabase.from('tasks').select('project_id').eq('id', taskId).maybeSingle()
       if (task.data) {
         revalidatePath(`/apex/${task.data.project_id}/tasks`)
       }

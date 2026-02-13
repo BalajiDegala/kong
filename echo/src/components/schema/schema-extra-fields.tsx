@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { SCHEMA, type EntityKey, type SchemaField } from '@/lib/schema'
+import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +59,83 @@ function isLongText(field: SchemaField) {
   )
 }
 
+interface RuntimeSchemaFieldRow {
+  column_name?: string | null
+  name?: string | null
+  code?: string | null
+  data_type?: string | null
+  field_type?: string | null
+}
+
+function isMissingRuntimeSchema(error: any): boolean {
+  if (!error) return false
+  const code = String(error.code || '')
+  const message = String(error.message || '').toLowerCase()
+  const details = String(error.details || '').toLowerCase()
+  return (
+    code === 'PGRST205' ||
+    message.includes('schema_field_runtime_v') ||
+    details.includes('schema_field_runtime_v') ||
+    message.includes('does not exist')
+  )
+}
+
+function toPgTypeFromDataType(dataType: string): string {
+  const normalized = dataType.trim().toLowerCase()
+  if (normalized === 'multi_entity') return 'text[]'
+  if (normalized === 'checkbox') return 'boolean'
+  if (normalized === 'date') return 'date'
+  if (normalized === 'date_time') return 'timestamptz'
+  if (
+    normalized === 'number' ||
+    normalized === 'footage'
+  ) {
+    return 'integer'
+  }
+  if (
+    normalized === 'float' ||
+    normalized === 'currency' ||
+    normalized === 'duration' ||
+    normalized === 'percent'
+  ) {
+    return 'numeric'
+  }
+  if (normalized === 'serializable' || normalized === 'query') return 'jsonb'
+  return 'text'
+}
+
+function toRuntimeSchemaField(row: RuntimeSchemaFieldRow): SchemaField | null {
+  const columnName =
+    typeof row.column_name === 'string' ? row.column_name.trim() : ''
+  if (!columnName) return null
+
+  const dataType =
+    typeof row.data_type === 'string' && row.data_type.trim()
+      ? row.data_type.trim().toLowerCase()
+      : 'text'
+  const fieldType =
+    typeof row.field_type === 'string' && row.field_type.trim()
+      ? row.field_type.trim().toLowerCase()
+      : 'dynamic'
+  const name =
+    typeof row.name === 'string' && row.name.trim() ? row.name.trim() : columnName
+  const code =
+    typeof row.code === 'string' && row.code.trim()
+      ? row.code.trim().toLowerCase()
+      : columnName
+
+  return {
+    name,
+    dataType,
+    fieldType,
+    code,
+    column: columnName,
+    pgType: toPgTypeFromDataType(dataType),
+    defaultSql: null,
+    virtual: false,
+  }
+}
+
 export function SchemaExtraFields(props: {
   entity: EntityKey
   values: Record<string, any>
@@ -68,13 +146,67 @@ export function SchemaExtraFields(props: {
 }) {
   const schema = SCHEMA[props.entity]
   const exclude = props.excludeColumns ?? DEFAULT_EXCLUDE
+  const [runtimeFields, setRuntimeFields] = useState<SchemaField[]>([])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadRuntimeFields() {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('schema_field_runtime_v')
+        .select('column_name, name, code, data_type, field_type')
+        .eq('entity_type', props.entity)
+        .eq('field_active', true)
+        .eq('entity_active', true)
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true })
+
+      if (!active) return
+      if (error) {
+        if (!isMissingRuntimeSchema(error)) {
+          console.error(`Failed loading runtime fields for ${props.entity}:`, error)
+        }
+        setRuntimeFields([])
+        return
+      }
+
+      const next: SchemaField[] = []
+      const seen = new Set<string>()
+      for (const row of (data || []) as RuntimeSchemaFieldRow[]) {
+        const field = toRuntimeSchemaField(row)
+        if (!field?.column) continue
+        if (seen.has(field.column)) continue
+        seen.add(field.column)
+        next.push(field)
+      }
+      setRuntimeFields(next)
+    }
+
+    loadRuntimeFields()
+    return () => {
+      active = false
+    }
+  }, [props.entity])
 
   const fields = useMemo(() => {
-    return schema.fields
-      .filter((field) => !field.virtual && field.column)
-      .filter((field) => field.fieldType !== 'system_owned')
-      .filter((field) => !exclude.has(field.column as string))
-  }, [schema.fields, exclude])
+    const seen = new Set<string>()
+    const merged: SchemaField[] = []
+
+    const addField = (field: SchemaField) => {
+      if (field.virtual || !field.column) return
+      if (field.fieldType === 'system_owned') return
+      if (exclude.has(field.column)) return
+      if (seen.has(field.column)) return
+      seen.add(field.column)
+      merged.push(field)
+    }
+
+    for (const field of schema.fields) addField(field)
+    for (const field of runtimeFields) addField(field)
+
+    return merged
+  }, [schema.fields, runtimeFields, exclude])
 
   const fieldByColumn = useMemo(() => {
     const map = new Map<string, SchemaField>()
@@ -252,6 +384,35 @@ export function SchemaExtraFields(props: {
                     const parsed = Number(raw)
                     setValue(column, Number.isNaN(parsed) ? null : parsed)
                   }}
+                  disabled={disabled}
+                />
+              </div>
+            )
+          }
+
+          if (pgType === 'jsonb') {
+            return (
+              <div key={column} className="grid gap-2">
+                <Label htmlFor={column}>{field.name}</Label>
+                <Textarea
+                  id={column}
+                  value={
+                    typeof value === 'string'
+                      ? value
+                      : value === null || value === undefined
+                        ? ''
+                        : JSON.stringify(value, null, 2)
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    if (!raw.trim()) return setValue(column, null)
+                    try {
+                      setValue(column, JSON.parse(raw))
+                    } catch {
+                      setValue(column, raw)
+                    }
+                  }}
+                  rows={4}
                   disabled={disabled}
                 />
               </div>

@@ -56,9 +56,63 @@ Client-facing aliases (`client_name`, `dd_client_name`) default from code but ca
 5. `thumbnail_blur_hash` editable and local thumbnail upload enabled in create/edit dialogs.
 
 ## Next Entities To Apply
-1. `tasks`
-2. `versions`
-3. `notes` (if relation dropdowns are required)
+1. `tasks` (current sprint)
+2. `notes` (current sprint)
+3. `versions` (next sprint)
+
+## Tasks Rollout Plan (Current Sprint)
+1. Scope files:
+`src/app/(dashboard)/apex/[projectId]/tasks/page.tsx`
+`src/components/apex/create-task-dialog.tsx`
+`src/components/apex/edit-task-dialog.tsx`
+`src/actions/tasks.ts`
+2. Current gaps to close:
+Task status and tags are still mostly free-text in page/dialogs.
+Task page does not expose relation editors as dropdowns for all editable relations.
+Edit dialog is not aligned with create dialog layout and does not expose schema extra fields.
+Local thumbnail upload flow is not wired for task dialogs.
+3. Implementation steps:
+Load `status` options with `listStatusNames('task')` and feed into table/dialog `select` controls.
+Load tag options with `listTagNames()` and use `multiselect` for `tags`.
+Normalize table editors for `step_id`, `assigned_to`, `priority`, `status`, `reviewer`, and list fields (`cc`, `tags`, `versions`).
+Keep `entity_type` and `entity_id` immutable in update payloads; only allow relink where explicitly designed.
+Align `edit-task-dialog` UI structure with create dialog (scroll container, same field grouping, same visual style).
+Add `SchemaExtraFields entity="task"` in edit dialog to match create behavior.
+Add optional local thumbnail upload helper in create/edit, persisting `thumbnail_url` and optional `thumbnail_blur_hash`.
+4. Done criteria:
+Task inline edit uses dropdowns/multiselect where applicable and saves without full reload.
+Create and edit task dialogs expose equivalent fields and schema extra fields.
+Status and tag options come from runtime tables, not hardcoded constants.
+Runtime custom fields created from `/fields` are visible and writable in task table/dialogs.
+
+## Notes Rollout Plan (Current Sprint)
+1. Scope files:
+`src/app/(dashboard)/apex/[projectId]/notes/page.tsx`
+`src/components/apex/create-note-dialog.tsx`
+`src/actions/notes.ts`
+2. Current gaps to close:
+Notes table link label currently uses `entity_type #id` instead of business code labels.
+Notes status is free-text in dialog and table, not driven by `status` table.
+Linked entity URL coverage is partial (only asset/shot paths currently resolved in page mapping).
+No dedicated edit note dialog parity plan exists yet.
+3. Implementation steps:
+Build entity label map from related tables (`assets`, `shots`, `sequences`, `tasks`, `versions`) and render code-first labels.
+Resolve link URLs for all supported note entity targets under `/apex/[projectId]/...`.
+Load `status` options with `listStatusNames('note')` and use dropdowns in table/dialog.
+Keep existing attachment upload flow in create dialog and preserve link-to-entity selectors.
+Decide edit model and keep one path only: inline-only plus create dialog enhancements, or add full `edit-note-dialog`.
+If inline-only is chosen, ensure all required editable fields are covered and validated there.
+4. Done criteria:
+Notes page shows disambiguated, clickable entity references using code-aware labels.
+Status editing is dropdown-based and sourced from runtime status data.
+Create note dialog keeps attachments and relation selectors while using normalized status/options.
+Runtime custom fields created from `/fields` are visible and writable in notes table/dialogs.
+
+## Runtime Custom Field Contract (Tasks and Notes)
+1. Use `pickEntityColumnsForWrite` in server actions so writes accept runtime schema columns from `schema_field_runtime_v`.
+2. Keep `SchemaExtraFields` enabled in create/edit dialogs so optional runtime fields are user-selectable.
+3. Ensure table columns merge static schema plus runtime schema for `tasks` and `notes`.
+4. Treat system columns (`id`, `project_id`, `created_at`, `updated_at`, ownership fields) as non-editable regardless of runtime metadata.
 
 ## Rollout Checklist Per Entity
 1. Update page columns and inline editors.
@@ -74,3 +128,10 @@ Client-facing aliases (`client_name`, `dd_client_name`) default from code but ca
 ## Validation Script (Example)
 Run lint against only changed files:
 `npm run lint -- 'src/app/(dashboard)/apex/[projectId]/<entity>/page.tsx' 'src/components/apex/create-<entity>-dialog.tsx' 'src/components/apex/edit-<entity>-dialog.tsx'`
+
+## Manual QA For Tasks and Notes
+1. Create one task and one note with only required fields; confirm row appears without page reload.
+2. Create one task and one note using runtime custom fields from `/fields`; confirm values persist in DB and UI.
+3. Update status and tags inline for task and note; confirm dropdown options come from `status`/`tags` tables.
+4. For notes, link each supported entity type and confirm label/URL resolves to the expected detail page.
+5. Reopen create/edit dialogs and verify previously saved values, especially arrays and dates, round-trip correctly.

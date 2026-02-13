@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
-import { updateShot } from '@/actions/shots'
+import { deleteShot, updateShot } from '@/actions/shots'
 import { CreateShotDialog } from '@/components/apex/create-shot-dialog'
+import { EditShotDialog } from '@/components/apex/edit-shot-dialog'
+import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 
 export default function AssetShotsPage({
   params,
@@ -16,6 +18,9 @@ export default function AssetShotsPage({
   const [shots, setShots] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedShot, setSelectedShot] = useState<any>(null)
   const [defaultSequenceId, setDefaultSequenceId] = useState<string | null>(null)
   const listToString = (value: any) => (Array.isArray(value) ? value.join(', ') : '')
   const stringToList = (value: string) =>
@@ -123,6 +128,26 @@ export default function AssetShotsPage({
     setShots((prev) =>
       prev.map((shot) => (shot.id === row.id ? { ...shot, [column.id]: value } : shot))
     )
+  }
+
+  function refreshShots() {
+    if (!projectId || !assetId) return
+    void loadShots(projectId, assetId)
+  }
+
+  function handleEdit(shot: any) {
+    setSelectedShot(shot)
+    setShowEditDialog(true)
+  }
+
+  function handleDelete(shot: any) {
+    setSelectedShot(shot)
+    setShowDeleteDialog(true)
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selectedShot) return { error: 'No shot selected' }
+    return deleteShot(String(selectedShot.id), projectId)
   }
 
   const columns = [
@@ -244,11 +269,29 @@ export default function AssetShotsPage({
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) loadShots(projectId, assetId)
+          if (!open) refreshShots()
         }}
         projectId={projectId}
         defaultSequenceId={defaultSequenceId ?? undefined}
         lockSequence={Boolean(defaultSequenceId)}
+      />
+
+      <EditShotDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open)
+          if (!open) refreshShots()
+        }}
+        shot={selectedShot}
+      />
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Shot"
+        description="Are you sure you want to delete this shot? This will also delete all associated tasks and versions."
+        itemName={selectedShot?.name || ''}
+        onConfirm={handleDeleteConfirm}
       />
 
       <div className="p-6">
@@ -273,6 +316,8 @@ export default function AssetShotsPage({
             data={shots}
             entityType="shots_asset"
             onAdd={() => setShowCreateDialog(true)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             onCellUpdate={handleCellUpdate}
           />
         )}

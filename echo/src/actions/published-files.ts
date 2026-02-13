@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { pickEntityColumns } from '@/lib/schema'
+import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
 
 function toPublishedFilePolicyError(
   operation: 'create' | 'update' | 'delete',
@@ -93,7 +93,7 @@ export async function createPublishedFile(formData: {
     }
   }
 
-  const extra = pickEntityColumns('published_file', formData as any, {
+  const extra = await pickEntityColumnsForWrite(supabase, 'published_file', formData as any, {
     deny: new Set(['project_id', 'published_by', 'created_by', 'updated_by']),
   })
 
@@ -174,7 +174,7 @@ export async function updatePublishedFile(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('published_file', formData, {
+  const updateData: any = await pickEntityColumnsForWrite(supabase, 'published_file', formData, {
     deny: new Set(['id', 'project_id', 'published_by', 'created_by', 'created_at', 'updated_at']),
   })
 

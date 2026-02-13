@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { pickEntityColumns } from '@/lib/schema'
+import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
 
 function normalizeCodeToken(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -26,7 +26,7 @@ export async function createSequence(
     return { error: 'Not authenticated' }
   }
 
-  const extra = pickEntityColumns('sequence', formData, {
+  const extra = await pickEntityColumnsForWrite(supabase, 'sequence', formData, {
     deny: new Set(['project_id', 'created_by', 'updated_by']),
   })
 
@@ -86,9 +86,14 @@ export async function updateSequence(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: Record<string, unknown> = pickEntityColumns('sequence', formData, {
+  const updateData: Record<string, unknown> = await pickEntityColumnsForWrite(
+    supabase,
+    'sequence',
+    formData,
+    {
     deny: new Set(['id', 'project_id', 'code', 'created_by', 'created_at', 'updated_at']),
-  })
+    }
+  )
 
   const { data, error } = await supabase
     .from('sequences')

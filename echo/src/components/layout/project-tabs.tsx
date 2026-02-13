@@ -19,7 +19,6 @@ const tabs = [
   { id: 'versions', label: 'Versions', href: '/versions' },
   { id: 'published-files', label: 'Published Files', href: '/published-files' },
   { id: 'playlists', label: 'Playlists', href: '/playlists' },
-  { id: 'pulse', label: 'Pulse', href: '/pulse' },
 ]
 
 export function ProjectTabs({ projectId, projectName }: ProjectTabsProps) {

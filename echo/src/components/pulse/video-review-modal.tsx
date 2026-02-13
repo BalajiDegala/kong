@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAnnotation } from '@/actions/annotations'
+import { createPostComment } from '@/actions/posts'
 import { VideoPlayer } from './video-player'
 import { AnnotationCanvas } from './annotation-canvas'
 import { AnnotationToolbar, type AnnotationTool } from './annotation-toolbar'
@@ -17,10 +18,13 @@ interface VideoReviewModalProps {
     fps?: number
   }
   versionId?: number
+  postId?: number
   onClose: () => void
 }
 
-export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModalProps) {
+export function VideoReviewModal({ media, versionId, postId, onClose }: VideoReviewModalProps) {
+  console.log('VideoReviewModal mounted with props:', { mediaId: media.id, versionId, postId })
+
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isAnnotating, setIsAnnotating] = useState(false)
   const [activeTool, setActiveTool] = useState<AnnotationTool>('rectangle')
@@ -90,6 +94,7 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
 
     setIsSaving(true)
     try {
+      // Save annotations
       for (const shape of pendingShapes) {
         await createAnnotation({
           post_media_id: versionId ? undefined : media.id,
@@ -98,6 +103,29 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
           annotation_data: shape,
           annotation_text: annotationText || undefined,
         })
+      }
+
+      // Create comment on post if annotation text was provided
+      console.log('Annotation save - checking comment creation:', {
+        hasText: !!annotationText.trim(),
+        postId,
+        text: annotationText,
+      })
+
+      if (annotationText.trim() && postId) {
+        const commentContent = `[Frame ${currentFrame}] ${annotationText.trim()}`
+        console.log('Creating comment on post:', postId, 'with content:', commentContent)
+
+        const result = await createPostComment({
+          post_id: postId,
+          content: commentContent,
+        })
+
+        if (result.error) {
+          console.error('Failed to create comment:', result.error)
+        } else {
+          console.log('✅ Comment created successfully:', result)
+        }
       }
 
       setPendingShapes([])
@@ -179,9 +207,11 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
               activeTool={activeTool}
               activeColor={activeColor}
               strokeWidth={strokeWidth}
+              annotationText={annotationText}
               onToolChange={setActiveTool}
               onColorChange={setActiveColor}
               onStrokeWidthChange={setStrokeWidth}
+              onAnnotationTextChange={setAnnotationText}
               onClear={handleClear}
               onSave={handleSave}
               isSaving={isSaving}

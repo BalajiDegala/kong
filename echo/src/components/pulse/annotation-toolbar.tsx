@@ -27,9 +27,11 @@ interface AnnotationToolbarProps {
   activeTool: AnnotationTool
   activeColor: string
   strokeWidth: number
+  annotationText: string
   onToolChange: (tool: AnnotationTool) => void
   onColorChange: (color: string) => void
   onStrokeWidthChange: (width: number) => void
+  onAnnotationTextChange: (text: string) => void
   onClear?: () => void
   onSave?: () => void
   isSaving?: boolean
@@ -39,9 +41,11 @@ export function AnnotationToolbar({
   activeTool,
   activeColor,
   strokeWidth,
+  annotationText,
   onToolChange,
   onColorChange,
   onStrokeWidthChange,
+  onAnnotationTextChange,
   onClear,
   onSave,
   isSaving,
@@ -109,6 +113,17 @@ export function AnnotationToolbar({
           </button>
         ))}
       </div>
+
+      <div className="w-px h-5 bg-zinc-700" />
+
+      {/* Comment Text */}
+      <input
+        type="text"
+        value={annotationText}
+        onChange={(e) => onAnnotationTextChange(e.target.value)}
+        placeholder="Add comment (optional)"
+        className="flex-1 min-w-0 px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+      />
 
       <div className="w-px h-5 bg-zinc-700" />
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { pickEntityColumns } from '@/lib/schema'
+import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
 
 export async function createVersion(
   formData: Record<string, unknown> & {
@@ -27,7 +27,7 @@ export async function createVersion(
     return { error: 'Not authenticated' }
   }
 
-  const extra = pickEntityColumns('version', formData, {
+  const extra = await pickEntityColumnsForWrite(supabase, 'version', formData, {
     deny: new Set(['project_id', 'created_by', 'updated_by']),
   })
 
@@ -76,7 +76,7 @@ export async function updateVersion(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('version', formData, {
+  const updateData: any = await pickEntityColumnsForWrite(supabase, 'version', formData, {
     deny: new Set(['id', 'project_id', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at']),
   })
 

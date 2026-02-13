@@ -1,23 +1,34 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Send, Loader2, ImagePlus, Video, X } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { Send, Loader2, ImagePlus, Video, X, Tag } from 'lucide-react'
 import { createPost } from '@/actions/posts'
 import { uploadPostMedia } from '@/actions/post-media'
 import { createClient } from '@/lib/supabase/client'
+import { EntityHierarchySelector, SelectedEntities } from './entity-hierarchy-selector'
 
 interface SimplePostComposerProps {
-  projectId?: number
   authorProfile?: { display_name: string; avatar_url: string | null }
   onPostCreated?: () => void
 }
 
-export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: SimplePostComposerProps) {
+export function SimplePostComposer({ authorProfile, onPostCreated }: SimplePostComposerProps) {
+  const supabase = createClient()
+
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([])
+  const [composerKey, setComposerKey] = useState(0) // Key to force remount
+
+  // Entity selections (using hierarchy selector)
+  const [entitySelections, setEntitySelections] = useState<SelectedEntities>({
+    projects: [],
+    sequences: [],
+    shots: [],
+    tasks: [],
+  })
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -48,11 +59,26 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
     setError(null)
 
     try {
-      console.log('Creating post with simple composer:', { content, projectId, mediaCount: mediaFiles.length })
+      const projectIds = entitySelections.projects.map((p) => p.id)
+      const sequenceIds = entitySelections.sequences.map((s) => s.id)
+      const shotIds = entitySelections.shots.map((s) => s.id)
+      const taskIds = entitySelections.tasks.map((t) => t.id)
+
+      console.log('Creating post with entity associations:', {
+        content,
+        projectIds,
+        sequenceIds,
+        shotIds,
+        taskIds,
+        mediaCount: mediaFiles.length,
+      })
 
       const result = await createPost({
         content: content.trim() || 'Shared media',
-        project_id: projectId || null,
+        projectIds,
+        sequenceIds,
+        shotIds,
+        taskIds,
       })
 
       console.log('Result:', result)
@@ -64,8 +90,6 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
 
       // Upload media files if any
       if (result.data && mediaFiles.length > 0) {
-        const supabase = createClient()
-
         for (let i = 0; i < mediaFiles.length; i++) {
           const file = mediaFiles[i]
           const ext = file.name.split('.').pop()
@@ -100,9 +124,17 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
 
       // Success - clear form
       setContent('')
-      mediaPreviews.forEach(url => URL.revokeObjectURL(url))
+      mediaPreviews.forEach((url) => URL.revokeObjectURL(url))
       setMediaFiles([])
       setMediaPreviews([])
+      setEntitySelections({
+        projects: [],
+        sequences: [],
+        shots: [],
+        tasks: [],
+      })
+      // Force remount of entity selector to clear its internal state
+      setComposerKey((prev) => prev + 1)
       onPostCreated?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create post')
@@ -110,6 +142,12 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
       setIsSubmitting(false)
     }
   }
+
+  const hasEntitySelections =
+    entitySelections.projects.length > 0 ||
+    entitySelections.sequences.length > 0 ||
+    entitySelections.shots.length > 0 ||
+    entitySelections.tasks.length > 0
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900">
@@ -121,11 +159,6 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
         <span className="text-sm font-medium text-zinc-300">
           {authorProfile?.display_name || 'You'}
         </span>
-        {projectId && (
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
-            Project Post
-          </span>
-        )}
       </div>
 
       {/* Error Display */}
@@ -145,6 +178,14 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
           rows={3}
           className="w-full px-4 py-3 bg-transparent text-zinc-200 text-sm placeholder:text-zinc-600 focus:outline-none resize-none"
         />
+
+        {/* Entity Selector (Hierarchy) */}
+        <div className="px-4 pb-3">
+          <EntityHierarchySelector
+            key={composerKey}
+            onSelectionChange={setEntitySelections}
+          />
+        </div>
 
         {/* Media Previews */}
         {mediaPreviews.length > 0 && (

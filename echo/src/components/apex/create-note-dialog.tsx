@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, X } from 'lucide-react'
 import { createNote } from '@/actions/notes'
 import { uploadNoteAttachment } from '@/actions/attachments'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -42,12 +43,19 @@ const labelClass = 'pt-2 text-sm font-medium text-zinc-300'
 const inputClass =
   'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
 const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+const STATUS_FALLBACK_VALUES = ['open', 'pending', 'review', 'closed']
 
 function parseList(value: string) {
   return value
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values.map((item) => item.trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  )
 }
 
 export function CreateNoteDialog({
@@ -68,6 +76,7 @@ export function CreateNoteDialog({
   const [sequences, setSequences] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [versions, setVersions] = useState<any[]>([])
+  const [statusNames, setStatusNames] = useState<string[]>([])
   const [extraFields, setExtraFields] = useState<Record<string, any>>({})
   const [showMoreFields, setShowMoreFields] = useState(false)
 
@@ -82,6 +91,20 @@ export function CreateNoteDialog({
     note_type: '',
     links: '',
   })
+
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const status of statusNames) {
+      const normalized = status.trim()
+      if (normalized) values.add(normalized)
+    }
+    const current = formData.status.trim()
+    if (current) values.add(current)
+    if (values.size === 0) {
+      for (const fallback of STATUS_FALLBACK_VALUES) values.add(fallback)
+    }
+    return Array.from(values)
+  }, [formData.status, statusNames])
 
   useEffect(() => {
     if (!open) return
@@ -102,40 +125,48 @@ export function CreateNoteDialog({
   async function loadData() {
     const supabase = createClient()
 
-    const { data: assetsData } = await supabase
-      .from('assets')
-      .select('id, name, code')
-      .eq('project_id', projectId)
-      .order('name')
-    setAssets(assetsData || [])
+    const [
+      assetsResult,
+      shotsResult,
+      tasksResult,
+      sequencesResult,
+      versionsResult,
+      statuses,
+    ] = await Promise.all([
+      supabase
+        .from('assets')
+        .select('id, name, code')
+        .eq('project_id', projectId)
+        .order('name'),
+      supabase
+        .from('shots')
+        .select('id, name, code')
+        .eq('project_id', projectId)
+        .order('code'),
+      supabase
+        .from('tasks')
+        .select('id, name, entity_type, entity_id')
+        .eq('project_id', projectId)
+        .order('name'),
+      supabase
+        .from('sequences')
+        .select('id, name, code')
+        .eq('project_id', projectId)
+        .order('code'),
+      supabase
+        .from('versions')
+        .select('id, code, version_number, entity_type, entity_id')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false }),
+      listStatusNames('note'),
+    ])
 
-    const { data: shotsData } = await supabase
-      .from('shots')
-      .select('id, name, code')
-      .eq('project_id', projectId)
-      .order('code')
-    setShots(shotsData || [])
-
-    const { data: tasksData } = await supabase
-      .from('tasks')
-      .select('id, name, entity_type, entity_id')
-      .eq('project_id', projectId)
-      .order('name')
-    setTasks(tasksData || [])
-
-    const { data: sequencesData } = await supabase
-      .from('sequences')
-      .select('id, name, code')
-      .eq('project_id', projectId)
-      .order('code')
-    setSequences(sequencesData || [])
-
-    const { data: versionsData } = await supabase
-      .from('versions')
-      .select('id, code, version_number, entity_type, entity_id')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false })
-    setVersions(versionsData || [])
+    setAssets(assetsResult.data || [])
+    setShots(shotsResult.data || [])
+    setTasks(tasksResult.data || [])
+    setSequences(sequencesResult.data || [])
+    setVersions(versionsResult.data || [])
+    setStatusNames(uniqueSorted(statuses))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -363,14 +394,22 @@ export function CreateNoteDialog({
                   <Label htmlFor="status" className={labelClass}>
                     Status:
                   </Label>
-                  <Input
-                    id="status"
+                  <Select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    placeholder="open"
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
                     disabled={isLoading}
-                    className={inputClass}
-                  />
+                  >
+                    <SelectTrigger id="status" className={selectClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-[95px_1fr] items-start gap-3">

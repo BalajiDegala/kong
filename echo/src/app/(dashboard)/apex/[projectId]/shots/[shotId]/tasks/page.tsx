@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { EntityTable } from '@/components/table/entity-table'
-import { updateTask } from '@/actions/tasks'
+import { deleteTask, updateTask } from '@/actions/tasks'
 import { CreateTaskDialog } from '@/components/apex/create-task-dialog'
+import { EditTaskDialog } from '@/components/apex/edit-task-dialog'
+import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 
 export default function ShotTasksPage({
   params,
@@ -16,6 +18,9 @@ export default function ShotTasksPage({
   const [tasks, setTasks] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<any>(null)
   const listToString = (value: any) => (Array.isArray(value) ? value.join(', ') : '')
   const stringToList = (value: string) =>
     value
@@ -86,6 +91,26 @@ export default function ShotTasksPage({
     setTasks((prev) =>
       prev.map((task) => (task.id === row.id ? { ...task, [column.id]: value } : task))
     )
+  }
+
+  function refreshTasks() {
+    if (!projectId || !shotId) return
+    void loadTasks(projectId, shotId)
+  }
+
+  function handleEdit(task: any) {
+    setSelectedTask(task)
+    setShowEditDialog(true)
+  }
+
+  function handleDelete(task: any) {
+    setSelectedTask(task)
+    setShowDeleteDialog(true)
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selectedTask) return { error: 'No task selected' }
+    return deleteTask(String(selectedTask.id), projectId)
   }
 
   const columns = [
@@ -173,12 +198,30 @@ export default function ShotTasksPage({
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) loadTasks(projectId, shotId)
+          if (!open) refreshTasks()
         }}
         projectId={projectId}
         defaultEntityType="shot"
         defaultEntityId={shotId}
         lockEntity
+      />
+
+      <EditTaskDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open)
+          if (!open) refreshTasks()
+        }}
+        task={selectedTask}
+      />
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        itemName={selectedTask?.name || ''}
+        onConfirm={handleDeleteConfirm}
       />
 
       <div className="p-6">
@@ -204,6 +247,8 @@ export default function ShotTasksPage({
             entityType="tasks_shot"
             groupBy="step_name"
             onAdd={() => setShowCreateDialog(true)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             onCellUpdate={handleCellUpdate}
           />
         )}

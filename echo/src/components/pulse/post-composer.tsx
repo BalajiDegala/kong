@@ -95,7 +95,6 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
       const result = await createPost({
         content,
         content_html: contentHtml,
-        project_id: projectId || null,
       })
 
       console.log('createPost result:', result)

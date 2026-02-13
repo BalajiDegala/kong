@@ -1,12 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Upload, X } from 'lucide-react'
 import { createTask } from '@/actions/tasks'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -28,6 +36,11 @@ interface CreateTaskDialogProps {
   lockEntity?: boolean
 }
 
+type MultiSelectOption = {
+  value: string
+  label: string
+}
+
 const PRIORITIES = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
@@ -35,24 +48,126 @@ const PRIORITIES = [
   { value: 'critical', label: 'Critical' },
 ]
 
-const STATUSES = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'ip', label: 'In Progress' },
-  { value: 'review', label: 'Review' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'on_hold', label: 'On Hold' },
-]
+const STATUS_FALLBACK_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
 
 const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
 const inputClass =
   'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
 const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
 
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
 function parseList(value: string) {
   return value
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values.map((item) => item.trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  )
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function optimizeThumbnailDataUrl(file: File) {
+  const rawDataUrl = await fileToDataUrl(file)
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Invalid image file'))
+    img.src = rawDataUrl
+  })
+
+  const maxSide = 256
+  const ratio = Math.min(maxSide / img.width, maxSide / img.height, 1)
+  const width = Math.max(1, Math.round(img.width * ratio))
+  const height = Math.max(1, Math.round(img.height * ratio))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Failed to process image')
+  ctx.drawImage(img, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', 0.84)
+}
+
+function MultiSelectDropdown({
+  id,
+  values,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  id: string
+  values: string[]
+  options: MultiSelectOption[]
+  placeholder: string
+  disabled?: boolean
+  onChange: (nextValues: string[]) => void
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          disabled={disabled}
+          className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
+            disabled
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+          }`}
+        >
+          <span className="truncate text-left">
+            {values.length > 0 ? values.join(', ') : placeholder}
+          </span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+      >
+        {options.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={values.includes(option.value)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                const isChecked = checked === true
+                if (isChecked) {
+                  if (values.includes(option.value)) return
+                  onChange([...values, option.value])
+                  return
+                }
+                onChange(values.filter((item) => item !== option.value))
+              }}
+              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export function CreateTaskDialog({
@@ -71,8 +186,12 @@ export function CreateTaskDialog({
   const [sequences, setSequences] = useState<any[]>([])
   const [steps, setSteps] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [statusNames, setStatusNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
   const [projectLabel, setProjectLabel] = useState(projectId)
   const [showMoreFields, setShowMoreFields] = useState(false)
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
+  const [thumbnailFileName, setThumbnailFileName] = useState('')
   const [extraFields, setExtraFields] = useState<Record<string, any>>({})
 
   const [formData, setFormData] = useState({
@@ -86,15 +205,46 @@ export function CreateTaskDialog({
     end_date: '',
     status: 'pending',
     priority: 'medium',
+    tags: [] as string[],
     due_date: '',
     task_template: '',
+    thumbnail_blur_hash: '',
     description: '',
   })
+
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const item of statusNames) {
+      const normalized = item.trim()
+      if (normalized) values.add(normalized)
+    }
+    const current = formData.status.trim()
+    if (current) values.add(current)
+    if (values.size === 0) {
+      for (const fallback of STATUS_FALLBACK_VALUES) values.add(fallback)
+    }
+    return Array.from(values)
+  }, [formData.status, statusNames])
+
+  const tagOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const item of tagNames) {
+      const normalized = item.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const item of formData.tags) {
+      const normalized = item.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [formData.tags, tagNames])
 
   useEffect(() => {
     if (!open) return
     setShowMoreFields(false)
-    loadData()
+    void loadData()
   }, [open, projectId])
 
   useEffect(() => {
@@ -107,10 +257,18 @@ export function CreateTaskDialog({
   }, [open, defaultEntityType, defaultEntityId])
 
   async function loadData() {
-    const supabase = createClient()
-
-    const [{ data: assetsData }, { data: shotsData }, { data: sequencesData }] =
-      await Promise.all([
+    try {
+      const supabase = createClient()
+      const [
+        assetsResult,
+        shotsResult,
+        sequencesResult,
+        stepsResult,
+        usersResult,
+        projectResult,
+        nextStatuses,
+        nextTags,
+      ] = await Promise.all([
         supabase
           .from('assets')
           .select('id, name, code')
@@ -126,10 +284,6 @@ export function CreateTaskDialog({
           .select('id, name, code')
           .eq('project_id', projectId)
           .order('code'),
-      ])
-
-    const [{ data: stepsData }, { data: usersData }, { data: projectData }] =
-      await Promise.all([
         supabase.from('steps').select('id, name').order('sort_order'),
         supabase.from('profiles').select('id, full_name, email').order('full_name'),
         supabase
@@ -137,14 +291,36 @@ export function CreateTaskDialog({
           .select('name, code')
           .eq('id', projectId)
           .maybeSingle(),
+        listStatusNames('task'),
+        listTagNames(),
       ])
 
-    setAssets(assetsData || [])
-    setShots(shotsData || [])
-    setSequences(sequencesData || [])
-    setSteps(stepsData || [])
-    setUsers(usersData || [])
-    setProjectLabel(projectData?.code || projectData?.name || projectId)
+      if (assetsResult.error) throw assetsResult.error
+      if (shotsResult.error) throw shotsResult.error
+      if (sequencesResult.error) throw sequencesResult.error
+      if (stepsResult.error) throw stepsResult.error
+      if (usersResult.error) throw usersResult.error
+      if (projectResult.error) throw projectResult.error
+
+      setAssets(assetsResult.data || [])
+      setShots(shotsResult.data || [])
+      setSequences(sequencesResult.data || [])
+      setSteps(stepsResult.data || [])
+      setUsers(usersResult.data || [])
+      setStatusNames(uniqueSorted(nextStatuses))
+      setTagNames(uniqueSorted(nextTags))
+      setProjectLabel(projectResult.data?.code || projectResult.data?.name || projectId)
+    } catch (loadError) {
+      console.error('Failed to load task dialog options:', loadError)
+      setAssets([])
+      setShots([])
+      setSequences([])
+      setSteps([])
+      setUsers([])
+      setStatusNames([])
+      setTagNames([])
+      setProjectLabel(projectId)
+    }
   }
 
   const entities =
@@ -160,6 +336,26 @@ export function CreateTaskDialog({
   const linkedEntityLabel = linkedEntity
     ? `${linkedEntity.code || ''}${linkedEntity.name ? ` - ${linkedEntity.name}` : ''}`.trim()
     : ''
+
+  const handleThumbnailFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Thumbnail must be an image file')
+      return
+    }
+
+    try {
+      const optimized = await optimizeThumbnailDataUrl(file)
+      setThumbnailDataUrl(optimized)
+      setThumbnailFileName(file.name)
+      setError(null)
+    } catch (thumbnailError) {
+      setError(thumbnailError instanceof Error ? thumbnailError.message : 'Failed to process thumbnail')
+    } finally {
+      event.target.value = ''
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -185,8 +381,11 @@ export function CreateTaskDialog({
         end_date: formData.end_date || undefined,
         status: formData.status,
         priority: formData.priority,
+        tags: formData.tags,
         due_date: formData.due_date || undefined,
         task_template: formData.task_template || null,
+        thumbnail_url: thumbnailDataUrl || undefined,
+        thumbnail_blur_hash: formData.thumbnail_blur_hash || undefined,
         description: formData.description || undefined,
         ...extraFields,
       })
@@ -204,16 +403,20 @@ export function CreateTaskDialog({
         end_date: '',
         status: 'pending',
         priority: 'medium',
+        tags: [],
         due_date: '',
         task_template: '',
+        thumbnail_blur_hash: '',
         description: '',
       })
+      setThumbnailDataUrl(null)
+      setThumbnailFileName('')
       setExtraFields({})
       setShowMoreFields(false)
       onOpenChange(false)
       router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create task')
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Failed to create task')
     } finally {
       setIsLoading(false)
     }
@@ -440,9 +643,9 @@ export function CreateTaskDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUSES.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -473,6 +676,20 @@ export function CreateTaskDialog({
                 </div>
 
                 <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+                  <Label htmlFor="tags" className={labelClass}>
+                    Tags:
+                  </Label>
+                  <MultiSelectDropdown
+                    id="tags"
+                    values={formData.tags}
+                    options={tagOptions}
+                    placeholder="Select tags"
+                    disabled={isLoading}
+                    onChange={(nextTags) => setFormData({ ...formData, tags: nextTags })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-[120px_1fr] items-start gap-3">
                   <Label htmlFor="due_date" className={labelClass}>
                     Due Date:
                   </Label>
@@ -496,6 +713,75 @@ export function CreateTaskDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, task_template: e.target.value })
                     }
+                    disabled={isLoading}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+                  <Label htmlFor="task_thumbnail" className={labelClass}>
+                    Thumbnail:
+                  </Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label
+                        htmlFor="task_thumbnail"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload Thumbnail
+                      </label>
+                      <input
+                        id="task_thumbnail"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleThumbnailFileChange}
+                        disabled={isLoading}
+                        className="hidden"
+                      />
+                      {thumbnailDataUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setThumbnailDataUrl(null)
+                            setThumbnailFileName('')
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 transition hover:bg-zinc-800"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {thumbnailDataUrl ? (
+                      <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 p-2">
+                        <img
+                          src={thumbnailDataUrl}
+                          alt="Task thumbnail preview"
+                          className="h-14 w-14 rounded object-cover"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-zinc-200">
+                            {thumbnailFileName || 'thumbnail.jpg'}
+                          </p>
+                          <p className="text-xs text-zinc-500">Stored as optimized local data URL</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-zinc-500">No thumbnail selected.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+                  <Label htmlFor="thumbnail_blur_hash" className={labelClass}>
+                    Blur Hash:
+                  </Label>
+                  <Input
+                    id="thumbnail_blur_hash"
+                    value={formData.thumbnail_blur_hash}
+                    onChange={(e) => setFormData({ ...formData, thumbnail_blur_hash: e.target.value })}
                     disabled={isLoading}
                     className={inputClass}
                   />
@@ -536,6 +822,8 @@ export function CreateTaskDialog({
                     'end_date',
                     'task_template',
                     'thumbnail_url',
+                    'thumbnail_blur_hash',
+                    'tags',
                   ])}
                 />
               </div>

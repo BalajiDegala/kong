@@ -194,6 +194,58 @@ function inferSchemaColumnEditor(
   return 'text'
 }
 
+interface RuntimeSchemaFieldRow {
+  column_name?: string | null
+  name?: string | null
+  code?: string | null
+  data_type?: string | null
+  field_type?: string | null
+}
+
+function isMissingRuntimeSchema(error: any): boolean {
+  if (!error) return false
+  const code = String(error.code || '')
+  const message = String(error.message || '').toLowerCase()
+  const details = String(error.details || '').toLowerCase()
+  return (
+    code === 'PGRST205' ||
+    message.includes('schema_field_runtime_v') ||
+    details.includes('schema_field_runtime_v') ||
+    message.includes('does not exist')
+  )
+}
+
+function toRuntimeSchemaField(row: RuntimeSchemaFieldRow): SchemaField | null {
+  const columnName =
+    typeof row.column_name === 'string' ? row.column_name.trim() : ''
+  if (!columnName) return null
+
+  const fieldName = typeof row.name === 'string' && row.name.trim()
+    ? row.name.trim()
+    : columnName
+  const dataType = typeof row.data_type === 'string' && row.data_type.trim()
+    ? row.data_type.trim().toLowerCase()
+    : 'text'
+  const fieldType = typeof row.field_type === 'string' && row.field_type.trim()
+    ? row.field_type.trim().toLowerCase()
+    : 'dynamic'
+  const code =
+    typeof row.code === 'string' && row.code.trim()
+      ? row.code.trim().toLowerCase()
+      : columnName
+
+  return {
+    name: fieldName,
+    dataType,
+    fieldType,
+    code,
+    column: columnName,
+    pgType: null,
+    defaultSql: null,
+    virtual: false,
+  }
+}
+
 function buildSchemaColumn(field: SchemaField): TableColumn | null {
   if (!field.column || field.virtual) return null
 
@@ -235,20 +287,26 @@ function shouldSkipSchemaColumn(field: SchemaField, existing: Set<string>): bool
   return existing.has(`${base}_label`)
 }
 
-function withSchemaColumns(columns: TableColumn[], entityType: string): TableColumn[] {
+function withSchemaColumns(
+  columns: TableColumn[],
+  entityType: string,
+  runtimeFields: SchemaField[] = []
+): TableColumn[] {
   const schemaEntity = resolveSchemaEntityKey(entityType)
   if (!schemaEntity) return columns
 
   const existing = new Set(columns.map((column) => column.id))
   const schemaColumns: TableColumn[] = []
   const schema = getEntitySchema(schemaEntity)
+  const mergedFields = [...schema.fields, ...runtimeFields]
 
-  for (const field of schema.fields) {
+  for (const field of mergedFields) {
     const column = buildSchemaColumn(field)
     if (!column) continue
     if (existing.has(column.id)) continue
     if (shouldSkipSchemaColumn(field, existing)) continue
     schemaColumns.push(column)
+    existing.add(column.id)
   }
 
   return [...columns, ...schemaColumns]
@@ -287,6 +345,7 @@ interface EntityTableProps {
   onDelete?: (row: any) => void
   onAdd?: () => void
   onCellUpdate?: (row: any, column: TableColumn, value: any) => Promise<void> | void
+  onCellUpdateError?: (message: string) => void
   cellEditTrigger?: 'double_click' | 'icon' | 'both'
   rowActions?: (row: any) => RowActionItem[]
   showToolbar?: boolean
@@ -312,15 +371,76 @@ export function EntityTable({
   onDelete,
   onAdd,
   onCellUpdate,
+  onCellUpdateError,
   cellEditTrigger = 'icon',
   rowActions,
   showToolbar = true,
   showFiltersPanel = true,
   emptyState,
 }: EntityTableProps) {
+  const [runtimeSchemaFields, setRuntimeSchemaFields] = useState<SchemaField[]>([])
+
+  useEffect(() => {
+    let isActive = true
+    const schemaEntity = resolveSchemaEntityKey(entityType)
+    if (!schemaEntity) {
+      setRuntimeSchemaFields([])
+      return () => {
+        isActive = false
+      }
+    }
+
+    async function loadRuntimeFields() {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('schema_field_runtime_v')
+        .select('column_name, name, code, data_type, field_type')
+        .eq('entity_type', schemaEntity)
+        .eq('field_active', true)
+        .eq('entity_active', true)
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true })
+
+      if (!isActive) return
+
+      if (error) {
+        if (!isMissingRuntimeSchema(error)) {
+          console.error(`Failed to load runtime schema for table ${entityType}:`, error)
+        }
+        setRuntimeSchemaFields([])
+        return
+      }
+
+      const next: SchemaField[] = []
+      const seen = new Set<string>()
+      for (const row of (data || []) as RuntimeSchemaFieldRow[]) {
+        const field = toRuntimeSchemaField(row)
+        if (!field?.column) continue
+        if (seen.has(field.column)) continue
+        seen.add(field.column)
+        next.push(field)
+      }
+      setRuntimeSchemaFields(next)
+    }
+
+    loadRuntimeFields()
+    return () => {
+      isActive = false
+    }
+  }, [entityType])
+
+  const reportCellUpdateError = (error: unknown) => {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to update cell. Please try again.'
+    console.error('Failed to update cell:', error)
+    onCellUpdateError?.(message)
+  }
+
   const resolvedColumns = useMemo(
-    () => withSchemaColumns(columns, entityType),
-    [columns, entityType]
+    () => withSchemaColumns(columns, entityType, runtimeSchemaFields),
+    [columns, entityType, runtimeSchemaFields]
   )
 
   const [view, setView] = useState<'grid' | 'list'>('list')
@@ -841,6 +961,12 @@ export function EntityTable({
       return
     }
 
+    if (column.editor === 'select') {
+      setDraftValue(rawValue === null || rawValue === undefined ? '' : String(rawValue))
+      setEditingCell({ rowId: row.id, columnId: column.id })
+      return
+    }
+
     const temporal = inferTemporalKind(column)
     if (temporal === 'date') {
       setDraftValue(toDateInputValue(rawValue))
@@ -911,7 +1037,7 @@ export function EntityTable({
       await onCellUpdate(row, column, nextValue)
       cancelEditing()
     } catch (error) {
-      console.error('Failed to update cell:', error)
+      reportCellUpdateError(error)
     }
   }
 
@@ -956,7 +1082,7 @@ export function EntityTable({
               try {
                 await onCellUpdate(row, column, event.target.checked)
               } catch (error) {
-                console.error('Failed to update cell:', error)
+                reportCellUpdateError(error)
               }
             }}
             className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
@@ -1123,9 +1249,14 @@ export function EntityTable({
           return <span className="text-zinc-500">-</span>
         }
 
+        const formatted =
+          typeof column.formatValue === 'function'
+            ? column.formatValue(value, row)
+            : value
+
         const temporal = inferTemporalKind(column)
         if (temporal === 'date') {
-          const normalized = toDateInputValue(value)
+          const normalized = toDateInputValue(formatted)
           if (normalized) {
             const parsed = new Date(`${normalized}T00:00:00`)
             return (
@@ -1135,7 +1266,7 @@ export function EntityTable({
             )
           }
         } else if (temporal === 'datetime') {
-          const parsed = new Date(value)
+          const parsed = new Date(formatted)
           if (!Number.isNaN(parsed.getTime())) {
             return (
               <span className="text-zinc-100" title={parsed.toLocaleString()}>
@@ -1145,8 +1276,8 @@ export function EntityTable({
           }
         }
 
-        if (Array.isArray(value)) {
-          const display = value.join(', ')
+        if (Array.isArray(formatted)) {
+          const display = formatted.join(', ')
           return (
             <span className="max-w-[240px] truncate text-zinc-100" title={display}>
               {display || '-'}
@@ -1154,12 +1285,12 @@ export function EntityTable({
           )
         }
 
-        if (typeof value === 'boolean') {
-          return <span className="text-zinc-100">{value ? 'Yes' : 'No'}</span>
+        if (typeof formatted === 'boolean') {
+          return <span className="text-zinc-100">{formatted ? 'Yes' : 'No'}</span>
         }
 
-        if (typeof value === 'object') {
-          const display = JSON.stringify(value)
+        if (typeof formatted === 'object') {
+          const display = JSON.stringify(formatted)
           return (
             <span className="max-w-[240px] truncate text-zinc-100" title={display}>
               {display}
@@ -1167,7 +1298,7 @@ export function EntityTable({
           )
         }
 
-        const display = String(value)
+        const display = String(formatted)
         return (
           <span className="max-w-[240px] truncate text-zinc-100" title={display}>
             {display}
@@ -1570,10 +1701,7 @@ export function EntityTable({
                                                             : nextValues
                                                         )
                                                       ).catch((error) => {
-                                                        console.error(
-                                                          'Failed to update cell:',
-                                                          error
-                                                        )
+                                                        reportCellUpdateError(error)
                                                       })
                                                     }}
                                                     className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
@@ -1606,15 +1734,19 @@ export function EntityTable({
                                         <select
                                           value={draftValue}
                                           onChange={async (event) => {
-                                            setDraftValue(event.target.value)
-                                            await onCellUpdate(
-                                              row,
-                                              column,
-                                              column.parseValue
-                                                ? column.parseValue(event.target.value, row)
-                                                : event.target.value
-                                            )
-                                            cancelEditing()
+                                            try {
+                                              setDraftValue(event.target.value)
+                                              await onCellUpdate(
+                                                row,
+                                                column,
+                                                column.parseValue
+                                                  ? column.parseValue(event.target.value, row)
+                                                  : event.target.value
+                                              )
+                                              cancelEditing()
+                                            } catch (error) {
+                                              reportCellUpdateError(error)
+                                            }
                                           }}
                                           onBlur={cancelEditing}
                                           className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"

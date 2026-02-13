@@ -1,7 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 const SCHEMA_FIELD_ENTITIES = [
   'asset',
@@ -103,6 +106,96 @@ function revalidateSchemaConsumers() {
   revalidatePath('/apex')
   revalidatePath('/people')
   revalidatePath('/departments')
+}
+
+async function applyFieldDatatypeMigration(): Promise<string | null> {
+  const migrationPath = join(
+    process.cwd(),
+    'migrations&fixes',
+    'generated',
+    '2026-02-13-fields-datatype-sync.sql'
+  )
+
+  let sql: string
+  try {
+    sql = await readFile(migrationPath, 'utf-8')
+  } catch (error) {
+    return error instanceof Error
+      ? `Could not read migration file (${migrationPath}): ${error.message}`
+      : `Could not read migration file (${migrationPath})`
+  }
+
+  const service = createServiceClient()
+  const attempts: Array<Record<string, string>> = [{ sql }, { query: sql }]
+  const execSqlErrors: string[] = []
+
+  for (const payload of attempts) {
+    const { error } = await service.rpc('exec_sql', payload as any)
+    if (!error) {
+      return null
+    }
+    execSqlErrors.push(error.message)
+  }
+
+  const managementTokenCandidates = [
+    process.env.SUPABASE_ACCESS_TOKEN,
+    process.env.SUPABASE_MANAGEMENT_API_TOKEN,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  ].filter((value): value is string => Boolean(value && value.trim()))
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+
+  let projectRef = ''
+  try {
+    const host = new URL(supabaseUrl).host
+    const dotIndex = host.indexOf('.')
+    projectRef = dotIndex > 0 ? host.slice(0, dotIndex) : ''
+  } catch {
+    projectRef = ''
+  }
+
+  if (managementTokenCandidates.length > 0 && projectRef) {
+    let lastManagementError = ''
+
+    for (const managementToken of managementTokenCandidates) {
+      try {
+        const response = await fetch(
+          `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${managementToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: sql }),
+          }
+        )
+
+        if (response.ok) {
+          return null
+        }
+
+        const responseText = await response.text()
+        lastManagementError = `Management API failed (${response.status}): ${responseText || 'No response body'}`
+      } catch (error) {
+        lastManagementError =
+          error instanceof Error
+            ? `Management API request failed: ${error.message}`
+            : 'Management API request failed'
+      }
+    }
+
+    if (lastManagementError) {
+      return lastManagementError
+    }
+  }
+
+  return (
+    (execSqlErrors.length > 0
+      ? `exec_sql RPC unavailable: ${execSqlErrors.join(' | ')}`
+      :
+        '') ||
+    'Failed to run migration SQL through exec_sql RPC and Management API fallback is unavailable. Set SUPABASE_ACCESS_TOKEN or SUPABASE_MANAGEMENT_API_TOKEN, or run SQL once in Supabase SQL editor.'
+  )
 }
 
 export async function listSchemaFields(entityType?: SchemaFieldEntity | string) {
@@ -356,13 +449,36 @@ export async function updateSchemaFieldMeta(
         return { error: 'Data type is required' }
       }
 
-      const { error: dataTypeError } = await supabase
-        .from('schema_fields')
-        .update({ data_type: nextDataType })
-        .eq('id', fieldId)
+      const { error: dataTypeError } = await supabase.rpc(
+        'schema_change_field_data_type',
+        {
+          p_field_id: fieldId,
+          p_data_type: nextDataType,
+        }
+      )
 
       if (dataTypeError) {
-        return { error: dataTypeError.message }
+        if (
+          dataTypeError.code === '42883' ||
+          /schema_change_field_data_type/.test(dataTypeError.message)
+        ) {
+          const migrationError = await applyFieldDatatypeMigration()
+          if (migrationError) {
+            return {
+              error: `Field type sync migration is missing and auto-apply failed: ${migrationError}. You can run \`node apply-fields-datatype-migration.js\` from repo root.`,
+            }
+          }
+
+          const retry = await supabase.rpc('schema_change_field_data_type', {
+            p_field_id: fieldId,
+            p_data_type: nextDataType,
+          })
+          if (retry.error) {
+            return { error: retry.error.message }
+          }
+        } else {
+          return { error: dataTypeError.message }
+        }
       }
     }
 

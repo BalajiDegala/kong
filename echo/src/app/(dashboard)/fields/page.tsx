@@ -317,10 +317,16 @@ export default function FieldsPage() {
         label: 'Data Type',
         type: 'text',
         width: '130px',
+        editable: true,
+        editor: 'select',
+        options: DATA_TYPE_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
       },
       {
         id: 'field_type',
-        label: 'Field Type',
+        label: 'Field Type (Meta)',
         type: 'text',
         width: '120px',
         editable: true,
@@ -331,10 +337,20 @@ export default function FieldsPage() {
         })),
       },
       {
-        id: 'entities_label',
+        id: 'entities',
         label: 'Entity Type(s)',
         type: 'text',
         width: '240px',
+        editable: true,
+        editor: 'multiselect',
+        options: ENTITY_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+        formatValue: (value) =>
+          formatEntityList(
+            Array.isArray(value) ? value.map((item) => String(item)) : []
+          ),
       },
       {
         id: 'choice_set_name',
@@ -393,6 +409,44 @@ export default function FieldsPage() {
   async function handleCellUpdate(row: any, column: TableColumn, value: any) {
     const fieldId = Number(row?.field_id)
     if (Number.isNaN(fieldId)) return
+    setError(null)
+
+    if (column.id === 'entities') {
+      const toEntityList = (items: unknown[]): string[] =>
+        Array.from(
+          new Set(
+            items
+              .map((item) => String(item || '').trim().toLowerCase())
+              .filter((item): item is string => item.length > 0)
+          )
+        )
+      const nextEntities = Array.isArray(value) ? toEntityList(value) : []
+      const currentEntities = Array.isArray(row?.entities) ? toEntityList(row.entities) : []
+
+      const currentSet = new Set<string>(currentEntities)
+      const nextSet = new Set<string>(nextEntities)
+      const removedEntities = currentEntities.filter((entity) => !nextSet.has(entity))
+      if (removedEntities.length > 0) {
+        throw new Error('Removing entity links is not supported yet. Add-only for now.')
+      }
+
+      const entitiesToAdd = nextEntities.filter((entity) => !currentSet.has(entity))
+      for (const entityType of entitiesToAdd) {
+        const result = await addFieldToEntity(fieldId, entityType, {
+          required: Boolean(row?.required_default),
+          visible_by_default: Boolean(row?.visible_by_default),
+          display_order: Number(row?.display_order) || 1000,
+        })
+        if (result.error) {
+          throw new Error(result.error)
+        }
+      }
+
+      if (entitiesToAdd.length > 0) {
+        await loadData()
+      }
+      return
+    }
 
     const patch: Record<string, any> = {}
     const localPatch: Partial<RuntimeFieldRow> = {}
@@ -401,6 +455,15 @@ export default function FieldsPage() {
       if (!nextName) throw new Error('Field name is required')
       patch.name = nextName
       localPatch.name = nextName
+    } else if (column.id === 'data_type') {
+      const nextValue = String(value || 'text').trim().toLowerCase()
+      if (!nextValue) throw new Error('Data type is required')
+      patch.data_type = nextValue
+      localPatch.data_type = nextValue
+      if (nextValue !== 'list' && nextValue !== 'status_list') {
+        patch.choice_set_id = null
+        localPatch.choice_set_id = null
+      }
     } else if (column.id === 'field_type') {
       const nextValue = String(value || 'dynamic').trim().toLowerCase()
       patch.field_type = nextValue
@@ -572,6 +635,7 @@ export default function FieldsPage() {
               onEdit={(row) => setEditRow(row as AggregatedFieldRow)}
               onDelete={(row) => setDeactivateRow(row as AggregatedFieldRow)}
               onCellUpdate={handleCellUpdate}
+              onCellUpdateError={(message) => setError(message)}
               cellEditTrigger="icon"
             />
           )}
@@ -884,9 +948,14 @@ function CreateFieldDialog({
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-zinc-500">
+                DB type mapping: checkbox to boolean, list/status list to text, multi-entity to text[].
+              </p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Field Type</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-300">
+                Field Type (metadata)
+              </label>
               <select
                 value={fieldType}
                 onChange={(event) => setFieldType(event.target.value)}
@@ -1244,9 +1313,14 @@ function EditFieldDialog({
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  DB type mapping: checkbox to boolean, list/status list to text, multi-entity to text[].
+                </p>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">Field Type</label>
+                <label className="mb-1 block text-sm font-medium text-zinc-300">
+                  Field Type (metadata)
+                </label>
                 <select
                   value={fieldType}
                   onChange={(event) => setFieldType(event.target.value)}
@@ -1387,7 +1461,7 @@ function EditFieldDialog({
                           } disabled:cursor-not-allowed disabled:opacity-70`}
                         >
                           {label}
-                          {isOriginal ? '' : ' ×'}
+                          {isOriginal ? '' : ' x'}
                         </button>
                       )
                     })}

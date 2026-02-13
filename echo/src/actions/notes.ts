@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { pickEntityColumns } from '@/lib/schema'
+import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
 
 export async function createNote(
   formData: Record<string, unknown> & {
@@ -25,7 +25,7 @@ export async function createNote(
     return { error: 'Not authenticated' }
   }
 
-  const extra = pickEntityColumns('note', formData, {
+  const extra = await pickEntityColumnsForWrite(supabase, 'note', formData, {
     deny: new Set(['project_id', 'created_by', 'updated_by', 'author_id']),
   })
 
@@ -68,22 +68,34 @@ export async function updateNote(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('note', formData, {
+  const updateData: any = await pickEntityColumnsForWrite(supabase, 'note', formData, {
     deny: new Set(['id', 'project_id', 'created_by', 'author_id', 'created_at', 'updated_at']),
   })
 
-  const { data, error } = await supabase
+  if (Object.keys(updateData).length === 0) {
+    return { data: null }
+  }
+
+  const { error } = await supabase
     .from('notes')
     .update(updateData)
     .eq('id', noteId)
-    .select()
-    .single()
 
   if (error) {
     return { error: error.message }
   }
 
-  const note = await supabase.from('notes').select('project_id').eq('id', noteId).single()
+  let data: any = null
+  const updatedRow = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', noteId)
+    .maybeSingle()
+  if (!updatedRow.error) {
+    data = updatedRow.data
+  }
+
+  const note = await supabase.from('notes').select('project_id').eq('id', noteId).maybeSingle()
   if (note.data) {
     revalidatePath(`/apex/${note.data.project_id}/notes`)
   }

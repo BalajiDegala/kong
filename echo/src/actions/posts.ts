@@ -6,7 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 export async function createPost(formData: {
   content: string
   content_html?: string
-  project_id?: number | null
+  projectIds?: number[]
+  sequenceIds?: number[]
+  shotIds?: number[]
+  taskIds?: number[]
+  userIds?: string[]
   visibility?: 'global' | 'project'
 }) {
   const supabase = await createClient()
@@ -19,15 +23,22 @@ export async function createPost(formData: {
     return { error: 'Not authenticated' }
   }
 
-  const visibility = formData.project_id ? 'project' : 'global'
+  const hasEntityAssociations =
+    (formData.projectIds?.length ?? 0) > 0 ||
+    (formData.sequenceIds?.length ?? 0) > 0 ||
+    (formData.shotIds?.length ?? 0) > 0 ||
+    (formData.taskIds?.length ?? 0) > 0 ||
+    (formData.userIds?.length ?? 0) > 0
 
+  const visibility = hasEntityAssociations ? 'project' : 'global'
+
+  // Create the post
   const { data, error } = await supabase
     .from('posts')
     .insert({
       author_id: user.id,
       content: formData.content,
       content_html: formData.content_html || null,
-      project_id: formData.project_id || null,
       visibility: formData.visibility || visibility,
     })
     .select()
@@ -37,10 +48,57 @@ export async function createPost(formData: {
     return { error: error.message }
   }
 
-  revalidatePath('/pulse')
-  if (formData.project_id) {
-    revalidatePath(`/apex/${formData.project_id}/pulse`)
+  // Create entity associations in junction tables
+  if (data) {
+    const postId = data.id
+
+    // Insert project associations
+    if (formData.projectIds && formData.projectIds.length > 0) {
+      const projectAssociations = formData.projectIds.map((projectId) => ({
+        post_id: postId,
+        project_id: projectId,
+      }))
+      await supabase.from('post_projects').insert(projectAssociations)
+    }
+
+    // Insert sequence associations
+    if (formData.sequenceIds && formData.sequenceIds.length > 0) {
+      const sequenceAssociations = formData.sequenceIds.map((sequenceId) => ({
+        post_id: postId,
+        sequence_id: sequenceId,
+      }))
+      await supabase.from('post_sequences').insert(sequenceAssociations)
+    }
+
+    // Insert shot associations
+    if (formData.shotIds && formData.shotIds.length > 0) {
+      const shotAssociations = formData.shotIds.map((shotId) => ({
+        post_id: postId,
+        shot_id: shotId,
+      }))
+      await supabase.from('post_shots').insert(shotAssociations)
+    }
+
+    // Insert task associations
+    if (formData.taskIds && formData.taskIds.length > 0) {
+      const taskAssociations = formData.taskIds.map((taskId) => ({
+        post_id: postId,
+        task_id: taskId,
+      }))
+      await supabase.from('post_tasks').insert(taskAssociations)
+    }
+
+    // Insert user mentions/assignments
+    if (formData.userIds && formData.userIds.length > 0) {
+      const userAssociations = formData.userIds.map((userId) => ({
+        post_id: postId,
+        user_id: userId,
+      }))
+      await supabase.from('post_users').insert(userAssociations)
+    }
   }
+
+  revalidatePath('/pulse')
   return { data }
 }
 
