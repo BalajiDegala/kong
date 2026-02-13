@@ -344,14 +344,37 @@ export async function updateSchemaFieldMeta(
   try {
     const supabase = await requireAuth()
     const payload = cleanPatch(patch)
+    const nextDataTypeRaw = payload.data_type
 
-    const { error } = await supabase.rpc('schema_update_field_meta', {
-      p_field_id: fieldId,
-      p_patch: payload,
-    })
+    if (nextDataTypeRaw !== undefined) {
+      delete payload.data_type
+      const nextDataType = String(nextDataTypeRaw || '')
+        .trim()
+        .toLowerCase()
 
-    if (error) {
-      return { error: error.message }
+      if (!nextDataType) {
+        return { error: 'Data type is required' }
+      }
+
+      const { error: dataTypeError } = await supabase
+        .from('schema_fields')
+        .update({ data_type: nextDataType })
+        .eq('id', fieldId)
+
+      if (dataTypeError) {
+        return { error: dataTypeError.message }
+      }
+    }
+
+    if (Object.keys(payload).length > 0) {
+      const { error } = await supabase.rpc('schema_update_field_meta', {
+        p_field_id: fieldId,
+        p_patch: payload,
+      })
+
+      if (error) {
+        return { error: error.message }
+      }
     }
 
     revalidateSchemaConsumers()

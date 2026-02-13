@@ -1,12 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import dynamic from 'next/dynamic'
-
-const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 import {
   Play, Pause, SkipBack, SkipForward,
-  ChevronLeft, ChevronRight, Maximize2
+  ChevronLeft, ChevronRight, Maximize2,
 } from 'lucide-react'
 
 interface VideoPlayerProps {
@@ -17,6 +14,7 @@ interface VideoPlayerProps {
   onPlay?: () => void
   width?: string | number
   height?: string | number
+  onFullscreen?: () => void
 }
 
 export function VideoPlayer({
@@ -27,8 +25,10 @@ export function VideoPlayer({
   onPlay,
   width = '100%',
   height = '100%',
+  onFullscreen,
 }: VideoPlayerProps) {
-  const playerRef = useRef<any>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const animFrameRef = useRef<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -53,52 +53,104 @@ export function VideoPlayer({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`
   }, [fps])
 
-  const handleProgress = useCallback(({ playedSeconds }: { playedSeconds: number }) => {
-    setCurrentTime(playedSeconds)
-    const frame = timeToFrame(playedSeconds)
-    if (frame !== currentFrame) {
+  // Sync time/frame during playback using requestAnimationFrame
+  const updateProgress = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    const t = video.currentTime
+    setCurrentTime(t)
+    const frame = timeToFrame(t)
+    setCurrentFrame(prev => {
+      if (prev !== frame) {
+        // Defer callback to avoid setState during render
+        setTimeout(() => onFrameChange?.(frame), 0)
+        return frame
+      }
+      return prev
+    })
+    if (!video.paused) {
+      animFrameRef.current = requestAnimationFrame(updateProgress)
+    }
+  }, [timeToFrame, onFrameChange])
+
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    setDuration(video.duration)
+    setTotalFrames(Math.floor(video.duration * fps))
+  }, [fps])
+
+  const handleVideoPlay = useCallback(() => {
+    setIsPlaying(true)
+    onPlay?.()
+    animFrameRef.current = requestAnimationFrame(updateProgress)
+  }, [onPlay, updateProgress])
+
+  const handleVideoPause = useCallback(() => {
+    setIsPlaying(false)
+    onPause?.()
+    cancelAnimationFrame(animFrameRef.current)
+    // Sync final position
+    const video = videoRef.current
+    if (video) {
+      setCurrentTime(video.currentTime)
+      const frame = timeToFrame(video.currentTime)
       setCurrentFrame(frame)
       onFrameChange?.(frame)
     }
-  }, [timeToFrame, currentFrame, onFrameChange])
+  }, [onPause, timeToFrame, onFrameChange])
 
-  const handleDuration = useCallback((dur: number) => {
-    setDuration(dur)
-    setTotalFrames(Math.floor(dur * fps))
-  }, [fps])
+  const handleVideoEnded = useCallback(() => {
+    setIsPlaying(false)
+    cancelAnimationFrame(animFrameRef.current)
+  }, [])
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(animFrameRef.current)
+  }, [])
+
+  const seekTo = useCallback((time: number) => {
+    const video = videoRef.current
+    if (video) {
+      video.currentTime = time
+      setCurrentTime(time)
+    }
+  }, [])
 
   const seekToFrame = useCallback((frame: number) => {
     const clamped = Math.max(1, Math.min(frame, totalFrames))
     const time = frameToTime(clamped)
-    playerRef.current?.seekTo(time, 'seconds')
+    seekTo(time)
     setCurrentFrame(clamped)
-    setCurrentTime(time)
     onFrameChange?.(clamped)
-  }, [totalFrames, frameToTime, onFrameChange])
+  }, [totalFrames, frameToTime, onFrameChange, seekTo])
 
   const stepFrame = useCallback((delta: number) => {
-    setIsPlaying(false)
+    const video = videoRef.current
+    if (video && !video.paused) {
+      video.pause()
+    }
     seekToFrame(currentFrame + delta)
   }, [currentFrame, seekToFrame])
 
   const handlePlayPause = useCallback(() => {
-    if (isPlaying) {
-      setIsPlaying(false)
-      onPause?.()
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) {
+      video.play()
     } else {
-      setIsPlaying(true)
-      onPlay?.()
+      video.pause()
     }
-  }, [isPlaying, onPause, onPlay])
+  }, [])
 
   const handleScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value)
-    playerRef.current?.seekTo(time, 'seconds')
-    setCurrentTime(time)
+    seekTo(time)
     const frame = timeToFrame(time)
     setCurrentFrame(frame)
     onFrameChange?.(frame)
-  }, [timeToFrame, onFrameChange])
+  }, [timeToFrame, onFrameChange, seekTo])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -134,21 +186,19 @@ export function VideoPlayer({
   }, [handlePlayPause, stepFrame, seekToFrame, totalFrames])
 
   return (
-    <div className="flex flex-col bg-black rounded-lg overflow-hidden">
+    <div className="flex flex-col bg-black rounded-lg overflow-hidden h-full">
       {/* Video */}
-      <div className="relative" style={{ width, height }}>
-        <ReactPlayer
-          ref={playerRef}
-          url={url}
-          playing={isPlaying}
-          onProgress={handleProgress}
-          onDuration={handleDuration}
-          onPause={() => { setIsPlaying(false); onPause?.() }}
-          onPlay={() => { setIsPlaying(true); onPlay?.() }}
-          progressInterval={1000 / fps}
-          width="100%"
-          height="100%"
-          style={{ position: 'absolute', top: 0, left: 0 }}
+      <div className="relative flex-1 min-h-0">
+        <video
+          ref={videoRef}
+          src={url}
+          onLoadedMetadata={handleLoadedMetadata}
+          onPlay={handleVideoPlay}
+          onPause={handleVideoPause}
+          onEnded={handleVideoEnded}
+          className="absolute inset-0 w-full h-full object-contain"
+          playsInline
+          preload="auto"
         />
       </div>
 
@@ -211,9 +261,20 @@ export function VideoPlayer({
             <span>Frame {currentFrame} / {totalFrames || '—'}</span>
           </div>
 
-          {/* Right: fps */}
-          <div className="text-xs text-zinc-500">
-            {fps} fps
+          {/* Right: fps + fullscreen */}
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-zinc-500">
+              {fps} fps
+            </div>
+            {onFullscreen && (
+              <button
+                onClick={onFullscreen}
+                className="p-1 text-zinc-400 hover:text-white transition"
+                title="Fullscreen"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

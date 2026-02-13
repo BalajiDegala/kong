@@ -1,6 +1,7 @@
 ### Dependencies / build output
 node_modules/
 .next/
+
 out/
 dist/
 build/
@@ -13,12 +14,13 @@ coverage/
 ### Local data (do not upload)
 images/
 shotgridDB/
-*.sql
 
 ### Editor / OS
 .DS_Store
 Thumbs.db
-
+*211*
+*212*
+backup
 ### Internal backups (nested repo git dirs)
 .git-backups/
 

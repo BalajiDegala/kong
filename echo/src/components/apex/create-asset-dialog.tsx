@@ -1,12 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { createAsset } from '@/actions/assets'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,6 +51,11 @@ type ShotOption = {
   sequence?: { code?: string | null } | null
 }
 
+type MultiSelectOption = {
+  value: string
+  label: string
+}
+
 const ASSET_TYPES = [
   { value: 'character', label: 'Character' },
   { value: 'prop', label: 'Prop' },
@@ -51,6 +64,8 @@ const ASSET_TYPES = [
   { value: 'fx', label: 'FX' },
   { value: 'matte_painting', label: 'Matte Painting' },
 ]
+
+const FALLBACK_STATUS_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
 
 const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
 const inputClass =
@@ -67,6 +82,10 @@ function parseList(value: string) {
 function asText(value: unknown): string {
   if (value === null || value === undefined) return ''
   return String(value)
+}
+
+function listToString(values: string[]): string {
+  return values.join(', ')
 }
 
 function formatSequenceEntityCode(sequence: { code?: unknown; name?: unknown } | null | undefined): string {
@@ -116,6 +135,72 @@ async function optimizeThumbnailDataUrl(file: File) {
   return canvas.toDataURL('image/jpeg', 0.84)
 }
 
+function MultiSelectDropdown({
+  id,
+  values,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  id: string
+  values: string[]
+  options: MultiSelectOption[]
+  placeholder: string
+  disabled?: boolean
+  onChange: (nextValues: string[]) => void
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          disabled={disabled}
+          className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
+            disabled
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+          }`}
+        >
+          <span className="truncate text-left">
+            {values.length > 0 ? listToString(values) : placeholder}
+          </span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+      >
+        {options.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={values.includes(option.value)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                const isChecked = checked === true
+                if (isChecked) {
+                  if (values.includes(option.value)) return
+                  onChange([...values, option.value])
+                  return
+                }
+                onChange(values.filter((item) => item !== option.value))
+              }}
+              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function CreateAssetDialog({
   open,
   onOpenChange,
@@ -130,6 +215,8 @@ export function CreateAssetDialog({
   const [error, setError] = useState<string | null>(null)
   const [sequences, setSequences] = useState<SequenceOption[]>([])
   const [shots, setShots] = useState<ShotOption[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
+  const [statusNames, setStatusNames] = useState<string[]>([])
   const [projectLabel, setProjectLabel] = useState(projectId)
   const [showMoreFields, setShowMoreFields] = useState(false)
   const [extraFields, setExtraFields] = useState<Record<string, unknown>>({})
@@ -141,6 +228,7 @@ export function CreateAssetDialog({
     code: '',
     thumbnail_blur_hash: '',
     asset_type: 'prop',
+    status: 'pending',
     description: '',
     client_name: '',
     dd_client_name: '',
@@ -148,13 +236,13 @@ export function CreateAssetDialog({
     outsource: false,
     sequence_id: defaultSequenceId ? String(defaultSequenceId) : 'none',
     shot_id: defaultShotId ? String(defaultShotId) : 'none',
-    shots: '',
+    shots: [] as string[],
     vendor_groups: '',
     sub_assets: '',
-    tags: '',
+    tags: [] as string[],
     task_template: '',
     parent_assets: '',
-    sequences: '',
+    sequences: [] as string[],
   })
 
   const loadSequences = useCallback(async () => {
@@ -194,13 +282,97 @@ export function CreateAssetDialog({
     setProjectLabel(label)
   }, [projectId])
 
+  const loadTagsAndStatuses = useCallback(async () => {
+    try {
+      const [tags, statuses] = await Promise.all([listTagNames(), listStatusNames('asset')])
+      setTagNames(tags)
+      setStatusNames(statuses)
+    } catch (loadError) {
+      console.error('Failed to load asset tags/statuses:', loadError)
+      setTagNames([])
+      setStatusNames([])
+    }
+  }, [])
+
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const status of statusNames) {
+      const normalized = status.trim()
+      if (normalized) values.add(normalized)
+    }
+    const current = formData.status.trim()
+    if (current) values.add(current)
+    if (values.size === 0) {
+      for (const fallback of FALLBACK_STATUS_VALUES) values.add(fallback)
+    }
+    return Array.from(values)
+  }, [formData.status, statusNames])
+
+  const tagOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const tag of tagNames) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const tag of formData.tags) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((tag) => ({ value: tag, label: tag }))
+  }, [formData.tags, tagNames])
+
+  const shotCodeOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const shot of shots) {
+      const normalized = formatShotEntityCode(shot.code, shot.sequence?.code)
+      if (normalized) values.add(normalized)
+    }
+    for (const code of formData.shots) {
+      const normalized = code.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((code) => ({ value: code, label: code }))
+  }, [formData.shots, shots])
+
+  const sequenceCodeOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const sequence of sequences) {
+      const normalized = formatSequenceEntityCode(sequence)
+      if (normalized) values.add(normalized)
+    }
+    for (const code of formData.sequences) {
+      const normalized = code.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((code) => ({ value: code, label: code }))
+  }, [formData.sequences, sequences])
+
+  const selectedSequenceId = useMemo(() => {
+    const parsed = Number(formData.sequence_id)
+    return Number.isNaN(parsed) ? null : parsed
+  }, [formData.sequence_id])
+
+  const shotSelectOptions = useMemo(() => {
+    if (selectedSequenceId === null) return shots
+    const filtered = shots.filter((shot) => shot.sequence_id === selectedSequenceId)
+    if (filtered.length > 0) return filtered
+    return shots
+  }, [selectedSequenceId, shots])
+
   useEffect(() => {
     if (!open) return
     setShowMoreFields(false)
     void loadSequences()
     void loadShots()
     void loadProject()
-  }, [loadProject, loadSequences, loadShots, open])
+    void loadTagsAndStatuses()
+  }, [loadProject, loadSequences, loadShots, loadTagsAndStatuses, open])
 
   useEffect(() => {
     if (open) return
@@ -260,6 +432,7 @@ export function CreateAssetDialog({
         thumbnail_url: thumbnailDataUrl || null,
         thumbnail_blur_hash: formData.thumbnail_blur_hash.trim() || null,
         asset_type: formData.asset_type,
+        status: formData.status || 'pending',
         description: formData.description,
         client_name: formData.client_name || null,
         dd_client_name: formData.dd_client_name || null,
@@ -273,13 +446,13 @@ export function CreateAssetDialog({
           formData.shot_id && formData.shot_id !== 'none'
             ? Number(formData.shot_id)
             : null,
-        shots: parseList(formData.shots),
+        shots: formData.shots,
         vendor_groups: parseList(formData.vendor_groups),
         sub_assets: parseList(formData.sub_assets),
-        tags: parseList(formData.tags),
+        tags: formData.tags,
         task_template: formData.task_template || null,
         parent_assets: parseList(formData.parent_assets),
-        sequences: parseList(formData.sequences),
+        sequences: formData.sequences,
         ...extraFields,
       })
 
@@ -290,6 +463,7 @@ export function CreateAssetDialog({
         code: '',
         thumbnail_blur_hash: '',
         asset_type: 'prop',
+        status: 'pending',
         description: '',
         client_name: '',
         dd_client_name: '',
@@ -297,13 +471,13 @@ export function CreateAssetDialog({
         outsource: false,
         sequence_id: defaultSequenceId ? String(defaultSequenceId) : 'none',
         shot_id: defaultShotId ? String(defaultShotId) : 'none',
-        shots: '',
+        shots: [],
         vendor_groups: '',
         sub_assets: '',
-        tags: '',
+        tags: [],
         task_template: '',
         parent_assets: '',
-        sequences: '',
+        sequences: [],
       })
       setThumbnailDataUrl(null)
       setThumbnailFileName('')
@@ -385,6 +559,28 @@ export function CreateAssetDialog({
                   {ASSET_TYPES.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-[110px_1fr] items-start gap-3">
+              <Label htmlFor="status" className={labelClass}>
+                Status:
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="status" className={selectClass}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -517,7 +713,26 @@ export function CreateAssetDialog({
                   </Label>
                   <Select
                     value={formData.sequence_id}
-                    onValueChange={(value) => setFormData({ ...formData, sequence_id: value })}
+                    onValueChange={(value) => {
+                      setFormData((prev) => {
+                        if (value === 'none' || prev.shot_id === 'none') {
+                          return { ...prev, sequence_id: value }
+                        }
+                        const nextSequenceId = Number(value)
+                        if (Number.isNaN(nextSequenceId)) {
+                          return { ...prev, sequence_id: value }
+                        }
+                        const currentShot = shots.find((shot) => String(shot.id) === prev.shot_id)
+                        const shouldClearShot =
+                          Boolean(currentShot?.sequence_id) &&
+                          currentShot?.sequence_id !== nextSequenceId
+                        return {
+                          ...prev,
+                          sequence_id: value,
+                          shot_id: shouldClearShot ? 'none' : prev.shot_id,
+                        }
+                      })
+                    }}
                     disabled={isLoading || lockSequence}
                   >
                     <SelectTrigger id="sequence" className={selectClass}>
@@ -548,7 +763,7 @@ export function CreateAssetDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {shots.map((shot) => (
+                      {shotSelectOptions.map((shot) => (
                         <SelectItem key={shot.id} value={shot.id.toString()}>
                           {formatShotEntityCode(shot.code, shot.sequence?.code)}
                         </SelectItem>
@@ -612,13 +827,13 @@ export function CreateAssetDialog({
                     <Label htmlFor="shots" className="text-sm font-medium text-zinc-300">
                       Shots
                     </Label>
-                    <Input
+                    <MultiSelectDropdown
                       id="shots"
-                      placeholder="SH010, SH020"
-                      value={formData.shots}
-                      onChange={(e) => setFormData({ ...formData, shots: e.target.value })}
+                      values={formData.shots}
+                      options={shotCodeOptions}
+                      placeholder="Select shots"
                       disabled={isLoading}
-                      className={inputClass}
+                      onChange={(nextValues) => setFormData({ ...formData, shots: nextValues })}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -654,13 +869,13 @@ export function CreateAssetDialog({
                     <Label htmlFor="tags" className="text-sm font-medium text-zinc-300">
                       Tags
                     </Label>
-                    <Input
+                    <MultiSelectDropdown
                       id="tags"
-                      placeholder="tag1, tag2"
-                      value={formData.tags}
-                      onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                      values={formData.tags}
+                      options={tagOptions}
+                      placeholder="Select tags"
                       disabled={isLoading}
-                      className={inputClass}
+                      onChange={(nextValues) => setFormData({ ...formData, tags: nextValues })}
                     />
                   </div>
                 </div>
@@ -683,13 +898,13 @@ export function CreateAssetDialog({
                     <Label htmlFor="sequences" className="text-sm font-medium text-zinc-300">
                       Sequences
                     </Label>
-                    <Input
+                    <MultiSelectDropdown
                       id="sequences"
-                      placeholder="SEQ01, SEQ02"
-                      value={formData.sequences}
-                      onChange={(e) => setFormData({ ...formData, sequences: e.target.value })}
+                      values={formData.sequences}
+                      options={sequenceCodeOptions}
+                      placeholder="Select sequences"
                       disabled={isLoading}
-                      className={inputClass}
+                      onChange={(nextValues) => setFormData({ ...formData, sequences: nextValues })}
                     />
                   </div>
                 </div>
@@ -717,6 +932,7 @@ export function CreateAssetDialog({
                     'parent_assets',
                     'sequences',
                     'asset_type',
+                    'status',
                     'thumbnail_url',
                     'thumbnail_blur_hash',
                   ])}

@@ -201,7 +201,10 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
           <div className="px-4 pb-3">
             <PostMediaGallery
               media={post.post_media}
-              onVideoSelect={(media) => setVideoMedia(media)}
+              onVideoSelect={(media) => {
+                console.log('Video selected:', media)
+                setVideoMedia(media)
+              }}
             />
           </div>
         )}
@@ -228,10 +231,13 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
 
       {/* Video Review Modal */}
       {videoMedia && (
-        <VideoReviewModal
-          media={videoMedia}
-          onClose={() => setVideoMedia(null)}
-        />
+        <>
+          {console.log('Rendering VideoReviewModal with:', videoMedia)}
+          <VideoReviewModal
+            media={videoMedia}
+            onClose={() => setVideoMedia(null)}
+          />
+        </>
       )}
 
       {/* Delete Confirmation Modal */}

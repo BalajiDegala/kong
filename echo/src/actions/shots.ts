@@ -4,6 +4,18 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumns } from '@/lib/schema'
 
+function normalizeCodeToken(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().replace(/\s+/g, '_').toUpperCase()
+}
+
+function buildShotCode(sequenceCode: string, shotToken: string): string {
+  if (!shotToken) return ''
+  if (!sequenceCode) return shotToken
+  if (shotToken.startsWith(sequenceCode)) return shotToken
+  return `${sequenceCode}${shotToken}`
+}
+
 export async function createShot(
   formData: Record<string, unknown> & {
     project_id: string
@@ -26,14 +38,52 @@ export async function createShot(
     deny: new Set(['project_id', 'created_by', 'updated_by']),
   })
 
+  const sequenceId = typeof formData.sequence_id === 'string' ? formData.sequence_id.trim() : ''
+  const shotName = typeof formData.name === 'string' ? formData.name.trim() : ''
+  const shotToken = normalizeCodeToken(shotName)
+  if (!sequenceId || !shotName || !shotToken) {
+    return { error: 'Shot name and sequence are required' }
+  }
+
+  const { data: sequenceData, error: sequenceError } = await supabase
+    .from('sequences')
+    .select('code')
+    .eq('id', sequenceId)
+    .eq('project_id', formData.project_id)
+    .maybeSingle()
+
+  if (sequenceError) {
+    return { error: sequenceError.message }
+  }
+  if (!sequenceData) {
+    return { error: 'Selected sequence not found' }
+  }
+
+  const sequenceCode = normalizeCodeToken(sequenceData.code)
+  const shotCode = buildShotCode(sequenceCode, shotToken)
+  if (!shotCode) {
+    return { error: 'Shot code could not be generated' }
+  }
+
+  const clientName =
+    typeof formData.client_name === 'string' && formData.client_name.trim()
+      ? formData.client_name.trim()
+      : shotCode
+  const ddClientName =
+    typeof formData.dd_client_name === 'string' && formData.dd_client_name.trim()
+      ? formData.dd_client_name.trim()
+      : shotCode
+
   const { data, error } = await supabase
     .from('shots')
     .insert({
       ...extra,
       project_id: formData.project_id,
-      sequence_id: formData.sequence_id,
-      name: formData.name,
-      code: formData.code.toUpperCase(),
+      sequence_id: sequenceId,
+      name: shotName,
+      code: shotCode,
+      client_name: clientName,
+      dd_client_name: ddClientName,
       status: typeof formData.status === 'string' && formData.status ? formData.status : 'pending',
       created_by: user.id,
     })
@@ -66,14 +116,9 @@ export async function updateShot(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('shot', formData, {
-    deny: new Set(['id', 'project_id', 'sequence_id', 'created_by', 'created_at', 'updated_at']),
+  const updateData: Record<string, unknown> = pickEntityColumns('shot', formData, {
+    deny: new Set(['id', 'project_id', 'sequence_id', 'code', 'created_by', 'created_at', 'updated_at']),
   })
-
-  const maybeCode = formData.code
-  if (typeof maybeCode === 'string') {
-    updateData.code = maybeCode.toUpperCase()
-  }
 
   const { data, error } = await supabase
     .from('shots')

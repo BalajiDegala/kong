@@ -134,11 +134,11 @@ export function AnnotationList({
           <div className="p-3 text-xs text-zinc-500 text-center">No annotations</div>
         ) : (
           filtered.map(annotation => (
-            <button
+            <div
               key={annotation.id}
               onClick={() => onFrameClick?.(annotation.frame_number)}
               className={`
-                w-full text-left px-3 py-2 border-b border-zinc-800/50 hover:bg-zinc-800/50 transition
+                w-full text-left px-3 py-2 border-b border-zinc-800/50 hover:bg-zinc-800/50 transition cursor-pointer
                 ${currentFrame === annotation.frame_number ? 'bg-amber-500/10 border-l-2 border-l-amber-500' : ''}
               `}
             >
@@ -182,7 +182,7 @@ export function AnnotationList({
                   {formatDistanceToNow(new Date(annotation.created_at), { addSuffix: true })}
                 </span>
               </div>
-            </button>
+            </div>
           ))
         )}
       </div>

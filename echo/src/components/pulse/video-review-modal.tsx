@@ -32,15 +32,24 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
   const [frameAnnotations, setFrameAnnotations] = useState<any[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [annotationText, setAnnotationText] = useState('')
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Get signed URL
   useEffect(() => {
+    console.log('Fetching signed URL for:', media.storage_path)
     const supabase = createClient()
     supabase.storage
       .from('post-media')
       .createSignedUrl(media.storage_path, 3600)
-      .then(({ data }) => {
-        if (data?.signedUrl) setVideoUrl(data.signedUrl)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error getting signed URL:', error)
+        } else if (data?.signedUrl) {
+          console.log('Got signed URL:', data.signedUrl)
+          setVideoUrl(data.signedUrl)
+        } else {
+          console.error('No signed URL in response')
+        }
       })
   }, [media.storage_path])
 
@@ -103,14 +112,23 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
     setPendingShapes([])
   }
 
-  // Escape to close
+  // Escape to close or exit fullscreen
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (isFullscreen) {
+          setIsFullscreen(false)
+        } else {
+          onClose()
+        }
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        setIsFullscreen(prev => !prev)
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
+  }, [onClose, isFullscreen])
 
   if (!videoUrl) {
     return (
@@ -123,7 +141,7 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
   return (
     <div className="fixed inset-0 z-50 flex bg-black/95">
       {/* Main video area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`flex flex-col ${isFullscreen ? 'w-full' : 'flex-1'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
           <div className="flex items-center gap-3">
@@ -143,7 +161,11 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
             </button>
           </div>
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onClose()
+            }}
             className="p-1 text-zinc-400 hover:text-white transition"
           >
             <X className="h-5 w-5" />
@@ -151,7 +173,7 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
         </div>
 
         {/* Toolbar */}
-        {isAnnotating && (
+        {isAnnotating && !isFullscreen && (
           <div className="flex items-center justify-center px-4 py-2 border-b border-zinc-800">
             <AnnotationToolbar
               activeTool={activeTool}
@@ -169,13 +191,14 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
 
         {/* Video + Canvas overlay */}
         <div className="flex-1 relative flex items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl aspect-video">
+          <div className={`relative w-full aspect-video ${isFullscreen ? 'h-full' : 'max-w-[90vw] max-h-[calc(100vh-200px)]'}`}>
             <VideoPlayer
               url={videoUrl}
               fps={media.fps || 24}
               onFrameChange={handleFrameChange}
               onPause={() => setIsPaused(true)}
               onPlay={() => setIsPaused(false)}
+              onFullscreen={() => setIsFullscreen(prev => !prev)}
             />
             <AnnotationCanvas
               width={1920}
@@ -191,7 +214,7 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
         </div>
 
         {/* Annotation text input */}
-        {isAnnotating && pendingShapes.length > 0 && (
+        {isAnnotating && pendingShapes.length > 0 && !isFullscreen && (
           <div className="px-4 py-2 border-t border-zinc-800">
             <input
               type="text"
@@ -205,15 +228,17 @@ export function VideoReviewModal({ media, versionId, onClose }: VideoReviewModal
       </div>
 
       {/* Sidebar: annotation list */}
-      <div className="w-72 border-l border-zinc-800 bg-zinc-900">
-        <AnnotationList
-          postMediaId={versionId ? undefined : media.id}
-          versionId={versionId}
-          currentFrame={currentFrame}
-          onFrameClick={(frame) => handleFrameChange(frame)}
-          onAnnotationsChange={() => loadFrameAnnotations(currentFrame)}
-        />
-      </div>
+      {!isFullscreen && (
+        <div className="w-72 border-l border-zinc-800 bg-zinc-900">
+          <AnnotationList
+            postMediaId={versionId ? undefined : media.id}
+            versionId={versionId}
+            currentFrame={currentFrame}
+            onFrameClick={(frame) => handleFrameChange(frame)}
+            onAnnotationsChange={() => loadFrameAnnotations(currentFrame)}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -112,10 +112,18 @@ export async function listStatusNames(entityType: string): Promise<string[]> {
 
   const names: string[] = []
   const seen = new Set<string>()
+  const allNames: string[] = []
+  const seenAll = new Set<string>()
 
   for (const row of orderedRows) {
     const name = asText(row?.[nameKey]).trim()
     if (!name) continue
+
+    const allKey = name.toLowerCase()
+    if (!seenAll.has(allKey)) {
+      seenAll.add(allKey)
+      allNames.push(name)
+    }
 
     const rowStatusId = Number(row?.[idKey])
     const mappedTypes = Number.isNaN(rowStatusId)
@@ -136,6 +144,7 @@ export async function listStatusNames(entityType: string): Promise<string[]> {
     names.push(name)
   }
 
+  // If entity filtering yields no match, return all statuses so UI still reflects real data.
+  if (names.length === 0) return allNames
   return names
 }
-

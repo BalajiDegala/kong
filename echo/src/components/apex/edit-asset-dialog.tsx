@@ -274,7 +274,7 @@ export function EditAssetDialog({ open, onOpenChange, asset }: EditAssetDialogPr
   const [tagNames, setTagNames] = useState<string[]>([])
   const [statusNames, setStatusNames] = useState<string[]>([])
   const [projectLabel, setProjectLabel] = useState('')
-  const [showMoreFields, setShowMoreFields] = useState(true)
+  const [showMoreFields, setShowMoreFields] = useState(false)
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
   const [thumbnailFileName, setThumbnailFileName] = useState('')
   const [formData, setFormData] = useState<AssetFormState>(() => buildFormState(asset))
@@ -426,7 +426,7 @@ export function EditAssetDialog({ open, onOpenChange, asset }: EditAssetDialogPr
     if (open && asset?.project_id) {
       const projectId = asText(asset.project_id).trim()
       if (!projectId) return
-      setShowMoreFields(true)
+      setShowMoreFields(false)
       void loadFormOptions(projectId)
       void loadProjectLabel(projectId, asset)
       return

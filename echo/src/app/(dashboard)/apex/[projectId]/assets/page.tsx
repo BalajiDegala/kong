@@ -129,15 +129,11 @@ export default function AssetsPage({
       const normalized = asText(status).trim()
       if (normalized) values.add(normalized)
     }
-    for (const asset of assets) {
-      const normalized = asText(asset.status).trim()
-      if (normalized) values.add(normalized)
-    }
     if (values.size === 0) {
       for (const fallback of STATUS_FALLBACK_VALUES) values.add(fallback)
     }
     return Array.from(values)
-  }, [assets, statusNames])
+  }, [statusNames])
 
   const tagOptions = useMemo(() => {
     const values = new Set<string>()

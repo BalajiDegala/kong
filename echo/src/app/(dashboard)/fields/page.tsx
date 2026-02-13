@@ -1081,15 +1081,18 @@ function EditFieldDialog({
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [dataType, setDataType] = useState('text')
   const [fieldType, setFieldType] = useState('dynamic')
   const [isActive, setIsActive] = useState(true)
   const [choiceSetId, setChoiceSetId] = useState('')
   const [selectedEntities, setSelectedEntities] = useState<Set<string>>(new Set())
+  const [entityToAdd, setEntityToAdd] = useState('')
   const [required, setRequired] = useState(false)
   const [visibleByDefault, setVisibleByDefault] = useState(true)
   const [displayOrder, setDisplayOrder] = useState('1000')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const isChoiceType = dataType === 'list' || dataType === 'status_list'
 
   const originalEntities = useMemo(
     () => new Set(field?.entities || []),
@@ -1100,10 +1103,12 @@ function EditFieldDialog({
     if (!open || !field) return
     setName(field.name || '')
     setDescription(field.description || '')
+    setDataType(field.data_type || 'text')
     setFieldType(field.field_type || 'dynamic')
     setIsActive(field.active_status === 'Active')
     setChoiceSetId(field.choice_set_id ? String(field.choice_set_id) : '')
     setSelectedEntities(new Set(field.entities))
+    setEntityToAdd('')
     setRequired(Boolean(field.required_default))
     setVisibleByDefault(Boolean(field.visible_by_default))
     setDisplayOrder(String(field.display_order || 1000))
@@ -1111,11 +1116,24 @@ function EditFieldDialog({
     setIsSaving(false)
   }, [field, open])
 
-  function toggleEntity(value: string) {
+  function addEntityFromDropdown() {
+    const nextEntity = entityToAdd.trim().toLowerCase()
+    if (!nextEntity || selectedEntities.has(nextEntity)) return
+
     setSelectedEntities((prev) => {
       const next = new Set(prev)
-      if (next.has(value)) next.delete(value)
-      else next.add(value)
+      next.add(nextEntity)
+      return next
+    })
+    setEntityToAdd('')
+  }
+
+  function removeEntity(value: string) {
+    if (originalEntities.has(value)) return
+
+    setSelectedEntities((prev) => {
+      const next = new Set(prev)
+      next.delete(value)
       return next
     })
   }
@@ -1134,15 +1152,21 @@ function EditFieldDialog({
       return
     }
 
+    if (selectedEntities.size === 0) {
+      setError('Select at least one entity type')
+      return
+    }
+
     setIsSaving(true)
     setError('')
 
     const patch: Record<string, unknown> = {
       name: nextName,
       description: description.trim() || '',
+      data_type: dataType,
       field_type: fieldType,
       is_active: isActive,
-      choice_set_id: choiceSetId ? Number(choiceSetId) : null,
+      choice_set_id: isChoiceType ? (choiceSetId ? Number(choiceSetId) : null) : null,
     }
 
     const updateResult = await updateSchemaFieldMeta(field.field_id, patch)
@@ -1209,12 +1233,17 @@ function EditFieldDialog({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300">Data Type</label>
-                <input
-                  type="text"
-                  value={field.data_type}
-                  readOnly
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-500"
-                />
+                <select
+                  value={dataType}
+                  onChange={(event) => setDataType(event.target.value)}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                >
+                  {DATA_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300">Field Type</label>
@@ -1242,7 +1271,7 @@ function EditFieldDialog({
               />
             </div>
 
-            {(field.data_type === 'list' || field.data_type === 'status_list') ? (
+            {isChoiceType ? (
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300">List Name</label>
                 <select
@@ -1308,21 +1337,67 @@ function EditFieldDialog({
               <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Entity Type(s)
               </label>
-              <div className="grid grid-cols-2 gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-                {ENTITY_OPTIONS.map((entity) => (
-                  <label key={entity.value} className="flex items-center gap-2 text-sm text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={selectedEntities.has(entity.value)}
-                      onChange={() => toggleEntity(entity.value)}
-                      className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
-                    />
-                    {entity.label}
-                  </label>
-                ))}
+              <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={entityToAdd}
+                    onChange={(event) => setEntityToAdd(event.target.value)}
+                    className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                  >
+                    <option value="">Select entity type</option>
+                    {ENTITY_OPTIONS.map((entity) => (
+                      <option
+                        key={entity.value}
+                        value={entity.value}
+                        disabled={selectedEntities.has(entity.value)}
+                      >
+                        {entity.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addEntityFromDropdown}
+                    disabled={!entityToAdd || selectedEntities.has(entityToAdd)}
+                    className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(selectedEntities)
+                    .sort()
+                    .map((entityType) => {
+                      const label =
+                        ENTITY_OPTIONS.find((entity) => entity.value === entityType)?.label ||
+                        entityType
+                      const isOriginal = originalEntities.has(entityType)
+
+                      return (
+                        <button
+                          key={entityType}
+                          type="button"
+                          onClick={() => removeEntity(entityType)}
+                          disabled={isOriginal}
+                          className={`rounded-full border px-3 py-1 text-xs ${
+                            isOriginal
+                              ? 'border-zinc-700 bg-zinc-800 text-zinc-200'
+                              : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:border-amber-400'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                        >
+                          {label}
+                          {isOriginal ? '' : ' ×'}
+                        </button>
+                      )
+                    })}
+                  {selectedEntities.size === 0 ? (
+                    <span className="text-xs text-zinc-500">No entity types selected</span>
+                  ) : null}
+                </div>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
-                Removing existing entity links is not enabled yet in v1. New checked entities will be added.
+                Existing entity links cannot be removed in v1. Add new entity types from the dropdown.
               </p>
             </div>
 

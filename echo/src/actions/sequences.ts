@@ -4,6 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumns } from '@/lib/schema'
 
+function normalizeCodeToken(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().replace(/\s+/g, '_').toUpperCase()
+}
+
 export async function createSequence(
   formData: Record<string, unknown> & {
     project_id: string
@@ -25,13 +30,30 @@ export async function createSequence(
     deny: new Set(['project_id', 'created_by', 'updated_by']),
   })
 
+  const sequenceName = typeof formData.name === 'string' ? formData.name.trim() : ''
+  const sequenceCode = normalizeCodeToken(sequenceName)
+  if (!sequenceName || !sequenceCode) {
+    return { error: 'Sequence name is required' }
+  }
+
+  const clientName =
+    typeof formData.client_name === 'string' && formData.client_name.trim()
+      ? formData.client_name.trim()
+      : sequenceCode
+  const ddClientName =
+    typeof formData.dd_client_name === 'string' && formData.dd_client_name.trim()
+      ? formData.dd_client_name.trim()
+      : sequenceCode
+
   const { data, error } = await supabase
     .from('sequences')
     .insert({
       ...extra,
       project_id: formData.project_id,
-      name: formData.name,
-      code: formData.code.toUpperCase(),
+      name: sequenceName,
+      code: sequenceCode,
+      client_name: clientName,
+      dd_client_name: ddClientName,
       status: typeof formData.status === 'string' && formData.status ? formData.status : 'active',
     })
     .select()
@@ -64,14 +86,9 @@ export async function updateSequence(
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = pickEntityColumns('sequence', formData, {
-    deny: new Set(['id', 'project_id', 'created_by', 'created_at', 'updated_at']),
+  const updateData: Record<string, unknown> = pickEntityColumns('sequence', formData, {
+    deny: new Set(['id', 'project_id', 'code', 'created_by', 'created_at', 'updated_at']),
   })
-
-  const maybeCode = formData.code
-  if (typeof maybeCode === 'string') {
-    updateData.code = maybeCode.toUpperCase()
-  }
 
   const { data, error } = await supabase
     .from('sequences')

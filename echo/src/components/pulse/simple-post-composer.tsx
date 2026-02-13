@@ -71,14 +71,19 @@ export function SimplePostComposer({ projectId, authorProfile, onPostCreated }: 
           const ext = file.name.split('.').pop()
           const storagePath = `${result.data.id}/${Date.now()}-${i}.${ext}`
 
-          const { error: uploadError } = await supabase.storage
+          console.log('Uploading file to:', storagePath, 'Size:', file.size, 'Type:', file.type)
+
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('post-media')
             .upload(storagePath, file)
 
           if (uploadError) {
-            console.error('Upload failed:', uploadError)
+            console.error('❌ Upload failed for', file.name, ':', uploadError)
+            setError(`Failed to upload ${file.name}: ${uploadError.message}`)
             continue
           }
+
+          console.log('✅ Upload successful:', uploadData)
 
           const mediaType = file.type.startsWith('video/') ? 'video' : 'image'
 

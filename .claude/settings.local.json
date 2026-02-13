@@ -20,7 +20,10 @@
       "Bash(wc:*)",
       "Bash(node -e:*)",
       "Bash(PGPASSWORD='postgres' psql:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm run schema:audit:*)",
+      "Bash(chmod:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

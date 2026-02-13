@@ -7,6 +7,12 @@ import { TableToolbar } from './table-toolbar'
 import type { TableColumn, TableSort } from './types'
 import { createClient } from '@/lib/supabase/client'
 import { getEntitySchema, type EntityKey, type SchemaField } from '@/lib/schema'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const DATE_ONLY_VALUE = /^\d{4}-\d{2}-\d{2}$/
 let userTablePreferencesAvailable: boolean | null = null
@@ -89,6 +95,12 @@ function stringToList(value: string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function isLikelyUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  )
 }
 
 function unknownToStringList(value: unknown): string[] {
@@ -344,6 +356,7 @@ export function EntityTable({
   const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>(
     {}
   )
+  const [profileNamesById, setProfileNamesById] = useState<Record<string, string>>({})
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -546,6 +559,76 @@ export function EntityTable({
     () => orderedColumns.filter((column) => visibleColumns.has(column.id)),
     [orderedColumns, visibleColumns]
   )
+
+  const peopleRefColumnIds = useMemo(
+    () =>
+      resolvedColumns
+        .filter((column) => {
+          const id = column.id.toLowerCase()
+          return id === 'created_by' || id === 'updated_by' || id.endsWith('_by')
+        })
+        .map((column) => column.id),
+    [resolvedColumns]
+  )
+
+  const peopleRefIds = useMemo(() => {
+    if (peopleRefColumnIds.length === 0) return []
+    const ids = new Set<string>()
+    for (const row of data) {
+      for (const columnId of peopleRefColumnIds) {
+        const rawValue = row?.[columnId]
+        if (typeof rawValue !== 'string') continue
+        const normalized = rawValue.trim()
+        if (!normalized || !isLikelyUuid(normalized)) continue
+        ids.add(normalized.toLowerCase())
+      }
+    }
+    return Array.from(ids)
+  }, [data, peopleRefColumnIds])
+
+  useEffect(() => {
+    if (peopleRefIds.length === 0) return
+    const missingIds = peopleRefIds.filter((id) => !profileNamesById[id])
+    if (missingIds.length === 0) return
+
+    let active = true
+    async function loadProfileNames() {
+      const supabase = createClient()
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, full_name, email')
+        .in('id', missingIds)
+
+      if (!active) return
+      if (error) {
+        console.error('Failed to load profile names for table references:', error)
+        return
+      }
+
+      const nextMap: Record<string, string> = {}
+      for (const profile of profiles || []) {
+        const id = typeof profile.id === 'string' ? profile.id.toLowerCase() : ''
+        if (!id) continue
+        const displayName =
+          typeof profile.display_name === 'string' && profile.display_name.trim()
+            ? profile.display_name.trim()
+            : typeof profile.full_name === 'string' && profile.full_name.trim()
+              ? profile.full_name.trim()
+              : typeof profile.email === 'string' && profile.email.trim()
+                ? profile.email.trim()
+                : id
+        nextMap[id] = displayName
+      }
+
+      if (Object.keys(nextMap).length === 0) return
+      setProfileNamesById((previous) => ({ ...previous, ...nextMap }))
+    }
+
+    loadProfileNames()
+    return () => {
+      active = false
+    }
+  }, [peopleRefIds, profileNamesById])
 
   const filterableColumns = useMemo(() => {
     return resolvedColumns.filter((column) => {
@@ -845,6 +928,20 @@ export function EntityTable({
         : { header: 'px-2 py-1.5 text-[10px]', cell: 'px-2 py-1.5 text-xs' }
 
   const renderCell = (column: TableColumn, value: any, row: any) => {
+    const columnIdLower = column.id.toLowerCase()
+    if (
+      typeof value === 'string' &&
+      value.trim() &&
+      (columnIdLower === 'created_by' ||
+        columnIdLower === 'updated_by' ||
+        columnIdLower.endsWith('_by'))
+    ) {
+      const profileName = profileNamesById[value.trim().toLowerCase()]
+      if (profileName) {
+        return <span className="text-zinc-100">{profileName}</span>
+      }
+    }
+
     if (column.editable && column.editor === 'checkbox' && onCellUpdate) {
       return (
         <label
@@ -1403,79 +1500,90 @@ export function EntityTable({
                                           className="relative w-full"
                                           onClick={(event) => event.stopPropagation()}
                                         >
-                                          <button
-                                            type="button"
-                                            onMouseDown={(event) => event.preventDefault()}
-                                            onClick={(event) => {
-                                              event.stopPropagation()
-                                              setMultiselectOpen((previous) => {
-                                                const next = !previous
-                                                if (!next) {
-                                                  cancelEditing()
-                                                }
-                                                return next
-                                              })
+                                          <DropdownMenu
+                                            modal={false}
+                                            open={multiselectOpen}
+                                            onOpenChange={(open) => {
+                                              if (!open) {
+                                                cancelEditing()
+                                                return
+                                              }
+                                              setMultiselectOpen(true)
                                             }}
-                                            className="flex w-full items-center justify-between rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left text-xs text-zinc-100"
                                           >
-                                            <span className="truncate">
-                                              {draftListValue.length > 0
-                                                ? draftListValue.join(', ')
-                                                : `Select ${column.label.toLowerCase()}`}
-                                            </span>
-                                            <ChevronDown
-                                              className={`h-3.5 w-3.5 text-zinc-400 transition ${
-                                                multiselectOpen ? 'rotate-180' : ''
-                                              }`}
-                                            />
-                                          </button>
+                                            <DropdownMenuTrigger asChild>
+                                              <button
+                                                type="button"
+                                                onMouseDown={(event) => event.preventDefault()}
+                                                onClick={(event) => event.stopPropagation()}
+                                                className="flex w-full items-center justify-between rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left text-xs text-zinc-100"
+                                              >
+                                                <span className="truncate">
+                                                  {draftListValue.length > 0
+                                                    ? draftListValue.join(', ')
+                                                    : `Select ${column.label.toLowerCase()}`}
+                                                </span>
+                                                <ChevronDown
+                                                  className={`h-3.5 w-3.5 text-zinc-400 transition ${
+                                                    multiselectOpen ? 'rotate-180' : ''
+                                                  }`}
+                                                />
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                              align="start"
+                                              sideOffset={4}
+                                              className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+                                              onCloseAutoFocus={(event) => {
+                                                event.preventDefault()
+                                              }}
+                                            >
+                                              {(column.options ?? []).length === 0 ? (
+                                                <p className="px-2 py-1.5 text-xs text-zinc-500">
+                                                  No options
+                                                </p>
+                                              ) : (
+                                                (column.options ?? []).map((option) => (
+                                                  <DropdownMenuCheckboxItem
+                                                    key={option.value}
+                                                    checked={draftListValue.includes(option.value)}
+                                                    onSelect={(event) => event.preventDefault()}
+                                                    onCheckedChange={(checked) => {
+                                                      const isChecked = checked === true
+                                                      const nextValues = isChecked
+                                                        ? draftListValue.includes(option.value)
+                                                          ? draftListValue
+                                                          : [...draftListValue, option.value]
+                                                        : draftListValue.filter(
+                                                            (item) => item !== option.value
+                                                          )
 
-                                          {multiselectOpen ? (
-                                            <div className="absolute left-0 top-full z-20 mt-1 w-full rounded border border-zinc-700 bg-zinc-900 p-2 shadow-2xl">
-                                              <div className="max-h-40 space-y-1 overflow-y-auto">
-                                                {(column.options ?? []).length === 0 ? (
-                                                  <p className="text-xs text-zinc-500">No options</p>
-                                                ) : (
-                                                  (column.options ?? []).map((option) => (
-                                                    <label
-                                                      key={option.value}
-                                                      className="flex items-center gap-2 text-xs text-zinc-200"
-                                                    >
-                                                      <input
-                                                        type="checkbox"
-                                                        checked={draftListValue.includes(option.value)}
-                                                        onChange={async (event) => {
-                                                          const { checked } = event.target
-                                                          const nextValues = checked
-                                                            ? draftListValue.includes(option.value)
-                                                              ? draftListValue
-                                                              : [...draftListValue, option.value]
-                                                            : draftListValue.filter((item) => item !== option.value)
+                                                      setDraftListValue(nextValues)
+                                                      setDraftValue(nextValues.join(', '))
 
-                                                          setDraftListValue(nextValues)
-                                                          setDraftValue(nextValues.join(', '))
-
-                                                          try {
-                                                            await onCellUpdate(
-                                                              row,
-                                                              column,
-                                                              column.parseValue
-                                                                ? column.parseValue(nextValues, row)
-                                                                : nextValues
-                                                            )
-                                                          } catch (error) {
-                                                            console.error('Failed to update cell:', error)
-                                                          }
-                                                        }}
-                                                        className="h-3.5 w-3.5 rounded border border-zinc-600 bg-zinc-900"
-                                                      />
-                                                      <span>{option.label}</span>
-                                                    </label>
-                                                  ))
-                                                )}
-                                              </div>
-                                            </div>
-                                          ) : null}
+                                                      Promise.resolve(
+                                                        onCellUpdate(
+                                                          row,
+                                                          column,
+                                                          column.parseValue
+                                                            ? column.parseValue(nextValues, row)
+                                                            : nextValues
+                                                        )
+                                                      ).catch((error) => {
+                                                        console.error(
+                                                          'Failed to update cell:',
+                                                          error
+                                                        )
+                                                      })
+                                                    }}
+                                                    className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+                                                  >
+                                                    {option.label}
+                                                  </DropdownMenuCheckboxItem>
+                                                ))
+                                              )}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </div>
                                       ) : column.editor === 'textarea' ? (
                                         <textarea
