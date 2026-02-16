@@ -90,19 +90,22 @@ export function VideoReviewModal({ media, versionId, postId, onClose }: VideoRev
   }
 
   const handleSave = async () => {
-    if (pendingShapes.length === 0) return
+    // Allow saving if there are shapes OR annotation text
+    if (pendingShapes.length === 0 && !annotationText.trim()) return
 
     setIsSaving(true)
     try {
-      // Save annotations
-      for (const shape of pendingShapes) {
-        await createAnnotation({
-          post_media_id: versionId ? undefined : media.id,
-          version_id: versionId,
-          frame_number: currentFrame,
-          annotation_data: shape,
-          annotation_text: annotationText || undefined,
-        })
+      // Save annotations (only if there are shapes)
+      if (pendingShapes.length > 0) {
+        for (const shape of pendingShapes) {
+          await createAnnotation({
+            post_media_id: versionId ? undefined : media.id,
+            version_id: versionId,
+            frame_number: currentFrame,
+            annotation_data: shape,
+            annotation_text: annotationText || undefined,
+          })
+        }
       }
 
       // Create comment on post if annotation text was provided
