@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
 
 function normalizeCodeToken(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -63,6 +64,8 @@ export async function createSequence(
     return { error: error.message }
   }
 
+  logEntityCreated('sequence', data.id, formData.project_id, data)
+
   revalidatePath(`/apex/${formData.project_id}/sequences`)
   revalidatePath(`/apex/${formData.project_id}/shots`)
   return { data }
@@ -86,6 +89,12 @@ export async function updateSequence(
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('sequences')
+    .select('*')
+    .eq('id', sequenceId)
+    .maybeSingle()
+
   const updateData: Record<string, unknown> = await pickEntityColumnsForWrite(
     supabase,
     'sequence',
@@ -104,6 +113,11 @@ export async function updateSequence(
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    const projectId = options?.projectId || oldData.project_id
+    logEntityUpdated('sequence', sequenceId, projectId, oldData, updateData)
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -139,10 +153,20 @@ export async function deleteSequence(sequenceId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('sequences')
+    .select('*')
+    .eq('id', sequenceId)
+    .maybeSingle()
+
   const { error } = await supabase.from('sequences').delete().eq('id', sequenceId)
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    logEntityDeleted('sequence', sequenceId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/sequences`)

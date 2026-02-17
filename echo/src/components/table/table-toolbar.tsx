@@ -9,9 +9,16 @@ interface TableToolbarProps {
   entityType: string
   columns: TableColumn[]
   visibleColumns: Set<string>
+  pinnedColumnIds?: Set<string>
   onToggleColumn: (columnId: string) => void
+  onTogglePinnedColumn?: (columnId: string) => void
+  allowGridView?: boolean
   onAdd?: () => void
+  view: 'grid' | 'list'
   onViewChange?: (view: 'grid' | 'list') => void
+  showGridSizeControl?: boolean
+  gridCardSize?: number
+  onGridCardSizeChange?: (size: number) => void
   sort: TableSort | null
   onSortChange: (sort: TableSort | null) => void
   groupBy: string | null
@@ -23,15 +30,23 @@ interface TableToolbarProps {
   onToggleFilters: () => void
   onCloseFilters: () => void
   filtersPanel?: React.ReactNode
+  toolbarActions?: React.ReactNode
 }
 
 export function TableToolbar({
   entityType,
   columns,
   visibleColumns,
+  pinnedColumnIds,
   onToggleColumn,
+  onTogglePinnedColumn,
+  allowGridView = true,
   onAdd,
+  view,
   onViewChange,
+  showGridSizeControl = false,
+  gridCardSize = 240,
+  onGridCardSizeChange,
   sort,
   onSortChange,
   groupBy,
@@ -43,11 +58,11 @@ export function TableToolbar({
   onToggleFilters,
   onCloseFilters,
   filtersPanel,
+  toolbarActions,
 }: TableToolbarProps) {
   const MENU_VISIBLE_ITEMS = 10
   const MENU_MAX_HEIGHT = MENU_VISIBLE_ITEMS * 32
 
-  const [view, setView] = useState<'grid' | 'list'>('list')
   const [openMenu, setOpenMenu] = useState<'sort' | 'group' | 'fields' | null>(null)
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
   const [manageColumnsOpen, setManageColumnsOpen] = useState(false)
@@ -85,12 +100,6 @@ export function TableToolbar({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [openMenu])
 
-  useEffect(() => {
-    if (!manageColumnsOpen) return
-    setManagedColumns(new Set(visibleColumns))
-    setManageSearchQuery('')
-  }, [manageColumnsOpen, visibleColumns])
-
   const filteredFieldColumns = useMemo(() => {
     const query = fieldSearchQuery.trim().toLowerCase()
     if (!query) return columns
@@ -113,6 +122,8 @@ export function TableToolbar({
 
   const allColumnsVisible = columns.length > 0 && managedColumns.size === columns.length
   const someColumnsVisible = managedColumns.size > 0 && !allColumnsVisible
+  const currentView = view
+  const normalizedGridCardSize = Math.max(160, Math.min(420, Number(gridCardSize) || 240))
 
   useEffect(() => {
     if (!toggleAllRef.current) return
@@ -120,8 +131,21 @@ export function TableToolbar({
   }, [someColumnsVisible])
 
   const handleViewChange = (newView: 'grid' | 'list') => {
-    setView(newView)
     onViewChange?.(newView)
+  }
+
+  const openManageColumns = () => {
+    setManagedColumns(new Set(visibleColumns))
+    setManageSearchQuery('')
+    setManageColumnsOpen(true)
+  }
+
+  const handleManageColumnsOpenChange = (open: boolean) => {
+    if (open) {
+      setManagedColumns(new Set(visibleColumns))
+      setManageSearchQuery('')
+    }
+    setManageColumnsOpen(open)
   }
 
   const entityLabels: Record<string, string> = {
@@ -208,30 +232,52 @@ export function TableToolbar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-950">
-          <button
-            onClick={() => handleViewChange('grid')}
-            className={`px-2 py-1.5 text-xs transition ${
-              view === 'grid'
-                ? 'bg-zinc-800 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Grid View"
-          >
-            <Grid className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleViewChange('list')}
-            className={`px-2 py-1.5 text-xs transition ${
-              view === 'list'
-                ? 'bg-zinc-800 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="List View"
-          >
-            <List className="h-4 w-4" />
-          </button>
-        </div>
+        {allowGridView ? (
+          <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-950">
+            <button
+              onClick={() => handleViewChange('grid')}
+              className={`px-2 py-1.5 text-xs transition ${
+                currentView === 'grid'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Grid View"
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleViewChange('list')}
+              className={`px-2 py-1.5 text-xs transition ${
+                currentView === 'list'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+
+        {allowGridView && showGridSizeControl && currentView === 'grid' ? (
+          <div className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              Size
+            </span>
+            <input
+              type="range"
+              min={160}
+              max={420}
+              step={10}
+              value={normalizedGridCardSize}
+              onChange={(event) =>
+                onGridCardSizeChange?.(Number.parseInt(event.target.value, 10))
+              }
+              className="h-3 w-24 accent-amber-400"
+              aria-label="Grid card size"
+            />
+          </div>
+        ) : null}
 
         {onAdd ? (
           <button
@@ -345,7 +391,7 @@ export function TableToolbar({
               <button
                 onClick={() => {
                   setOpenMenu(null)
-                  setManageColumnsOpen(true)
+                  openManageColumns()
                 }}
                 className="mb-2 flex w-full items-center rounded-sm px-2 py-1.5 text-left text-zinc-200 hover:bg-zinc-900"
               >
@@ -357,18 +403,36 @@ export function TableToolbar({
               </div>
               <div className="overflow-y-auto pr-1" style={{ maxHeight: `${MENU_MAX_HEIGHT}px` }}>
                 {filteredFieldColumns.map((column) => (
-                  <label
+                  <div
                     key={column.id}
-                    className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-zinc-900"
+                    className="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 hover:bg-zinc-900"
                   >
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.has(column.id)}
-                      onChange={() => onToggleColumn(column.id)}
-                      className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
-                    />
-                    <span>{column.label}</span>
-                  </label>
+                    <label className="flex min-w-0 flex-1 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.has(column.id)}
+                        onChange={() => onToggleColumn(column.id)}
+                        className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
+                      />
+                      <span className="truncate">{column.label}</span>
+                    </label>
+                    {onTogglePinnedColumn ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onTogglePinnedColumn(column.id)
+                        }}
+                        className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] transition ${
+                          pinnedColumnIds?.has(column.id)
+                            ? 'border-amber-400/70 text-amber-300 hover:border-amber-300 hover:text-amber-200'
+                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        }`}
+                      >
+                        {pinnedColumnIds?.has(column.id) ? 'Pinned' : 'Pin'}
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
                 {filteredFieldColumns.length === 0 ? (
                   <div className="px-2 py-2 text-zinc-500">No matching fields</div>
@@ -381,6 +445,7 @@ export function TableToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {toolbarActions ? <div className="flex items-center gap-2">{toolbarActions}</div> : null}
         <div className="relative" ref={filtersRef}>
           <button
             onClick={onToggleFilters}
@@ -406,7 +471,7 @@ export function TableToolbar({
         </div>
       </div>
 
-      <Dialog open={manageColumnsOpen} onOpenChange={setManageColumnsOpen}>
+      <Dialog open={manageColumnsOpen} onOpenChange={handleManageColumnsOpenChange}>
         <DialogContent
           showCloseButton={false}
           className="w-full max-w-2xl border-zinc-800 bg-zinc-950 p-0 text-zinc-100"

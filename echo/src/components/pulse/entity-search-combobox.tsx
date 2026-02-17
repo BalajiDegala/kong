@@ -14,6 +14,7 @@ interface EntitySearchComboboxProps {
   onChange: (selectedIds: (string | number)[]) => void
   filterByProjectIds?: number[]
   filterBySequenceIds?: number[]
+  filterByShotIds?: number[]
   className?: string
 }
 
@@ -31,6 +32,7 @@ export function EntitySearchCombobox({
   onChange,
   filterByProjectIds,
   filterBySequenceIds,
+  filterByShotIds,
   className = '',
 }: EntitySearchComboboxProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -73,7 +75,7 @@ export function EntitySearchCombobox({
       // Show recent/popular items when no query
       performSearch()
     }
-  }, [searchQuery, isOpen, filterByProjectIds, filterBySequenceIds])
+  }, [searchQuery, isOpen, filterByProjectIds, filterBySequenceIds, filterByShotIds])
 
   const loadSelectedItems = async () => {
     if (selectedIds.length === 0) return
@@ -147,6 +149,8 @@ export function EntitySearchCombobox({
     try {
       let query
       let data
+      // Show only 5 items when no search query, 20 when actively searching
+      const limit = searchQuery.length > 0 ? 20 : 5
 
       switch (entityType) {
         case 'project':
@@ -154,7 +158,7 @@ export function EntitySearchCombobox({
             .from('projects')
             .select('id, name')
             .order('name')
-            .limit(20)
+            .limit(limit)
 
           if (searchQuery) {
             query = query.ilike('name', `%${searchQuery}%`)
@@ -170,7 +174,7 @@ export function EntitySearchCombobox({
             .from('sequences')
             .select('id, name, project_id, project:projects(name)')
             .order('name')
-            .limit(20)
+            .limit(limit)
 
           if (searchQuery) {
             query = query.ilike('name', `%${searchQuery}%`)
@@ -194,7 +198,7 @@ export function EntitySearchCombobox({
             .from('shots')
             .select('id, name, sequence_id, sequence:sequences(name, project_id)')
             .order('name')
-            .limit(20)
+            .limit(limit)
 
           if (searchQuery) {
             query = query.ilike('name', `%${searchQuery}%`)
@@ -227,12 +231,17 @@ export function EntitySearchCombobox({
         case 'task':
           query = supabase
             .from('tasks')
-            .select('id, name')
+            .select('id, name, entity_type, entity_id')
             .order('name')
-            .limit(20)
+            .limit(limit)
 
           if (searchQuery) {
             query = query.ilike('name', `%${searchQuery}%`)
+          }
+
+          // Filter tasks by shots if provided
+          if (filterByShotIds && filterByShotIds.length > 0) {
+            query = query.eq('entity_type', 'shot').in('entity_id', filterByShotIds)
           }
 
           const taskResult = await query
@@ -244,7 +253,7 @@ export function EntitySearchCombobox({
             .from('profiles')
             .select('id, display_name')
             .order('display_name')
-            .limit(20)
+            .limit(limit)
 
           if (searchQuery) {
             query = query.ilike('display_name', `%${searchQuery}%`)
@@ -315,12 +324,19 @@ export function EntitySearchCombobox({
               <span className="font-medium">{label}:</span>
               <span>{selectedItems.length}</span>
               {selectedItems.length > 0 && (
-                <button
+                <span
                   onClick={clearAll}
-                  className="hover:text-amber-300 ml-1"
+                  className="hover:text-amber-300 ml-1 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      clearAll(e as any)
+                    }
+                  }}
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </span>
               )}
             </>
           )}

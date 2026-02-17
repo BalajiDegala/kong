@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { notifyVersionUploaded } from '@/lib/activity/notification-creator'
 
 export async function createVersion(
   formData: Record<string, unknown> & {
@@ -54,6 +56,13 @@ export async function createVersion(
     return { error: error.message }
   }
 
+  logEntityCreated('version', data.id, formData.project_id, data)
+
+  // Notify task assignees if version is linked to a task
+  if (data.task_id) {
+    notifyVersionUploaded(data.id, data.task_id, formData.project_id, user.id, data.code || `v${data.version_number}`)
+  }
+
   revalidatePath(`/apex/${formData.project_id}/versions`)
   return { data }
 }
@@ -76,8 +85,23 @@ export async function updateVersion(
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('versions')
+    .select('*')
+    .eq('id', versionId)
+    .maybeSingle()
+
   const updateData: any = await pickEntityColumnsForWrite(supabase, 'version', formData, {
-    deny: new Set(['id', 'project_id', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at']),
+    deny: new Set([
+      'id',
+      'project_id',
+      'entity_type',
+      'entity_id',
+      'code',
+      'created_by',
+      'created_at',
+      'updated_at',
+    ]),
   })
 
   const { data, error } = await supabase
@@ -89,6 +113,11 @@ export async function updateVersion(
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    const projectId = options?.projectId || oldData.project_id
+    logEntityUpdated('version', versionId, projectId, oldData, updateData)
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -118,10 +147,10 @@ export async function deleteVersion(versionId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
-  // Get the file path to delete from storage
+  // Get the full row for storage cleanup + logging
   const { data: version } = await supabase
     .from('versions')
-    .select('file_path')
+    .select('*')
     .eq('id', versionId)
     .single()
 
@@ -135,6 +164,10 @@ export async function deleteVersion(versionId: string, projectId: string) {
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (version) {
+    logEntityDeleted('version', versionId, projectId, version)
   }
 
   revalidatePath(`/apex/${projectId}/versions`)

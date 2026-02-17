@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { notifyMention, notifyNoteReply } from '@/lib/activity/notification-creator'
 
 export async function createNote(
   formData: Record<string, unknown> & {
@@ -50,6 +52,29 @@ export async function createNote(
     return { error: error.message }
   }
 
+  // Fire-and-forget activity logging
+  logEntityCreated('note', data.id, formData.project_id, data)
+
+  // Check for note_mentions after creation — query note_mentions table
+  try {
+    const { data: mentions } = await supabase
+      .from('note_mentions')
+      .select('user_id')
+      .eq('note_id', data.id)
+    if (mentions) {
+      for (const m of mentions) {
+        notifyMention(data.id, m.user_id, user.id, formData.project_id, data.content || '')
+      }
+    }
+  } catch {
+    // Fire-and-forget
+  }
+
+  // Notify parent note author if this is a reply
+  if (data.parent_note_id) {
+    notifyNoteReply(data.parent_note_id, data.id, user.id, formData.project_id, data.content || '')
+  }
+
   revalidatePath(`/apex/${formData.project_id}/notes`)
   return { data }
 }
@@ -68,8 +93,24 @@ export async function updateNote(
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', noteId)
+    .maybeSingle()
+
   const updateData: any = await pickEntityColumnsForWrite(supabase, 'note', formData, {
-    deny: new Set(['id', 'project_id', 'created_by', 'author_id', 'created_at', 'updated_at']),
+    deny: new Set([
+      'id',
+      'project_id',
+      'entity_type',
+      'entity_id',
+      'task_id',
+      'created_by',
+      'author_id',
+      'created_at',
+      'updated_at',
+    ]),
   })
 
   if (Object.keys(updateData).length === 0) {
@@ -95,6 +136,11 @@ export async function updateNote(
     data = updatedRow.data
   }
 
+  // Fire-and-forget activity logging
+  if (oldData) {
+    logEntityUpdated('note', noteId, oldData.project_id, oldData, updateData)
+  }
+
   const note = await supabase.from('notes').select('project_id').eq('id', noteId).maybeSingle()
   if (note.data) {
     revalidatePath(`/apex/${note.data.project_id}/notes`)
@@ -114,10 +160,20 @@ export async function deleteNote(noteId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', noteId)
+    .maybeSingle()
+
   const { error } = await supabase.from('notes').delete().eq('id', noteId)
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    logEntityDeleted('note', noteId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/notes`)

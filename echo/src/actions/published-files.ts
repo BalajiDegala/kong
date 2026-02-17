@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
 
 function toPublishedFilePolicyError(
   operation: 'create' | 'update' | 'delete',
@@ -152,6 +153,8 @@ export async function createPublishedFile(formData: {
     }
   }
 
+  logEntityCreated('published_file', data.id, formData.project_id, data)
+
   revalidatePath(`/apex/${formData.project_id}/published-files`)
   return { data }
 }
@@ -174,8 +177,24 @@ export async function updatePublishedFile(
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('published_files')
+    .select('*')
+    .eq('id', publishedFileId)
+    .maybeSingle()
+
   const updateData: any = await pickEntityColumnsForWrite(supabase, 'published_file', formData, {
-    deny: new Set(['id', 'project_id', 'published_by', 'created_by', 'created_at', 'updated_at']),
+    deny: new Set([
+      'id',
+      'project_id',
+      'entity_type',
+      'entity_id',
+      'code',
+      'published_by',
+      'created_by',
+      'created_at',
+      'updated_at',
+    ]),
   })
 
   const { data, error } = await supabase
@@ -187,6 +206,11 @@ export async function updatePublishedFile(
 
   if (error) {
     return { error: toPublishedFilePolicyError('update', error, { userId: user.id }) }
+  }
+
+  if (oldData) {
+    const projectId = options?.projectId || oldData.project_id
+    logEntityUpdated('published_file', publishedFileId, projectId, oldData, updateData)
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -201,7 +225,7 @@ export async function updatePublishedFile(
       projectId = projectResult.data?.project_id?.toString()
     }
     if (projectId) {
-      revalidatePath(`/apex/${projectId}`)
+      revalidatePath(`/apex/${projectId}/published-files`)
     }
   }
 
@@ -219,6 +243,12 @@ export async function deletePublishedFile(publishedFileId: string, projectId: st
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('published_files')
+    .select('*')
+    .eq('id', publishedFileId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('published_files')
     .delete()
@@ -226,6 +256,10 @@ export async function deletePublishedFile(publishedFileId: string, projectId: st
 
   if (error) {
     return { error: toPublishedFilePolicyError('delete', error, { userId: user.id }) }
+  }
+
+  if (oldData) {
+    logEntityDeleted('published_file', publishedFileId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/published-files`)

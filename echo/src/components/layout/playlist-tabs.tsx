@@ -12,6 +12,7 @@ const tabs = [
   { id: 'activity', label: 'Activity', href: '/activity' },
   { id: 'info', label: 'Playlist Info', href: '/info' },
   { id: 'versions', label: 'Versions', href: '/versions' },
+  { id: 'history', label: 'History', href: '/history' },
 ]
 
 export function PlaylistTabs({ projectId, playlistId }: PlaylistTabsProps) {

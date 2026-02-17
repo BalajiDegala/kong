@@ -10,9 +10,21 @@ import { EntityHierarchySelector, SelectedEntities } from './entity-hierarchy-se
 interface SimplePostComposerProps {
   authorProfile?: { display_name: string; avatar_url: string | null }
   onPostCreated?: () => void
+  // Default entity tags (auto-tag based on context)
+  defaultProjectIds?: number[]
+  defaultSequenceIds?: number[]
+  defaultShotIds?: number[]
+  defaultTaskIds?: number[]
 }
 
-export function SimplePostComposer({ authorProfile, onPostCreated }: SimplePostComposerProps) {
+export function SimplePostComposer({
+  authorProfile,
+  onPostCreated,
+  defaultProjectIds,
+  defaultSequenceIds,
+  defaultShotIds,
+  defaultTaskIds,
+}: SimplePostComposerProps) {
   const supabase = createClient()
 
   const [content, setContent] = useState('')
@@ -22,7 +34,7 @@ export function SimplePostComposer({ authorProfile, onPostCreated }: SimplePostC
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([])
   const [composerKey, setComposerKey] = useState(0) // Key to force remount
 
-  // Entity selections (using hierarchy selector)
+  // Entity selections (using hierarchy selector) - empty initially
   const [entitySelections, setEntitySelections] = useState<SelectedEntities>({
     projects: [],
     sequences: [],
@@ -59,10 +71,16 @@ export function SimplePostComposer({ authorProfile, onPostCreated }: SimplePostC
     setError(null)
 
     try {
-      const projectIds = entitySelections.projects.map((p) => p.id)
-      const sequenceIds = entitySelections.sequences.map((s) => s.id)
-      const shotIds = entitySelections.shots.map((s) => s.id)
-      const taskIds = entitySelections.tasks.map((t) => t.id)
+      // Merge manually selected entities with defaults (remove duplicates)
+      const selectedProjectIds = entitySelections.projects.map((p) => p.id)
+      const selectedSequenceIds = entitySelections.sequences.map((s) => s.id)
+      const selectedShotIds = entitySelections.shots.map((s) => s.id)
+      const selectedTaskIds = entitySelections.tasks.map((t) => t.id)
+
+      const projectIds = [...new Set([...(defaultProjectIds || []), ...selectedProjectIds])]
+      const sequenceIds = [...new Set([...(defaultSequenceIds || []), ...selectedSequenceIds])]
+      const shotIds = [...new Set([...(defaultShotIds || []), ...selectedShotIds])]
+      const taskIds = [...new Set([...(defaultTaskIds || []), ...selectedTaskIds])]
 
       console.log('Creating post with entity associations:', {
         content,

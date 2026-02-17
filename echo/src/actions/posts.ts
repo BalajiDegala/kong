@@ -245,7 +245,7 @@ export async function createPostComment(formData: {
   post_id: number
   content: string
   parent_note_id?: number
-  project_id?: string
+  project_id?: string | number | null
 }) {
   const supabase = await createClient()
 
@@ -257,6 +257,105 @@ export async function createPostComment(formData: {
     return { error: 'Not authenticated' }
   }
 
+  const parseProjectId = (value?: string | number | null) => {
+    if (value === undefined || value === null || value === '') return null
+    const parsed = typeof value === 'number' ? value : Number(value)
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+  }
+
+  const resolveProjectIdForPost = async () => {
+    const [postResult, postProjectResult, postSequenceResult, postShotResult, postTaskResult] =
+      await Promise.all([
+        supabase.from('posts').select('project_id').eq('id', formData.post_id).maybeSingle(),
+        supabase
+          .from('post_projects')
+          .select('project_id')
+          .eq('post_id', formData.post_id)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('post_sequences')
+          .select('sequence_id')
+          .eq('post_id', formData.post_id)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('post_shots')
+          .select('shot_id')
+          .eq('post_id', formData.post_id)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('post_tasks')
+          .select('task_id')
+          .eq('post_id', formData.post_id)
+          .limit(1)
+          .maybeSingle(),
+      ])
+
+    const fromPost = parseProjectId(postResult.data?.project_id)
+    if (fromPost) return fromPost
+
+    const fromPostProjects = parseProjectId(postProjectResult.data?.project_id)
+    if (fromPostProjects) return fromPostProjects
+
+    const sequenceId = postSequenceResult.data?.sequence_id
+    const shotId = postShotResult.data?.shot_id
+    const taskId = postTaskResult.data?.task_id
+
+    const [sequenceResult, shotResult, taskResult] = await Promise.all([
+      sequenceId
+        ? supabase.from('sequences').select('project_id').eq('id', sequenceId).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      shotId
+        ? supabase
+            .from('shots')
+            .select('project_id, sequence_id')
+            .eq('id', shotId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      taskId
+        ? supabase.from('tasks').select('project_id').eq('id', taskId).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+
+    const fromSequence = parseProjectId(sequenceResult.data?.project_id)
+    if (fromSequence) return fromSequence
+
+    const fromShot = parseProjectId(shotResult.data?.project_id)
+    if (fromShot) return fromShot
+
+    const shotSequenceId = shotResult.data?.sequence_id
+    if (shotSequenceId) {
+      const { data: shotSequence } = await supabase
+        .from('sequences')
+        .select('project_id')
+        .eq('id', shotSequenceId)
+        .maybeSingle()
+
+      const fromShotSequence = parseProjectId(shotSequence?.project_id)
+      if (fromShotSequence) return fromShotSequence
+    }
+
+    const fromTask = parseProjectId(taskResult.data?.project_id)
+    if (fromTask) return fromTask
+
+    return null
+  }
+
+  let projectId = parseProjectId(formData.project_id)
+  if (!projectId) {
+    projectId = await resolveProjectIdForPost()
+  }
+
+  if (!projectId) {
+    return {
+      error:
+        `Unable to create comment: no project could be resolved for post ${formData.post_id}. ` +
+        'Ensure the post has a project, sequence, shot, or task association.',
+    }
+  }
+
   const { data, error } = await supabase
     .from('notes')
     .insert({
@@ -265,7 +364,7 @@ export async function createPostComment(formData: {
       content: formData.content,
       author_id: user.id,
       created_by: user.id,
-      project_id: formData.project_id ? parseInt(formData.project_id) : null,
+      project_id: projectId,
       parent_note_id: formData.parent_note_id || null,
       status: 'open',
     })
@@ -292,4 +391,46 @@ export async function createPostComment(formData: {
 
   revalidatePath('/pulse')
   return { data }
+}
+
+export async function uploadCommentAttachment(formData: {
+  note_id: number
+  storage_path: string
+  file_name: string
+  file_size: number
+}) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  try {
+    // File was already uploaded from client, just create the database record
+    const { data: attachment, error: attachError } = await supabase
+      .from('attachments')
+      .insert({
+        note_id: formData.note_id,
+        file_name: formData.file_name,
+        file_size: formData.file_size,
+        file_type: 'image/png',
+        storage_path: formData.storage_path,
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (attachError) {
+      return { error: attachError.message }
+    }
+
+    revalidatePath('/pulse')
+    return { data: attachment }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to create attachment record' }
+  }
 }

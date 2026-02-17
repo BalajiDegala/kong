@@ -131,6 +131,11 @@ function MultiSelectDropdown({
   disabled?: boolean
   onChange: (nextValues: string[]) => void
 }) {
+  const optionLabelByValue = new Map(options.map((option) => [option.value, option.label]))
+  const selectedLabel = values
+    .map((value) => optionLabelByValue.get(value) || value)
+    .join(', ')
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -145,7 +150,7 @@ function MultiSelectDropdown({
           }`}
         >
           <span className="truncate text-left">
-            {values.length > 0 ? values.join(', ') : placeholder}
+            {values.length > 0 ? selectedLabel : placeholder}
           </span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
         </button>
@@ -198,10 +203,13 @@ function buildExtraFieldState(task: any): Record<string, unknown> {
     'entity_code',
     'entity_type_display',
     'step_name',
+    'department',
+    'department_label',
     'assignee_name',
     'step_id',
     'assigned_to',
     'reviewer',
+    'ayon_assignees',
     'start_date',
     'end_date',
     'status',
@@ -231,7 +239,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [steps, setSteps] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [statusNames, setStatusNames] = useState<string[]>([])
   const [tagNames, setTagNames] = useState<string[]>([])
@@ -242,9 +250,10 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
   const [extraFields, setExtraFields] = useState<Record<string, unknown>>({})
 
   const [formData, setFormData] = useState({
-    step_id: '',
+    department: '',
     assigned_to: '',
-    reviewer: '',
+    reviewer: [] as string[],
+    ayon_assignees: [] as string[],
     start_date: '',
     end_date: '',
     status: 'pending',
@@ -285,13 +294,27 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
       .map((value) => ({ value, label: value }))
   }, [formData.tags, tagNames])
 
+  const userOptions = useMemo<MultiSelectOption[]>(
+    () =>
+      users.map((user) => ({
+        value: user.id,
+        label:
+          asText(user.display_name).trim() ||
+          asText(user.full_name).trim() ||
+          asText(user.email).trim() ||
+          user.id,
+      })),
+    [users]
+  )
+
   useEffect(() => {
     if (!open || !task) return
 
     setFormData({
-      step_id: asText(task.step_id),
+      department: asText(task.department || task.step?.department_id),
       assigned_to: asText(task.assigned_to),
-      reviewer: parseUnknownList(task.reviewer).join(', '),
+      reviewer: parseUnknownList(task.reviewer),
+      ayon_assignees: parseUnknownList(task.ayon_assignees),
       start_date: asText(task.start_date),
       end_date: asText(task.end_date),
       status: asText(task.status) || 'pending',
@@ -318,23 +341,26 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
   async function loadData(currentTask: any) {
     try {
       const supabase = createClient()
-      const [stepsResult, usersResult, statusesResult, tagsResult] = await Promise.all([
-        supabase.from('steps').select('id, name').order('sort_order'),
-        supabase.from('profiles').select('id, full_name, email').order('full_name'),
+      const [departmentsResult, usersResult, statusesResult, tagsResult] = await Promise.all([
+        supabase
+          .from('departments')
+          .select('id, name, code')
+          .order('name'),
+        supabase.from('profiles').select('id, display_name, full_name, email').order('full_name'),
         listStatusNames('task'),
         listTagNames(),
       ])
 
-      if (stepsResult.error) throw stepsResult.error
+      if (departmentsResult.error) throw departmentsResult.error
       if (usersResult.error) throw usersResult.error
 
-      setSteps(stepsResult.data || [])
+      setDepartments(departmentsResult.data || [])
       setUsers(usersResult.data || [])
       setStatusNames(uniqueSorted(statusesResult))
       setTagNames(uniqueSorted(tagsResult))
     } catch (loadError) {
       console.error('Failed to load task edit options:', loadError)
-      setSteps([])
+      setDepartments([])
       setUsers([])
       setStatusNames([])
       setTagNames([])
@@ -394,9 +420,10 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
 
     try {
       const result = await updateTask(task.id, {
-        step_id: formData.step_id || null,
+        department: formData.department || null,
         assigned_to: formData.assigned_to || null,
-        reviewer: parseList(formData.reviewer),
+        reviewer: formData.reviewer,
+        ayon_assignees: formData.ayon_assignees,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
         status: formData.status,
@@ -461,22 +488,26 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
             </div>
 
             <div className="grid grid-cols-[120px_1fr] items-start gap-3">
-              <Label htmlFor="step_id" className={labelClass}>
+              <Label htmlFor="department" className={labelClass}>
                 Pipeline Step:
               </Label>
               <Select
-                value={formData.step_id || 'none'}
-                onValueChange={(value) => setFormData({ ...formData, step_id: value === 'none' ? '' : value })}
+                value={formData.department || 'none'}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, department: value === 'none' ? '' : value })
+                }
                 disabled={isLoading}
               >
-                <SelectTrigger id="step_id" className={selectClass}>
-                  <SelectValue placeholder="Select step" />
+                <SelectTrigger id="department" className={selectClass}>
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Select step</SelectItem>
-                  {steps.map((step) => (
-                    <SelectItem key={step.id} value={step.id.toString()}>
-                      {step.name}
+                  <SelectItem value="none">Select department</SelectItem>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={department.id.toString()}>
+                      {asText(department.code).trim() ||
+                        asText(department.name).trim() ||
+                        asText(department.id)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -489,9 +520,25 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
               </Label>
               <Select
                 value={formData.assigned_to || 'none'}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, assigned_to: value === 'none' ? '' : value })
-                }
+                onValueChange={(value) => {
+                  const nextAssignedTo = value === 'none' ? '' : value
+                  setFormData((prev) => {
+                    const shouldSyncAyon =
+                      prev.ayon_assignees.length === 0 ||
+                      (prev.assigned_to &&
+                        prev.ayon_assignees.length === 1 &&
+                        prev.ayon_assignees[0] === prev.assigned_to)
+                    return {
+                      ...prev,
+                      assigned_to: nextAssignedTo,
+                      ayon_assignees: shouldSyncAyon
+                        ? nextAssignedTo
+                          ? [nextAssignedTo]
+                          : []
+                        : prev.ayon_assignees,
+                    }
+                  })
+                }}
                 disabled={isLoading}
               >
                 <SelectTrigger id="assigned_to" className={selectClass}>
@@ -501,7 +548,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
                   <SelectItem value="none">Unassigned</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.full_name || user.email}
+                      {asText(user.display_name).trim() || user.full_name || user.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -512,13 +559,31 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
               <Label htmlFor="reviewer" className={labelClass}>
                 Reviewer:
               </Label>
-              <Input
+              <MultiSelectDropdown
                 id="reviewer"
-                value={formData.reviewer}
-                onChange={(e) => setFormData({ ...formData, reviewer: e.target.value })}
-                placeholder="Comma separated reviewers"
+                values={formData.reviewer}
+                options={userOptions}
+                placeholder="Select reviewers"
                 disabled={isLoading}
-                className={inputClass}
+                onChange={(nextReviewer) =>
+                  setFormData({ ...formData, reviewer: nextReviewer })
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+              <Label htmlFor="ayon_assignees" className={labelClass}>
+                Ayon Assignees:
+              </Label>
+              <MultiSelectDropdown
+                id="ayon_assignees"
+                values={formData.ayon_assignees}
+                options={userOptions}
+                placeholder="Select Ayon assignees"
+                disabled={isLoading}
+                onChange={(nextAyonAssignees) =>
+                  setFormData({ ...formData, ayon_assignees: nextAyonAssignees })
+                }
               />
             </div>
 
@@ -750,6 +815,8 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
                     'name',
                     'assigned_to',
                     'reviewer',
+                    'ayon_assignees',
+                    'department',
                     'step_id',
                     'priority',
                     'due_date',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import {
   Play, Pause, SkipBack, SkipForward,
   ChevronLeft, ChevronRight, Maximize2,
@@ -17,17 +17,21 @@ interface VideoPlayerProps {
   onFullscreen?: () => void
 }
 
-export function VideoPlayer({
-  url,
-  fps = 24,
-  onFrameChange,
-  onPause,
-  onPlay,
-  width = '100%',
-  height = '100%',
-  onFullscreen,
-}: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
+export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
+  function VideoPlayer({
+    url,
+    fps = 24,
+    onFrameChange,
+    onPause,
+    onPlay,
+    width = '100%',
+    height = '100%',
+    onFullscreen,
+  }, ref) {
+    const videoRef = useRef<HTMLVideoElement>(null)
+
+    // Expose the video element via ref
+    useImperativeHandle(ref, () => videoRef.current!, [])
   const animFrameRef = useRef<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -185,22 +189,23 @@ export function VideoPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handlePlayPause, stepFrame, seekToFrame, totalFrames])
 
-  return (
-    <div className="flex flex-col bg-black rounded-lg overflow-hidden h-full">
-      {/* Video */}
-      <div className="relative flex-1 min-h-0">
-        <video
-          ref={videoRef}
-          src={url}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={handleVideoPlay}
-          onPause={handleVideoPause}
-          onEnded={handleVideoEnded}
-          className="absolute inset-0 w-full h-full object-contain"
-          playsInline
-          preload="auto"
-        />
-      </div>
+    return (
+      <div className="flex flex-col bg-black rounded-lg overflow-hidden h-full">
+        {/* Video */}
+        <div className="relative flex-1 min-h-0">
+          <video
+            ref={videoRef}
+            src={url}
+            onLoadedMetadata={handleLoadedMetadata}
+            onPlay={handleVideoPlay}
+            onPause={handleVideoPause}
+            onEnded={handleVideoEnded}
+            className="absolute inset-0 w-full h-full object-contain"
+            playsInline
+            preload="auto"
+            crossOrigin="anonymous"
+          />
+        </div>
 
       {/* Controls */}
       <div className="bg-zinc-900 border-t border-zinc-800 px-3 py-2">
@@ -277,7 +282,8 @@ export function VideoPlayer({
             )}
           </div>
         </div>
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
+)

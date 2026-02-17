@@ -1,10 +1,26 @@
-export default async function VersionActivityPage() {
+import { createClient } from '@/lib/supabase/server'
+import { getEntityActivity } from '@/lib/supabase/queries'
+import { ActivityFeed } from '@/components/apex/activity-feed'
+
+export default async function VersionActivityPage({
+  params,
+}: {
+  params: Promise<{ projectId: string; versionId: string }>
+}) {
+  const { versionId } = await params
+  const supabase = await createClient()
+
+  let events: any[] = []
+  try {
+    events = await getEntityActivity(supabase, 'version', versionId)
+  } catch {
+    // Graceful fallback
+  }
+
   return (
     <div className="p-6">
-      <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-        <h3 className="text-sm font-semibold text-zinc-100">Activity</h3>
-        <p className="mt-2 text-sm text-zinc-400">No activity yet.</p>
-      </div>
+      <h3 className="mb-4 text-sm font-semibold text-zinc-100">Activity</h3>
+      <ActivityFeed events={events} />
     </div>
   )
 }

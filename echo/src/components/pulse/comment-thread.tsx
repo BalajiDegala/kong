@@ -13,6 +13,11 @@ interface Comment {
   created_at: string
   parent_note_id: number | null
   author: { id: string; display_name: string; avatar_url: string | null } | null
+  attachments?: Array<{
+    id: number
+    file_name: string
+    storage_path: string
+  }>
 }
 
 interface CommentThreadProps {
@@ -27,16 +32,17 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
   const [isLoading, setIsLoading] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
+  const [attachmentUrls, setAttachmentUrls] = useState<Map<string, string>>(new Map())
 
   const loadComments = useCallback(async () => {
     setIsLoading(true)
     try {
       const supabase = createClient()
 
-      // Step 1: Fetch comments (notes.author_id references auth.users, not profiles)
+      // Step 1: Fetch comments with attachments
       const { data, error } = await supabase
         .from('notes')
-        .select('id, content, created_at, parent_note_id, author_id')
+        .select('id, content, created_at, parent_note_id, author_id, attachments(id, file_name, storage_path)')
         .eq('entity_type', 'post')
         .eq('entity_id', postId)
         .order('created_at', { ascending: true })
@@ -65,7 +71,36 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
         }
       }
 
-      // Step 3: Merge
+      // Step 3: Fetch signed URLs for attachments
+      const attachmentPaths = rawComments
+        .flatMap(c => (c.attachments as any) || [])
+        .map((a: any) => a.storage_path)
+        .filter(Boolean)
+
+      console.log('💬 Comments loaded:', rawComments.length)
+      console.log('📎 Attachments found:', attachmentPaths.length)
+      console.log('📎 Attachment paths:', attachmentPaths)
+
+      const urlMap = new Map<string, string>()
+      if (attachmentPaths.length > 0) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('note-attachments')
+          .createSignedUrls(attachmentPaths, 3600)
+
+        console.log('🔗 Signed URLs response:', { data: signedData, error: signedError })
+
+        signedData?.forEach((item, idx) => {
+          if (item.signedUrl) {
+            urlMap.set(attachmentPaths[idx], item.signedUrl)
+            console.log('✅ Signed URL created:', attachmentPaths[idx], '→', item.signedUrl)
+          }
+        })
+      }
+
+      console.log('🗺️ URL Map size:', urlMap.size)
+      setAttachmentUrls(urlMap)
+
+      // Step 4: Merge
       const enrichedComments = rawComments.map(comment => ({
         ...comment,
         author: profileMap[comment.author_id] || null,
@@ -96,6 +131,11 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
   const renderComment = (comment: Comment, depth = 0) => {
     const childReplies = repliesByParent.get(comment.id) || []
 
+    // Debug logging
+    if (comment.attachments && comment.attachments.length > 0) {
+      console.log('🖼️ Rendering attachments for comment', comment.id, ':', comment.attachments)
+    }
+
     return (
       <div key={comment.id} className={depth > 0 ? 'ml-6 border-l border-zinc-800 pl-3' : ''}>
         <div className="flex gap-2 py-2">
@@ -112,6 +152,31 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
               </span>
             </div>
             <p className="text-sm text-zinc-400 mt-0.5">{comment.content}</p>
+
+            {/* Display attachment images */}
+            {comment.attachments && comment.attachments.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {comment.attachments.map(attachment => {
+                  const signedUrl = attachmentUrls.get(attachment.storage_path)
+                  if (!signedUrl) {
+                    console.log('🔍 No signed URL for:', attachment.storage_path)
+                    return null
+                  }
+                  console.log('✅ Rendering image:', attachment.storage_path)
+                  return (
+                    <div key={attachment.id}>
+                      <img
+                        src={signedUrl}
+                        alt={attachment.file_name}
+                        className="rounded border border-zinc-700 max-w-md cursor-pointer hover:opacity-90 transition"
+                        onClick={() => window.open(signedUrl, '_blank')}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="flex items-center gap-3 mt-1">
               <ReactionPicker
                 commentId={comment.id}

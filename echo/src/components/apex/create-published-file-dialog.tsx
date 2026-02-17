@@ -1,11 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { createPublishedFile } from '@/actions/published-files'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,18 +37,91 @@ interface CreatePublishedFileDialogProps {
   lockEntity?: boolean
 }
 
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'ip', label: 'In Progress' },
-  { value: 'review', label: 'Review' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'on_hold', label: 'On Hold' },
-]
+const DEFAULT_STATUS_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
 
 const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
 const inputClass =
   'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
 const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+
+type MultiSelectOption = {
+  value: string
+  label: string
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b))
+}
+
+function MultiSelectDropdown({
+  id,
+  values,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  id: string
+  values: string[]
+  options: MultiSelectOption[]
+  placeholder: string
+  disabled?: boolean
+  onChange: (nextValues: string[]) => void
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          disabled={disabled}
+          className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
+            disabled
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+          }`}
+        >
+          <span className="truncate text-left">{values.length > 0 ? values.join(', ') : placeholder}</span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+      >
+        {options.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={values.includes(option.value)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                const isChecked = checked === true
+                if (isChecked) {
+                  if (values.includes(option.value)) return
+                  onChange([...values, option.value])
+                  return
+                }
+                onChange(values.filter((item) => item !== option.value))
+              }}
+              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function CreatePublishedFileDialog({
   open,
@@ -62,6 +143,8 @@ export function CreatePublishedFileDialog({
   const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [versions, setVersions] = useState<any[]>([])
+  const [statusNames, setStatusNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
   const [extraFields, setExtraFields] = useState<Record<string, any>>({})
   const [formData, setFormData] = useState<{
     code: string
@@ -75,6 +158,7 @@ export function CreatePublishedFileDialog({
     entity_id: string
     task_id: string
     version_id: string
+    tags: string[]
   }>({
     code: '',
     name: '',
@@ -87,6 +171,7 @@ export function CreatePublishedFileDialog({
     entity_id: defaultEntityId ? String(defaultEntityId) : '',
     task_id: defaultTaskId ? String(defaultTaskId) : '',
     version_id: defaultVersionId ? String(defaultVersionId) : '',
+    tags: [],
   })
 
   useEffect(() => {
@@ -99,6 +184,7 @@ export function CreatePublishedFileDialog({
       entity_id: defaultEntityId ? String(defaultEntityId) : '',
       task_id: defaultTaskId ? String(defaultTaskId) : '',
       version_id: defaultVersionId ? String(defaultVersionId) : '',
+      tags: [],
     }))
   }, [open, defaultEntityType, defaultEntityId, defaultTaskId, defaultVersionId, projectId])
 
@@ -113,6 +199,8 @@ export function CreatePublishedFileDialog({
       { data: tasksData },
       { data: versionsData },
       { data: projectData },
+      statuses,
+      tags,
     ] = await Promise.all([
       supabase
         .from('assets')
@@ -150,6 +238,8 @@ export function CreatePublishedFileDialog({
         .select('name, code')
         .eq('id', projectId)
         .maybeSingle(),
+      listStatusNames('published_file'),
+      listTagNames(),
     ])
 
     setAssets(assetsData || [])
@@ -159,7 +249,37 @@ export function CreatePublishedFileDialog({
     setTasks(tasksData || [])
     setVersions(versionsData || [])
     setProjectLabel(projectData?.code || projectData?.name || projectId)
+    setStatusNames(uniqueSorted(statuses))
+    setTagNames(uniqueSorted(tags))
   }
+
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>(DEFAULT_STATUS_VALUES)
+    for (const status of statusNames) {
+      const normalized = status.trim()
+      if (normalized) values.add(normalized)
+    }
+    const currentStatus = formData.status.trim()
+    if (currentStatus) values.add(currentStatus)
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [formData.status, statusNames])
+
+  const tagOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const tag of tagNames) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const tag of formData.tags) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [formData.tags, tagNames])
 
   const entities =
     formData.entity_type === 'asset'
@@ -226,6 +346,7 @@ export function CreatePublishedFileDialog({
         entity_id: formData.entity_id,
         task_id: formData.task_id || undefined,
         version_id: formData.version_id || undefined,
+        tags: formData.tags,
         ...extraFields,
       })
 
@@ -243,6 +364,7 @@ export function CreatePublishedFileDialog({
         entity_id: defaultEntityId ? String(defaultEntityId) : '',
         task_id: defaultTaskId ? String(defaultTaskId) : '',
         version_id: defaultVersionId ? String(defaultVersionId) : '',
+        tags: [],
       })
       setExtraFields({})
       setShowMoreFields(false)
@@ -354,7 +476,7 @@ export function CreatePublishedFileDialog({
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUS_OPTIONS.map((option) => (
+                        {statusOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -376,6 +498,20 @@ export function CreatePublishedFileDialog({
                       className={inputClass}
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-[130px_1fr] items-start gap-3">
+                  <Label htmlFor="published-tags" className={labelClass}>
+                    Tags:
+                  </Label>
+                  <MultiSelectDropdown
+                    id="published-tags"
+                    values={formData.tags}
+                    options={tagOptions}
+                    placeholder="Select tags"
+                    disabled={isLoading}
+                    onChange={(nextTags) => setFormData({ ...formData, tags: nextTags })}
+                  />
                 </div>
 
                 <div className="grid grid-cols-[130px_1fr] items-start gap-3">
@@ -544,6 +680,7 @@ export function CreatePublishedFileDialog({
                     'version_number',
                     'task_id',
                     'version_id',
+                    'tags',
                     'thumbnail_url',
                   ])}
                 />

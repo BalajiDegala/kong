@@ -1,10 +1,45 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { EntityTable } from '@/components/table/entity-table'
 import { updateVersion } from '@/actions/versions'
 import { UploadVersionDialog } from '@/components/apex/upload-version-dialog'
+import { EditVersionDialog } from '@/components/apex/edit-version-dialog'
+
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
+function parseListValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => asText(item).trim())
+      .filter(Boolean)
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  return []
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b))
+}
 
 export default function AssetVersionsPage({
   params,
@@ -14,14 +49,14 @@ export default function AssetVersionsPage({
   const [projectId, setProjectId] = useState('')
   const [assetId, setAssetId] = useState('')
   const [versions, setVersions] = useState<any[]>([])
+  const [statusNames, setStatusNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
-  const listToString = (value: any) => (Array.isArray(value) ? value.join(', ') : '')
-  const stringToList = (value: string) =>
-    value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedVersion, setSelectedVersion] = useState<any>(null)
+  const listToString = (value: unknown) => parseListValue(value).join(', ')
+  const stringToList = (value: string) => parseListValue(value)
 
   useEffect(() => {
     params.then((p) => {
@@ -37,26 +72,35 @@ export default function AssetVersionsPage({
       const supabase = createClient()
       const assetIdNum = Number(aId)
 
-      const { data: versionsData, error } = await supabase
-        .from('versions')
-        .select(
+      const [versionsResult, nextStatusNames, nextTagNames] = await Promise.all([
+        supabase
+          .from('versions')
+          .select(
+            `
+            *,
+            task:tasks(id, name),
+            artist:profiles(id, display_name, full_name),
+            project:projects(id, code, name)
           `
-          *,
-          task:tasks(id, name),
-          artist:profiles(id, display_name, full_name),
-          project:projects(id, code, name)
-        `
-        )
-        .eq('project_id', projId)
-        .eq('entity_type', 'asset')
-        .eq('entity_id', Number.isNaN(assetIdNum) ? aId : assetIdNum)
-        .order('created_at', { ascending: false })
+          )
+          .eq('project_id', projId)
+          .eq('entity_type', 'asset')
+          .eq('entity_id', Number.isNaN(assetIdNum) ? aId : assetIdNum)
+          .order('created_at', { ascending: false }),
+        listStatusNames('version'),
+        listTagNames(),
+      ])
+
+      const { data: versionsData, error } = versionsResult
 
       if (error) {
         console.error('Error loading asset versions:', error)
         setVersions([])
         return
       }
+
+      setStatusNames(uniqueSorted(nextStatusNames))
+      setTagNames(uniqueSorted(nextTagNames))
 
       const normalized =
         versionsData?.map((version) => ({
@@ -70,9 +114,16 @@ export default function AssetVersionsPage({
     } catch (error) {
       console.error('Error loading asset versions:', error)
       setVersions([])
+      setStatusNames([])
+      setTagNames([])
     } finally {
       setIsLoading(false)
     }
+  }
+
+  function handleEdit(version: any) {
+    setSelectedVersion(version)
+    setShowEditDialog(true)
   }
 
   async function handleCellUpdate(row: any, column: any, value: any) {
@@ -87,6 +138,35 @@ export default function AssetVersionsPage({
     )
   }
 
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const status of statusNames) {
+      const normalized = status.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const version of versions) {
+      const normalized = asText(version.status).trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values).map((value) => ({ value, label: value }))
+  }, [statusNames, versions])
+
+  const tagOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const tag of tagNames) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const version of versions) {
+      for (const tag of parseListValue(version.tags)) {
+        values.add(tag)
+      }
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [tagNames, versions])
+
   const columns = [
     { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '80px' },
     {
@@ -99,7 +179,15 @@ export default function AssetVersionsPage({
     },
     { id: 'link', label: 'Link', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
     { id: 'task_label', label: 'Task', type: 'text' as const, width: '140px' },
-    { id: 'status', label: 'Status', type: 'status' as const, width: '90px', editable: true, editor: 'text' as const },
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'status' as const,
+      width: '90px',
+      editable: true,
+      editor: 'select' as const,
+      options: statusOptions,
+    },
     { id: 'artist_label', label: 'Artist', type: 'text' as const, width: '140px' },
     { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },
     { id: 'created_at', label: 'Date Created', type: 'datetime' as const, width: '140px' },
@@ -154,9 +242,10 @@ export default function AssetVersionsPage({
       type: 'text' as const,
       width: '140px',
       editable: true,
-      editor: 'text' as const,
+      editor: 'multiselect' as const,
+      options: tagOptions,
       formatValue: listToString,
-      parseValue: stringToList,
+      parseValue: (value: unknown) => parseListValue(value),
     },
     { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
     { id: 'version_type', label: 'Type', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
@@ -176,6 +265,16 @@ export default function AssetVersionsPage({
         defaultEntityType="asset"
         defaultEntityId={assetId}
         lockEntity
+      />
+
+      <EditVersionDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open)
+          if (!open) loadVersions(projectId, assetId)
+        }}
+        projectId={projectId}
+        version={selectedVersion}
       />
 
       <div className="p-6">
@@ -200,6 +299,7 @@ export default function AssetVersionsPage({
             data={versions}
             entityType="versions_asset"
             onAdd={() => setShowUploadDialog(true)}
+            onEdit={handleEdit}
             onCellUpdate={handleCellUpdate}
           />
         )}

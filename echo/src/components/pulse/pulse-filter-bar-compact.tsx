@@ -221,32 +221,42 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
             onChange={(ids) => updateFilter('projectIds', ids as number[])}
           />
 
-          <EntitySearchCombobox
-            label="Sequences"
-            placeholder="Search sequences..."
-            entityType="sequence"
-            selectedIds={filters.sequenceIds}
-            onChange={(ids) => updateFilter('sequenceIds', ids as number[])}
-            filterByProjectIds={filters.projectIds}
-          />
+          {/* Only show sequences after selecting a project */}
+          {filters.projectIds.length > 0 && (
+            <EntitySearchCombobox
+              label="Sequences"
+              placeholder="Search sequences..."
+              entityType="sequence"
+              selectedIds={filters.sequenceIds}
+              onChange={(ids) => updateFilter('sequenceIds', ids as number[])}
+              filterByProjectIds={filters.projectIds}
+            />
+          )}
 
-          <EntitySearchCombobox
-            label="Shots"
-            placeholder="Search shots..."
-            entityType="shot"
-            selectedIds={filters.shotIds}
-            onChange={(ids) => updateFilter('shotIds', ids as number[])}
-            filterByProjectIds={filters.projectIds}
-            filterBySequenceIds={filters.sequenceIds}
-          />
+          {/* Only show shots after selecting a project or sequence */}
+          {(filters.projectIds.length > 0 || filters.sequenceIds.length > 0) && (
+            <EntitySearchCombobox
+              label="Shots"
+              placeholder="Search shots..."
+              entityType="shot"
+              selectedIds={filters.shotIds}
+              onChange={(ids) => updateFilter('shotIds', ids as number[])}
+              filterByProjectIds={filters.projectIds}
+              filterBySequenceIds={filters.sequenceIds}
+            />
+          )}
 
-          <EntitySearchCombobox
-            label="Tasks"
-            placeholder="Search tasks..."
-            entityType="task"
-            selectedIds={filters.taskIds}
-            onChange={(ids) => updateFilter('taskIds', ids as number[])}
-          />
+          {/* Only show tasks after selecting a shot */}
+          {filters.shotIds.length > 0 && (
+            <EntitySearchCombobox
+              label="Tasks"
+              placeholder="Search tasks..."
+              entityType="task"
+              selectedIds={filters.taskIds}
+              onChange={(ids) => updateFilter('taskIds', ids as number[])}
+              filterByShotIds={filters.shotIds}
+            />
+          )}
 
           <EntitySearchCombobox
             label="Users"

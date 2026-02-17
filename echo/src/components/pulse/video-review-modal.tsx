@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAnnotation } from '@/actions/annotations'
-import { createPostComment } from '@/actions/posts'
+import { createPostComment, uploadCommentAttachment } from '@/actions/posts'
 import { VideoPlayer } from './video-player'
-import { AnnotationCanvas } from './annotation-canvas'
+import { AnnotationCanvas, type AnnotationCanvasRef } from './annotation-canvas'
 import { AnnotationToolbar, type AnnotationTool } from './annotation-toolbar'
 import { AnnotationList } from './annotation-list'
 
@@ -19,11 +19,15 @@ interface VideoReviewModalProps {
   }
   versionId?: number
   postId?: number
+  projectId?: string
   onClose: () => void
 }
 
-export function VideoReviewModal({ media, versionId, postId, onClose }: VideoReviewModalProps) {
-  console.log('VideoReviewModal mounted with props:', { mediaId: media.id, versionId, postId })
+export function VideoReviewModal({ media, versionId, postId, projectId, onClose }: VideoReviewModalProps) {
+  console.log('VideoReviewModal mounted with props:', { mediaId: media.id, versionId, postId, projectId })
+
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<AnnotationCanvasRef>(null)
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isAnnotating, setIsAnnotating] = useState(false)
@@ -95,7 +99,7 @@ export function VideoReviewModal({ media, versionId, postId, onClose }: VideoRev
 
     setIsSaving(true)
     try {
-      // Save annotations (only if there are shapes)
+      // Save annotations to database (only if there are shapes)
       if (pendingShapes.length > 0) {
         for (const shape of pendingShapes) {
           await createAnnotation({
@@ -108,26 +112,84 @@ export function VideoReviewModal({ media, versionId, postId, onClose }: VideoRev
         }
       }
 
-      // Create comment on post if annotation text was provided
-      console.log('Annotation save - checking comment creation:', {
-        hasText: !!annotationText.trim(),
-        postId,
-        text: annotationText,
-      })
+      // Create comment on post
+      if ((annotationText.trim() || pendingShapes.length > 0) && postId) {
+        const commentContent = annotationText.trim()
+          ? `[Frame ${currentFrame}] ${annotationText.trim()}`
+          : `[Frame ${currentFrame}] Annotation`
 
-      if (annotationText.trim() && postId) {
-        const commentContent = `[Frame ${currentFrame}] ${annotationText.trim()}`
         console.log('Creating comment on post:', postId, 'with content:', commentContent)
 
-        const result = await createPostComment({
+        const commentResult = await createPostComment({
           post_id: postId,
           content: commentContent,
+          project_id: projectId,
         })
 
-        if (result.error) {
-          console.error('Failed to create comment:', result.error)
-        } else {
-          console.log('✅ Comment created successfully:', result)
+        if (commentResult.error) {
+          console.error('Failed to create comment:', commentResult.error)
+        } else if (commentResult.data) {
+          console.log('✅ Comment created successfully:', commentResult.data.id)
+
+          // Capture annotated frame as image if there are shapes
+          if (pendingShapes.length > 0 && videoRef.current && canvasRef.current) {
+            try {
+              console.log('🎬 Starting image capture for frame', currentFrame, 'with', pendingShapes.length, 'shapes')
+              const blob = await canvasRef.current.exportAnnotatedFrame(videoRef.current)
+              console.log('📸 Canvas export result:', blob ? `${blob.size} bytes` : 'null')
+
+              if (blob) {
+                const supabase = createClient()
+                const timestamp = Date.now()
+                const filename = `frame-${currentFrame}.png`
+                const filePath = `${commentResult.data.id}/${timestamp}_${filename}`
+
+                console.log('⬆️ Uploading directly to storage:', filePath)
+
+                // Upload directly from client to storage (bypasses 1MB server action limit)
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('note-attachments')
+                  .upload(filePath, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/png',
+                  })
+
+                if (uploadError) {
+                  console.error('❌ Failed to upload to storage:', uploadError)
+                } else {
+                  console.log('✅ Upload successful, creating attachment record')
+
+                  // Create attachment record with just the metadata (small payload)
+                  const attachmentResult = await uploadCommentAttachment({
+                    note_id: commentResult.data.id,
+                    storage_path: uploadData.path,
+                    file_name: filename,
+                    file_size: blob.size,
+                  })
+
+                  if (attachmentResult.error) {
+                    console.error('❌ Failed to create attachment record:', attachmentResult.error)
+                    // Clean up uploaded file
+                    await supabase.storage.from('note-attachments').remove([uploadData.path])
+                  } else {
+                    console.log('✅ Attachment record created:', attachmentResult.data)
+                  }
+                }
+              } else {
+                console.warn('⚠️ Blob is null - canvas export failed')
+              }
+            } catch (error) {
+              console.error('❌ Failed to capture/upload annotation image:', error)
+              // Continue - comment was created successfully
+            }
+          } else {
+            console.log('⏭️ Skipping image capture:', {
+              hasShapes: pendingShapes.length > 0,
+              hasVideoRef: !!videoRef.current,
+              hasCanvasRef: !!canvasRef.current
+            })
+          }
         }
       }
 
@@ -226,6 +288,7 @@ export function VideoReviewModal({ media, versionId, postId, onClose }: VideoRev
         <div className="flex-1 relative flex items-center justify-center p-4">
           <div className={`relative w-full aspect-video ${isFullscreen ? 'h-full' : 'max-w-[90vw] max-h-[calc(100vh-200px)]'}`}>
             <VideoPlayer
+              ref={videoRef}
               url={videoUrl}
               fps={media.fps || 24}
               onFrameChange={handleFrameChange}
@@ -234,6 +297,7 @@ export function VideoReviewModal({ media, versionId, postId, onClose }: VideoRev
               onFullscreen={() => setIsFullscreen(prev => !prev)}
             />
             <AnnotationCanvas
+              ref={canvasRef}
               width={1920}
               height={1080}
               isDrawing={isAnnotating && isPaused}

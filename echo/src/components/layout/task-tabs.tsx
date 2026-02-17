@@ -14,6 +14,7 @@ const tabs = [
   { id: 'versions', label: 'Versions', href: '/versions' },
   { id: 'notes', label: 'Notes', href: '/notes' },
   { id: 'publishes', label: 'Publishes', href: '/publishes' },
+  { id: 'history', label: 'History', href: '/history' },
 ]
 
 export function TaskTabs({ projectId, taskId }: TaskTabsProps) {

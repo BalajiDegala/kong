@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { listStatusNames } from '@/lib/status/options'
 import { listTagNames } from '@/lib/tags/options'
@@ -10,7 +10,7 @@ import { EditTaskDialog } from '@/components/apex/edit-task-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
-import { deleteTask, updateTask } from '@/actions/tasks'
+import { createTask, deleteTask, updateTask } from '@/actions/tasks'
 import type { TableColumn } from '@/components/table/types'
 import { ListTodo, Plus } from 'lucide-react'
 
@@ -53,6 +53,27 @@ function uniqueSorted(values: string[]): string[] {
   ).sort((a, b) => a.localeCompare(b))
 }
 
+function toBooleanLike(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  const normalized = asText(value).trim().toLowerCase()
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+}
+
+function normalizeTaskEntityType(
+  value: unknown
+): 'asset' | 'shot' | 'sequence' | 'project' | null {
+  const normalized = asText(value).trim().toLowerCase()
+  if (
+    normalized === 'asset' ||
+    normalized === 'shot' ||
+    normalized === 'sequence' ||
+    normalized === 'project'
+  ) {
+    return normalized
+  }
+  return null
+}
+
 export default function TasksPage({
   params,
 }: {
@@ -60,8 +81,10 @@ export default function TasksPage({
 }) {
   const [projectId, setProjectId] = useState<string>('')
   const [tasks, setTasks] = useState<any[]>([])
-  const [steps, setSteps] = useState<Array<{ id: number; name: string }>>([])
-  const [users, setUsers] = useState<Array<{ id: string; full_name?: string | null; email?: string | null }>>([])
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string; code?: string | null }>>([])
+  const [users, setUsers] = useState<
+    Array<{ id: string; display_name?: string | null; full_name?: string | null; email?: string | null }>
+  >([])
   const [statusNames, setStatusNames] = useState<string[]>([])
   const [tagNames, setTagNames] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -80,32 +103,39 @@ export default function TasksPage({
 
   async function refreshProjectData(projId: string) {
     if (!projId) return
-    await Promise.all([loadTasks(projId), loadTaskOptions(projId)])
+    await Promise.all([loadTasks(projId), loadTaskOptions()])
   }
 
-  async function loadTaskOptions(projId: string) {
+  async function loadTaskOptions() {
     try {
       const supabase = createClient()
-      const [stepsResult, usersResult, nextTags, nextStatuses] = await Promise.all([
-        supabase.from('steps').select('id, name').order('sort_order'),
-        supabase.from('profiles').select('id, full_name, email').order('full_name'),
+      const [usersResult, departmentsResult, nextTags, nextStatuses] = await Promise.all([
+        supabase.from('profiles').select('id, display_name, full_name, email').order('full_name'),
+        supabase.from('departments').select('id, name, code').order('name'),
         listTagNames(),
         listStatusNames('task'),
       ])
 
-      if (stepsResult.error) throw stepsResult.error
       if (usersResult.error) throw usersResult.error
+      if (departmentsResult.error) throw departmentsResult.error
 
-      setSteps((stepsResult.data || []) as Array<{ id: number; name: string }>)
       setUsers(
-        (usersResult.data || []) as Array<{ id: string; full_name?: string | null; email?: string | null }>
+        (usersResult.data || []) as Array<{
+          id: string
+          display_name?: string | null
+          full_name?: string | null
+          email?: string | null
+        }>
+      )
+      setDepartments(
+        (departmentsResult.data || []) as Array<{ id: number; name: string; code?: string | null }>
       )
       setTagNames(uniqueSorted(nextTags))
       setStatusNames(uniqueSorted(nextStatuses))
     } catch (error) {
       console.error('Error loading task options:', error)
-      setSteps([])
       setUsers([])
+      setDepartments([])
       setTagNames([])
       setStatusNames([])
     }
@@ -119,7 +149,7 @@ export default function TasksPage({
 
       const { data: tasksData, error } = await supabase
         .from('tasks')
-        .select('*, steps(name, code), project:projects(id, code, name)')
+        .select('*, step:steps(name, code, department_id, department:departments(id, name, code)), project:projects(id, code, name)')
         .eq('project_id', projId)
         .order('created_at', { ascending: false })
 
@@ -180,7 +210,7 @@ export default function TasksPage({
       if (assignedUserIds.length > 0) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, full_name, email')
+          .select('id, display_name, full_name, email')
           .in('id', assignedUserIds)
         assigneesById = (data || []).reduce(
           (acc, row) => ({ ...acc, [row.id]: row }),
@@ -208,11 +238,20 @@ export default function TasksPage({
 
         const assignee = task.assigned_to ? assigneesById[task.assigned_to] : null
         const entityType = asText(task.entity_type) || 'unknown'
-        const stepName = asText(task.steps?.name).trim() || 'No Step'
+        const stepName = asText(task.step?.name).trim() || 'No Step'
+        const directDepartment = asText(task.department).trim()
+        const stepDepartment = asText(task.step?.department_id).trim()
+        const effectiveDepartment = directDepartment || stepDepartment || null
+        const departmentLabel =
+          asText(task.step?.department?.code).trim() ||
+          asText(task.step?.department?.name).trim() ||
+          (effectiveDepartment ? effectiveDepartment : 'No Department')
 
         return {
           ...task,
           reviewer: parseListValue(task.reviewer),
+          ayon_assignees: parseListValue(task.ayon_assignees),
+          ayon_sync_status: toBooleanLike(task.ayon_sync_status),
           cc: parseListValue(task.cc),
           tags: parseListValue(task.tags),
           versions: parseListValue(task.versions),
@@ -220,8 +259,11 @@ export default function TasksPage({
           entity_code: entityCode,
           entity_display: `${task.name} (${entityCode})`,
           entity_type_display: entityType.charAt(0).toUpperCase() + entityType.slice(1),
+          department: effectiveDepartment,
+          department_label: departmentLabel,
           step_name: stepName,
-          assignee_name: assignee?.full_name || assignee?.email || 'Unassigned',
+          assignee_name:
+            assignee?.display_name || assignee?.full_name || assignee?.email || 'Unassigned',
           project_label: task.project ? task.project.code || task.project.name : '',
         }
       })
@@ -235,34 +277,45 @@ export default function TasksPage({
     }
   }
 
-  const stepNameById = useMemo(() => {
+  const departmentLabelById = useMemo(() => {
     const map = new Map<string, string>()
-    for (const step of steps) {
-      const id = asText(step.id).trim()
+    for (const department of departments) {
+      const id = asText(department.id).trim()
       if (!id) continue
-      map.set(id, step.name || id)
+      const label =
+        asText(department.code).trim() ||
+        asText(department.name).trim() ||
+        id
+      map.set(id, label)
     }
     return map
-  }, [steps])
+  }, [departments])
 
   const assigneeNameById = useMemo(() => {
     const map = new Map<string, string>()
     for (const user of users) {
       const id = asText(user.id).trim()
       if (!id) continue
-      const label = asText(user.full_name).trim() || asText(user.email).trim() || id
+      const label =
+        asText(user.display_name).trim() ||
+        asText(user.full_name).trim() ||
+        asText(user.email).trim() ||
+        id
       map.set(id, label)
     }
     return map
   }, [users])
 
-  const stepOptions = useMemo(
+  const departmentOptions = useMemo(
     () =>
-      steps.map((step) => ({
-        value: asText(step.id),
-        label: step.name || asText(step.id),
+      departments.map((department) => ({
+        value: asText(department.id),
+        label:
+          asText(department.code).trim() ||
+          asText(department.name).trim() ||
+          asText(department.id),
       })),
-    [steps]
+    [departments]
   )
 
   const assigneeOptions = useMemo(
@@ -270,9 +323,26 @@ export default function TasksPage({
       { value: '', label: 'Unassigned' },
       ...users.map((user) => ({
         value: user.id,
-        label: asText(user.full_name).trim() || asText(user.email).trim() || user.id,
+        label:
+          asText(user.display_name).trim() ||
+          asText(user.full_name).trim() ||
+          asText(user.email).trim() ||
+          user.id,
       })),
     ],
+    [users]
+  )
+
+  const peopleMultiOptions = useMemo(
+    () =>
+      users.map((user) => ({
+        value: user.id,
+        label:
+          asText(user.display_name).trim() ||
+          asText(user.full_name).trim() ||
+          asText(user.email).trim() ||
+          user.id,
+      })),
     [users]
   )
 
@@ -332,13 +402,16 @@ export default function TasksPage({
         if (task.id !== row.id) return task
         const next = { ...task, [column.id]: value }
 
-        if (column.id === 'step_id') {
-          const stepKey = asText(value).trim()
-          next.step_name = stepNameById.get(stepKey) || 'No Step'
+        if (column.id === 'department') {
+          const departmentKey = asText(value).trim()
+          next.department_label = departmentKey
+            ? departmentLabelById.get(departmentKey) || departmentKey
+            : 'No Department'
         }
         if (column.id === 'assigned_to') {
           const userKey = asText(value).trim()
           next.assignee_name = userKey ? assigneeNameById.get(userKey) || 'Unknown' : 'Unassigned'
+          next.ayon_assignees = userKey ? [userKey] : []
         }
 
         return next
@@ -346,8 +419,120 @@ export default function TasksPage({
     )
   }
 
+  async function handleBulkDelete(rows: any[]) {
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const rowId = asText(row?.id).trim()
+      if (!rowId) continue
+      const result = await deleteTask(rowId, projectId)
+      if (result?.error) {
+        failures.push(`${asText(row?.name).trim() || rowId}: ${result.error}`)
+      }
+    }
+
+    await refreshProjectData(projectId)
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      throw new Error(
+        failures.length > 3 ? `${preview}; and ${failures.length - 3} more` : preview
+      )
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    const departmentLookup = new Map<string, string>()
+    for (const department of departments) {
+      const id = asText(department.id).trim()
+      if (!id) continue
+      departmentLookup.set(id, id)
+      const code = asText(department.code).trim().toLowerCase()
+      if (code) departmentLookup.set(code, id)
+      const name = asText(department.name).trim().toLowerCase()
+      if (name) departmentLookup.set(name, id)
+    }
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = asText(row.name).trim()
+      const entityType = normalizeTaskEntityType(row.entity_type)
+      const entityId = asText(row.entity_id).trim()
+
+      if (!name || !entityType || !entityId) {
+        failed.push({
+          row: index + 2,
+          message: 'name, entity_type, and entity_id are required.',
+        })
+        continue
+      }
+
+      const rawDepartment =
+        asText(row.department).trim() ||
+        asText(row.department_id).trim() ||
+        asText(row.department_label).trim()
+      const normalizedDepartment = rawDepartment.toLowerCase()
+      const resolvedDepartment =
+        departmentLookup.get(rawDepartment) ||
+        departmentLookup.get(normalizedDepartment) ||
+        rawDepartment ||
+        undefined
+      const stepId = asText(row.step_id).trim() || undefined
+
+      try {
+        const result = await createTask({
+          ...(row as Record<string, unknown>),
+          project_id: projectId,
+          name,
+          entity_type: entityType,
+          entity_id: entityId,
+          department: resolvedDepartment,
+          step_id: stepId,
+          assigned_to: asText(row.assigned_to).trim() || undefined,
+          status: asText(row.status).trim() || undefined,
+          priority: asText(row.priority).trim() || undefined,
+          due_date: asText(row.due_date).trim() || undefined,
+          description: asText(row.description).trim() || undefined,
+          reviewer: parseListValue(row.reviewer),
+          ayon_assignees: parseListValue(row.ayon_assignees),
+          cc: parseListValue(row.cc),
+          tags: parseListValue(row.tags),
+          versions: parseListValue(row.versions),
+        })
+
+        if (result?.error) {
+          throw new Error(result.error)
+        }
+        imported += 1
+      } catch (error) {
+        failed.push({
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Failed to import task row.',
+        })
+      }
+    }
+
+    await refreshProjectData(projectId)
+    return { imported, failed }
+  }
+
   const listToString = (value: any) =>
     Array.isArray(value) ? value.join(', ') : ''
+  const listToPeopleString = useCallback(
+    (value: unknown) =>
+      parseListValue(value)
+        .map((item) => {
+          const key = asText(item).trim()
+          if (!key) return ''
+          return assigneeNameById.get(key) || key
+        })
+        .filter(Boolean)
+        .join(', '),
+    [assigneeNameById]
+  )
   const stringToList = (value: string) => parseListValue(value)
 
   const columns = useMemo<TableColumn[]>(
@@ -362,24 +547,24 @@ export default function TasksPage({
         linkHref: (row: any) => `/apex/${projectId}/tasks/${row.id}`,
       },
       {
-        id: 'step_id',
+        id: 'department',
         label: 'Pipeline Step',
         type: 'text',
         width: '160px',
         editable: true,
         editor: 'select',
-        options: stepOptions,
+        options: departmentOptions,
         formatValue: (value: any, row: any) => {
           const key = asText(value).trim()
-          if (!key) return asText(row.step_name).trim() || '-'
-          return stepNameById.get(key) || asText(row.step_name).trim() || key
+          if (!key) return asText(row.department_label).trim() || 'No Department'
+          return (
+            departmentLabelById.get(key) ||
+            asText(row.department_label).trim() ||
+            asText(row.step_name).trim() ||
+            key
+          )
         },
-        parseValue: (value: string) => {
-          const normalized = value.trim()
-          if (!normalized) return null
-          const parsed = Number(normalized)
-          return Number.isNaN(parsed) ? normalized : parsed
-        },
+        parseValue: (value: string) => value.trim() || null,
       },
       {
         id: 'status',
@@ -423,9 +608,29 @@ export default function TasksPage({
         type: 'text',
         width: '160px',
         editable: true,
-        editor: 'text',
-        formatValue: listToString,
-        parseValue: stringToList,
+        editor: 'multiselect',
+        options: peopleMultiOptions,
+        formatValue: listToPeopleString,
+        parseValue: (value: any) => parseListValue(value),
+      },
+      {
+        id: 'ayon_assignees',
+        label: 'Ayon Assignees',
+        type: 'text',
+        width: '200px',
+        editable: true,
+        editor: 'multiselect',
+        options: peopleMultiOptions,
+        formatValue: listToPeopleString,
+        parseValue: (value: any) => parseListValue(value),
+      },
+      {
+        id: 'ayon_sync_status',
+        label: 'Ayon Sync Status',
+        type: 'boolean',
+        width: '160px',
+        editable: true,
+        editor: 'checkbox',
       },
       {
         id: 'tags',
@@ -482,7 +687,17 @@ export default function TasksPage({
       },
       { id: 'id', label: 'Id', type: 'text', width: '80px' },
     ],
-    [projectId, stepOptions, stepNameById, statusOptions, assigneeOptions, assigneeNameById, tagOptions]
+    [
+      projectId,
+      departmentOptions,
+      departmentLabelById,
+      statusOptions,
+      assigneeOptions,
+      assigneeNameById,
+      listToPeopleString,
+      peopleMultiOptions,
+      tagOptions,
+    ]
   )
 
   if (isLoading) {
@@ -559,8 +774,10 @@ export default function TasksPage({
             columns={columns}
             data={tasks}
             entityType="tasks"
+            csvExportFilename="apex-tasks"
+            onCsvImport={handleCsvImport}
+            onBulkDelete={handleBulkDelete}
             onAdd={() => setShowCreateDialog(true)}
-            groupBy="step_name"
             onEdit={handleEdit}
             onDelete={handleDelete}
             onCellUpdate={handleCellUpdate}

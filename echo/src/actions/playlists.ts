@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
 
 export async function createPlaylist(formData: {
   project_id: string
@@ -36,6 +37,8 @@ export async function createPlaylist(formData: {
     return { error: error.message }
   }
 
+  logEntityCreated('playlist', data.id, formData.project_id, data)
+
   revalidatePath(`/apex/${formData.project_id}/playlists`)
   return { data }
 }
@@ -63,6 +66,12 @@ export async function updatePlaylist(
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('playlists')
+    .select('*')
+    .eq('id', playlistId)
+    .maybeSingle()
+
   const updateData: any = {}
   if (formData.name !== undefined) updateData.name = formData.name
   if (formData.code !== undefined) updateData.code = formData.code
@@ -78,6 +87,11 @@ export async function updatePlaylist(
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    const projectId = options?.projectId || oldData.project_id
+    logEntityUpdated('playlist', playlistId, projectId, oldData, updateData)
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -111,10 +125,20 @@ export async function deletePlaylist(playlistId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
+  const { data: oldData } = await supabase
+    .from('playlists')
+    .select('*')
+    .eq('id', playlistId)
+    .maybeSingle()
+
   const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    logEntityDeleted('playlist', playlistId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/playlists`)

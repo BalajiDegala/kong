@@ -16,6 +16,7 @@ const tabs = [
   { id: 'assets', label: 'Assets', href: '/assets' },
   { id: 'notes', label: 'Notes', href: '/notes' },
   { id: 'publishes', label: 'Publishes', href: '/publishes' },
+  { id: 'history', label: 'History', href: '/history' },
 ]
 
 export function SequenceTabs({ projectId, sequenceId }: SequenceTabsProps) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { format, isSameDay, isToday, isYesterday } from 'date-fns'
 import { Check, Copy, Pencil, Trash2, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface Message {
   id: number
@@ -51,6 +52,45 @@ function formatDayLabel(d: Date) {
   if (isToday(d)) return 'Today'
   if (isYesterday(d)) return 'Yesterday'
   return format(d, 'MMM d, yyyy')
+}
+
+// Convert URLs in text to clickable links
+function linkifyText(text: string): ReactNode[] {
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts: ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+
+    // Add the URL as a clickable link
+    const url = match[0]
+    parts.push(
+      <a
+        key={`${match.index}-${url}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-amber-400 hover:text-amber-300 underline break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+    )
+
+    lastIndex = match.index + match[0].length
+  }
+
+  // Add remaining text after the last URL
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+
+  return parts.length > 0 ? parts : [text]
 }
 
 export function MessageList({
@@ -343,7 +383,7 @@ export function MessageList({
                     </div>
                   ) : (
                     <p className={`${showAuthor ? 'mt-0.5' : ''} whitespace-pre-wrap text-sm text-zinc-300`}>
-                      {msg.content}
+                      {linkifyText(msg.content)}
                     </p>
                   )}
                 </div>

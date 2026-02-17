@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { ChevronDown, ChevronRight, Download, Pencil, Trash2, Upload } from 'lucide-react'
 import { TableToolbar } from './table-toolbar'
 import type { TableColumn, TableSort } from './types'
 import { createClient } from '@/lib/supabase/client'
@@ -11,13 +12,23 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const DATE_ONLY_VALUE = /^\d{4}-\d{2}-\d{2}$/
 let userTablePreferencesAvailable: boolean | null = null
+let userTablePreferencesHasExtendedColumns: boolean | null = null
 
-function isMissingUserTablePreferencesTable(error: any): boolean {
+function isMissingUserTablePreferencesTable(error: unknown): boolean {
   if (!error) return false
   const code = String(error.code || '')
   const message = String(error.message || '').toLowerCase()
@@ -28,6 +39,249 @@ function isMissingUserTablePreferencesTable(error: any): boolean {
     details.includes('user_table_preferences') ||
     message.includes('does not exist')
   )
+}
+
+function isMissingUserTablePreferenceColumn(error: unknown): boolean {
+  if (!error) return false
+  const code = String(error.code || '').toUpperCase()
+  const message = String(error.message || '').toLowerCase()
+  const details = String(error.details || '').toLowerCase()
+  return (
+    code === 'PGRST204' ||
+    (message.includes('column') && message.includes('does not exist')) ||
+    (details.includes('column') && details.includes('does not exist'))
+  )
+}
+
+const GRID_CARD_SIZE_MIN = 160
+const GRID_CARD_SIZE_MAX = 420
+const GRID_CARD_SIZE_DEFAULT = 240
+const GROUP_TOGGLE_COLUMN_WIDTH = 32
+const SELECTION_COLUMN_WIDTH = 40
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const
+const DEFAULT_PAGE_SIZE = 50
+
+function clampPageSize(value: unknown): number {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number.parseInt(value, 10)
+        : Number.NaN
+  if (Number.isNaN(parsed)) return DEFAULT_PAGE_SIZE
+  const min = PAGE_SIZE_OPTIONS[0]
+  const max = PAGE_SIZE_OPTIONS[PAGE_SIZE_OPTIONS.length - 1]
+  return Math.min(max, Math.max(min, parsed))
+}
+
+function clampGridCardSize(value: unknown): number {
+  const numeric =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number.parseInt(value, 10)
+        : Number.NaN
+  if (Number.isNaN(numeric)) return GRID_CARD_SIZE_DEFAULT
+  return Math.min(GRID_CARD_SIZE_MAX, Math.max(GRID_CARD_SIZE_MIN, numeric))
+}
+
+function normalizePreferencePathname(pathname: string): string {
+  const segments = pathname
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => {
+      if (/^\d+$/.test(segment)) return ':id'
+      if (isLikelyUuid(segment)) return ':id'
+      return segment
+    })
+
+  return segments.length > 0 ? `/${segments.join('/')}` : '/'
+}
+
+function parseSortPreference(
+  value: unknown,
+  allowedColumnIds: Set<string>
+): TableSort | null {
+  if (value === null || value === undefined || value === '') return null
+
+  let raw = value
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    if (trimmed.includes(':')) {
+      const [id, direction] = trimmed.split(':')
+      const nextId = String(id || '').trim()
+      const nextDirection = String(direction || '').trim().toLowerCase()
+      if (
+        nextId &&
+        allowedColumnIds.has(nextId) &&
+        (nextDirection === 'asc' || nextDirection === 'desc')
+      ) {
+        return { id: nextId, direction: nextDirection }
+      }
+      return null
+    }
+    if (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    ) {
+      try {
+        raw = JSON.parse(trimmed)
+      } catch {
+        return null
+      }
+    } else {
+      return null
+    }
+  }
+
+  if (!raw || typeof raw !== 'object') return null
+
+  const record = raw as { id?: unknown; direction?: unknown }
+  const id = String(record.id ?? '').trim()
+  const direction = String(record.direction ?? '').trim().toLowerCase()
+
+  if (!id || !allowedColumnIds.has(id)) return null
+  if (direction !== 'asc' && direction !== 'desc') return null
+
+  return { id, direction }
+}
+
+function parseGroupByPreference(
+  value: unknown,
+  allowedColumnIds: Set<string>
+): string | null {
+  if (value === null || value === undefined) return null
+  const next = String(value).trim()
+  if (!next || next === 'null' || next === 'none') return null
+  return allowedColumnIds.has(next) ? next : null
+}
+
+function parseViewPreference(value: unknown, allowGridView: boolean): 'grid' | 'list' {
+  const next = String(value ?? '').trim().toLowerCase()
+  if (allowGridView && next === 'grid') return 'grid'
+  return 'list'
+}
+
+function defaultFilterColumnIds(entityType: string, columns: TableColumn[]): string[] {
+  if (columns.length === 0) return []
+
+  const byId = new Map(columns.map((column) => [column.id, column]))
+  const normalizedEntity = entityType.toLowerCase()
+  const candidatesByEntity: Record<string, string[]> = {
+    projects: ['status', 'project_type', 'tags'],
+    assets: ['status', 'asset_type', 'tags'],
+    sequences: ['status', 'sequence_type', 'tags'],
+    shots: ['status', 'shot_type', 'tags'],
+    tasks: ['status', 'step_name', 'assignee_name', 'assigned_to'],
+    notes: ['status', 'note_type', 'tags'],
+    versions: ['status', 'version_type', 'department'],
+    publishes: ['status', 'file_type', 'tags'],
+    published_files: ['status', 'file_type', 'tags'],
+    playlists: ['status', 'tags'],
+  }
+
+  const prioritized = [
+    ...(candidatesByEntity[normalizedEntity] || []),
+    'status',
+    'type',
+    'step_name',
+    'department',
+    'assignee_name',
+    'assigned_to',
+    'tags',
+  ]
+
+  const next: string[] = []
+  for (const id of prioritized) {
+    if (!byId.has(id)) continue
+    if (next.includes(id)) continue
+    next.push(id)
+    if (next.length >= 3) return next
+  }
+
+  const keywordMatches = columns
+    .map((column) => column.id)
+    .filter((id) => {
+      const normalized = id.toLowerCase()
+      return (
+        normalized.includes('status') ||
+        normalized.includes('type') ||
+        normalized.includes('step') ||
+        normalized.includes('assignee') ||
+        normalized.includes('assigned') ||
+        normalized.includes('tag')
+      )
+    })
+
+  for (const id of keywordMatches) {
+    if (next.includes(id)) continue
+    next.push(id)
+    if (next.length >= 3) return next
+  }
+
+  for (const column of columns) {
+    if (next.includes(column.id)) continue
+    next.push(column.id)
+    if (next.length >= 3) break
+  }
+
+  return next
+}
+
+function parseActiveFilterColumns(
+  value: unknown,
+  allowedColumnIds: Set<string>
+): Set<string> {
+  if (!Array.isArray(value)) return new Set()
+  const next = new Set<string>()
+  for (const item of value) {
+    const columnId = String(item ?? '').trim()
+    if (!columnId) continue
+    if (!allowedColumnIds.has(columnId)) continue
+    next.add(columnId)
+  }
+  return next
+}
+
+function parseActiveFiltersPreference(
+  value: unknown,
+  allowedColumnIds: Set<string>
+): Record<string, Set<string>> {
+  if (!value || typeof value !== 'object') return {}
+
+  const record = value as Record<string, unknown>
+  const next: Record<string, Set<string>> = {}
+
+  for (const [columnId, rawValues] of Object.entries(record)) {
+    if (!allowedColumnIds.has(columnId)) continue
+    if (!Array.isArray(rawValues)) continue
+
+    const values = new Set<string>()
+    for (const raw of rawValues) {
+      const normalized = String(raw ?? '').trim()
+      if (!normalized) continue
+      values.add(normalized)
+    }
+
+    if (values.size > 0) {
+      next[columnId] = values
+    }
+  }
+
+  return next
+}
+
+function serializeActiveFiltersPreference(
+  activeFilters: Record<string, Set<string>>
+): Record<string, string[]> {
+  const next: Record<string, string[]> = {}
+  for (const [columnId, values] of Object.entries(activeFilters)) {
+    if (!values || values.size === 0) continue
+    next[columnId] = Array.from(values)
+  }
+  return next
 }
 
 function pad2(value: number) {
@@ -43,6 +297,137 @@ function inferTemporalKind(column: TableColumn): 'date' | 'datetime' | null {
   if (id === 'date_viewed' || id.endsWith('_time')) return 'datetime'
   if (id.includes('date')) return 'date'
   return null
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const DATE_FILTER_OPTION_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  tomorrow: 'Tomorrow',
+  this_week: 'This Week',
+  last_week: 'Last Week',
+  older: 'Older',
+  future: 'Future',
+}
+const DATE_FILTER_OPTION_ORDER = new Map(
+  Object.keys(DATE_FILTER_OPTION_LABELS).map((key, index) => [key, index])
+)
+const DATE_FILTER_OPTION_KEYS = new Set(Object.keys(DATE_FILTER_OPTION_LABELS))
+
+function toValidDate(rawValue: unknown): Date | null {
+  if (rawValue === null || rawValue === undefined || rawValue === '') return null
+
+  if (rawValue instanceof Date) {
+    return Number.isNaN(rawValue.getTime()) ? null : rawValue
+  }
+
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim()
+    if (!trimmed) return null
+
+    // Preserve YYYY-MM-DD values in local date space.
+    if (DATE_ONLY_VALUE.test(trimmed)) {
+      const [yearRaw, monthRaw, dayRaw] = trimmed.split('-')
+      const year = Number(yearRaw)
+      const month = Number(monthRaw)
+      const day = Number(dayRaw)
+      if (!year || !month || !day) return null
+      const parsed = new Date(year, month - 1, day)
+      return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+
+    const parsed = new Date(trimmed)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  if (typeof rawValue === 'number') {
+    const parsed = new Date(rawValue)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  return null
+}
+
+function toLocalDayNumber(date: Date): number {
+  return Math.floor(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY
+  )
+}
+
+function toDateFilterBucket(rawValue: unknown): string | null {
+  const parsed = toValidDate(rawValue)
+  if (!parsed) return null
+
+  const now = new Date()
+  const todayDay = toLocalDayNumber(now)
+  const targetDay = toLocalDayNumber(parsed)
+  const diffDays = targetDay - todayDay
+
+  if (diffDays === 0) return 'today'
+  if (diffDays === -1) return 'yesterday'
+  if (diffDays === 1) return 'tomorrow'
+
+  // Week starts on Sunday to match browser locale defaults for US users.
+  const thisWeekStart = todayDay - now.getDay()
+  const nextWeekStart = thisWeekStart + 7
+  const lastWeekStart = thisWeekStart - 7
+
+  if (targetDay >= thisWeekStart && targetDay < nextWeekStart) return 'this_week'
+  if (targetDay >= lastWeekStart && targetDay < thisWeekStart) return 'last_week'
+
+  return targetDay < lastWeekStart ? 'older' : 'future'
+}
+
+function formatDateDisplay(rawValue: unknown): string | null {
+  const parsed = toValidDate(rawValue)
+  if (!parsed) return null
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function formatDateTimeDisplay(rawValue: unknown): string | null {
+  const parsed = toValidDate(rawValue)
+  if (!parsed) return null
+  const datePart = parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const timePart = parsed.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+  return `${datePart} ${timePart}`
+}
+
+function formatTemporalDisplay(
+  rawValue: unknown,
+  temporalKind: 'date' | 'datetime'
+): string | null {
+  return temporalKind === 'date'
+    ? formatDateDisplay(rawValue)
+    : formatDateTimeDisplay(rawValue)
+}
+
+function sortFilterValues(column: TableColumn, values: string[]): string[] {
+  const temporalKind = inferTemporalKind(column)
+  if (!temporalKind) {
+    return [...values].sort((a, b) => a.localeCompare(b))
+  }
+
+  return [...values].sort((a, b) => {
+    const aOrder = DATE_FILTER_OPTION_ORDER.get(a)
+    const bOrder = DATE_FILTER_OPTION_ORDER.get(b)
+    if (aOrder !== undefined || bOrder !== undefined) {
+      if (aOrder === undefined) return 1
+      if (bOrder === undefined) return -1
+      if (aOrder !== bOrder) return aOrder - bOrder
+    }
+    return a.localeCompare(b)
+  })
 }
 
 function toDateInputValue(rawValue: any): string {
@@ -97,6 +482,147 @@ function stringToList(value: string) {
     .filter(Boolean)
 }
 
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result
+      if (typeof result === 'string') {
+        resolve(result)
+        return
+      }
+      reject(new Error('Failed to read image file'))
+    }
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+const MAX_THUMBNAIL_UPLOAD_BYTES = 8 * 1024 * 1024
+const MAX_PROJECT_THUMBNAIL_SIDE = 640
+
+async function optimizeThumbnailDataUrl(file: File): Promise<string> {
+  const rawDataUrl = await fileToDataUrl(file)
+  const image = new Image()
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve()
+    image.onerror = () => reject(new Error('Invalid image file'))
+    image.src = rawDataUrl
+  })
+
+  if (!image.width || !image.height) {
+    throw new Error('Invalid image file')
+  }
+
+  const ratio = Math.min(
+    MAX_PROJECT_THUMBNAIL_SIDE / image.width,
+    MAX_PROJECT_THUMBNAIL_SIDE / image.height,
+    1
+  )
+  const width = Math.max(1, Math.round(image.width * ratio))
+  const height = Math.max(1, Math.round(image.height * ratio))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Failed to process image')
+  }
+  ctx.drawImage(image, 0, 0, width, height)
+
+  const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+  return type === 'image/png'
+    ? canvas.toDataURL(type)
+    : canvas.toDataURL(type, 0.86)
+}
+
+function normalizeThumbnailSource(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (
+      !trimmed ||
+      trimmed === 'null' ||
+      trimmed === 'undefined' ||
+      trimmed === '[object Object]'
+    ) {
+      return null
+    }
+
+    if (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    ) {
+      try {
+        return normalizeThumbnailSource(JSON.parse(trimmed))
+      } catch {
+        return trimmed
+      }
+    }
+
+    return trimmed
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const normalized = normalizeThumbnailSource(item)
+      if (normalized) return normalized
+    }
+    return null
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const candidateKeys = [
+      'thumbnail_url',
+      'thumbnailUrl',
+      'publicUrl',
+      'signedUrl',
+      'url',
+      'src',
+      'path',
+    ]
+    for (const key of candidateKeys) {
+      const normalized = normalizeThumbnailSource(record[key])
+      if (normalized) return normalized
+    }
+  }
+
+  return null
+}
+
+function ThumbnailPreview({
+  source,
+  className,
+  alt = '',
+  fallback = null,
+}: {
+  source: unknown
+  className: string
+  alt?: string
+  fallback?: React.ReactNode
+}) {
+  const normalizedSource = normalizeThumbnailSource(source)
+  const [failedSource, setFailedSource] = useState<string | null>(null)
+  const hasError = normalizedSource !== null && failedSource === normalizedSource
+
+  if (!normalizedSource || hasError) {
+    return <>{fallback}</>
+  }
+
+  return (
+    <img
+      src={normalizedSource}
+      alt={alt}
+      className={className}
+      onError={() => setFailedSource(normalizedSource)}
+    />
+  )
+}
+
 function isLikelyUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
@@ -110,9 +636,275 @@ function unknownToStringList(value: unknown): string[] {
       .filter(Boolean)
   }
   if (typeof value === 'string') {
-    return stringToList(value)
+    const trimmed = value.trim()
+    if (!trimmed) return []
+
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => String(item).trim())
+            .filter(Boolean)
+        }
+      } catch {
+        // fall through to comma-delimited parsing
+      }
+    }
+
+    return stringToList(trimmed)
+      .map((item) => item.replace(/^['"]|['"]$/g, '').trim())
+      .filter(Boolean)
   }
   return []
+}
+
+function optionValuesToLabels(
+  values: string[],
+  options?: Array<{ value: string; label: string }>
+): string {
+  const byValue = new Map((options || []).map((option) => [option.value, option.label]))
+  return values.map((value) => byValue.get(value) || value).join(', ')
+}
+
+function normalizeCsvMatcher(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function countDelimiterInLine(line: string, delimiter: string): number {
+  let inQuotes = false
+  let count = 0
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if (char === '"') {
+      const nextChar = line[index + 1]
+      if (inQuotes && nextChar === '"') {
+        index += 1
+        continue
+      }
+      inQuotes = !inQuotes
+      continue
+    }
+    if (!inQuotes && char === delimiter) {
+      count += 1
+    }
+  }
+
+  return count
+}
+
+function detectCsvDelimiter(text: string): string {
+  const firstLine = text.split(/\r?\n/, 1)[0] || ''
+  const candidates = [',', ';', '\t', '|']
+
+  let best = ','
+  let bestScore = -1
+
+  for (const delimiter of candidates) {
+    const score = countDelimiterInLine(firstLine, delimiter)
+    if (score > bestScore) {
+      best = delimiter
+      bestScore = score
+    }
+  }
+
+  return best
+}
+
+function parseCsvText(text: string, delimiter: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let inQuotes = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    const nextChar = text[index + 1]
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        cell += '"'
+        index += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (!inQuotes && char === delimiter) {
+      row.push(cell)
+      cell = ''
+      continue
+    }
+
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && nextChar === '\n') {
+        index += 1
+      }
+      row.push(cell)
+      const hasAnyValue = row.some((value) => value.trim() !== '')
+      if (hasAnyValue) {
+        rows.push(row)
+      }
+      row = []
+      cell = ''
+      continue
+    }
+
+    cell += char
+  }
+
+  row.push(cell)
+  const hasAnyValue = row.some((value) => value.trim() !== '')
+  if (hasAnyValue) {
+    rows.push(row)
+  }
+
+  return rows
+}
+
+function toCsvField(rawValue: unknown): string {
+  if (rawValue === null || rawValue === undefined) return ''
+
+  let value: string
+  if (Array.isArray(rawValue)) {
+    value = rawValue.map((item) => String(item)).join('|')
+  } else if (typeof rawValue === 'object') {
+    value = JSON.stringify(rawValue)
+  } else {
+    value = String(rawValue)
+  }
+
+  if (value.includes('"')) {
+    value = value.replace(/"/g, '""')
+  }
+
+  if (/[",\n\r]/.test(value)) {
+    return `"${value}"`
+  }
+  return value
+}
+
+function buildCsvDocument(rows: any[], columns: TableColumn[]): string {
+  const header = columns.map((column) => toCsvField(column.id)).join(',')
+  const body = rows.map((row) =>
+    columns.map((column) => toCsvField(row?.[column.id])).join(',')
+  )
+  return [header, ...body].join('\n')
+}
+
+function downloadCsvFile(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const link = window.document.createElement('a')
+  link.href = url
+  link.download = filename
+  window.document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+function parseCsvBoolean(value: string): boolean | string | null {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return null
+  if (['true', '1', 'yes', 'y'].includes(normalized)) return true
+  if (['false', '0', 'no', 'n'].includes(normalized)) return false
+  return value
+}
+
+function parseCsvNumber(value: string): number | null | string {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const numeric = Number(trimmed)
+  return Number.isNaN(numeric) ? value : numeric
+}
+
+function parseCsvCellByColumn(rawValue: string, column: TableColumn): unknown {
+  const trimmed = rawValue.trim()
+  if (!trimmed) {
+    if (column.editor === 'multiselect') return []
+    return null
+  }
+
+  if (column.editor === 'multiselect') {
+    return stringToList(trimmed)
+  }
+
+  if (column.editor === 'checkbox' || column.type === 'boolean') {
+    return parseCsvBoolean(trimmed)
+  }
+
+  if (column.editor === 'number' || column.type === 'number') {
+    return parseCsvNumber(trimmed)
+  }
+
+  if (column.type === 'json') {
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return trimmed
+    }
+  }
+
+  return trimmed
+}
+
+const PEOPLE_REFERENCE_COLUMN_IDS = new Set([
+  'created_by',
+  'updated_by',
+  'assigned_to',
+  'reviewer',
+  'reviewers',
+  'ayon_assignees',
+  'ayon_assignments',
+  'ayon_assignee',
+])
+
+function isPeopleReferenceColumnId(columnId: string): boolean {
+  const normalized = columnId.toLowerCase()
+  return normalized.endsWith('_by') || PEOPLE_REFERENCE_COLUMN_IDS.has(normalized)
+}
+
+function filterKeysForColumnValue(
+  column: TableColumn,
+  rawValue: unknown
+): string[] {
+  if (rawValue === null || rawValue === undefined) return []
+
+  const temporalKind = inferTemporalKind(column)
+  if (temporalKind) {
+    const bucket = toDateFilterBucket(rawValue)
+    return bucket ? [bucket] : []
+  }
+
+  if (column.editor === 'multiselect' || Array.isArray(rawValue)) {
+    return Array.from(
+      new Set(
+        unknownToStringList(rawValue)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    )
+  }
+
+  const normalized = String(rawValue).trim()
+  return normalized ? [normalized] : []
+}
+
+function resolveColumnOptionLabel(
+  column: TableColumn,
+  rawValue: string
+): string | null {
+  if (!column.options?.length) return null
+  const option = column.options.find((entry) => entry.value === rawValue)
+  if (!option) return null
+  const label = option.label.trim()
+  return label || null
 }
 
 function resolveSchemaEntityKey(entityType: string): EntityKey | null {
@@ -176,6 +968,8 @@ function inferSchemaColumnEditor(
   const dataType = field.dataType.toLowerCase()
 
   if (dataType === 'checkbox') return 'checkbox'
+  if (dataType === 'list' || dataType === 'status_list') return 'select'
+  if (dataType === 'multi_entity') return 'multiselect'
   if (dataType === 'date') return 'date'
   if (dataType === 'date_time') return 'datetime'
   if (
@@ -276,6 +1070,10 @@ function buildSchemaColumn(field: SchemaField): TableColumn | null {
 
 function shouldSkipSchemaColumn(field: SchemaField, existing: Set<string>): boolean {
   const column = field.column
+  if (column === 'assigned_to' && existing.has('assignee_name')) return true
+  if (column === 'step_id' && (existing.has('step_name') || existing.has('department'))) return true
+  if (column === 'department' && existing.has('step_id')) return true
+  if (column === 'template_task' && existing.has('task_template')) return true
   if (!column) return false
   if (!column.endsWith('_id')) return false
 
@@ -339,6 +1137,8 @@ interface EntityTableProps {
   data: any[]
   groupBy?: string
   entityType?: string
+  preferenceScope?: string
+  allowGridView?: boolean
   onRowClick?: (row: any) => void
   onRowContextMenu?: (row: any, event: React.MouseEvent<HTMLTableRowElement>) => void
   onEdit?: (row: any) => void
@@ -351,6 +1151,23 @@ interface EntityTableProps {
   showToolbar?: boolean
   showFiltersPanel?: boolean
   emptyState?: React.ReactNode
+  csvExportFilename?: string
+  onCsvImport?: (
+    rows: Record<string, unknown>[],
+    context: {
+      fileName: string
+      headers: string[]
+      columnMap: Record<string, string>
+      delimiter: string
+      identifierHeader?: string | null
+      identifierTargetColumn?: string | null
+    }
+  ) => Promise<{ imported?: number; failed?: Array<{ row: number; message: string }> } | void> | {
+    imported?: number
+    failed?: Array<{ row: number; message: string }>
+  } | void
+  onBulkDelete?: (rows: any[]) => Promise<void> | void
+  enableRowSelection?: boolean
 }
 
 type RowActionItem = {
@@ -365,6 +1182,8 @@ export function EntityTable({
   data,
   groupBy,
   entityType = 'projects',
+  preferenceScope,
+  allowGridView = entityType === 'projects',
   onRowClick,
   onRowContextMenu,
   onEdit,
@@ -377,6 +1196,10 @@ export function EntityTable({
   showToolbar = true,
   showFiltersPanel = true,
   emptyState,
+  csvExportFilename,
+  onCsvImport,
+  onBulkDelete,
+  enableRowSelection = true,
 }: EntityTableProps) {
   const [runtimeSchemaFields, setRuntimeSchemaFields] = useState<SchemaField[]>([])
 
@@ -442,9 +1265,31 @@ export function EntityTable({
     () => withSchemaColumns(columns, entityType, runtimeSchemaFields),
     [columns, entityType, runtimeSchemaFields]
   )
+  const pathname = usePathname()
+  const normalizedPathname = useMemo(
+    () => normalizePreferencePathname(pathname || '/'),
+    [pathname]
+  )
+  const scopedEntityType = useMemo(() => {
+    if (preferenceScope && preferenceScope.trim()) {
+      return preferenceScope.trim()
+    }
+    return `${entityType}:${normalizedPathname}`
+  }, [entityType, normalizedPathname, preferenceScope])
+  const storageKey = useMemo(
+    () => `kong.table.${scopedEntityType}`,
+    [scopedEntityType]
+  )
+  const allowedColumnIds = useMemo(
+    () => new Set(resolvedColumns.map((column) => column.id)),
+    [resolvedColumns]
+  )
 
   const [view, setView] = useState<'grid' | 'list'>('list')
+  const [gridCardSize, setGridCardSize] = useState<number>(GRID_CARD_SIZE_DEFAULT)
   const [searchQuery, setSearchQuery] = useState('')
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
+  const [currentPage, setCurrentPage] = useState(1)
   const [sort, setSort] = useState<TableSort | null>(null)
   const [groupById, setGroupById] = useState<string | null>(groupBy ?? null)
   const [density, setDensity] = useState(1)
@@ -476,12 +1321,74 @@ export function EntityTable({
   const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>(
     {}
   )
+  const [pinnedColumnIds, setPinnedColumnIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [activeFilterColumns, setActiveFilterColumns] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [hasAppliedDefaultFilterColumns, setHasAppliedDefaultFilterColumns] =
+    useState(false)
+  const [pendingFilterColumnId, setPendingFilterColumnId] = useState('')
   const [profileNamesById, setProfileNamesById] = useState<Record<string, string>>({})
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
     actions: RowActionItem[]
   } | null>(null)
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [csvImportOpen, setCsvImportOpen] = useState(false)
+  const [csvImporting, setCsvImporting] = useState(false)
+  const [csvImportFileName, setCsvImportFileName] = useState('')
+  const [csvImportDelimiter, setCsvImportDelimiter] = useState(',')
+  const [csvImportHeaders, setCsvImportHeaders] = useState<string[]>([])
+  const [csvImportRows, setCsvImportRows] = useState<string[][]>([])
+  const [csvImportColumnMap, setCsvImportColumnMap] = useState<Record<string, string>>(
+    {}
+  )
+  const [csvImportStep, setCsvImportStep] = useState(1)
+  const [csvImportIdentifierHeader, setCsvImportIdentifierHeader] = useState('')
+  const [csvImportError, setCsvImportError] = useState<string | null>(null)
+  const [csvImportResult, setCsvImportResult] = useState<{
+    imported: number
+    failed: Array<{ row: number; message: string }>
+  } | null>(null)
+  const [bulkFieldId, setBulkFieldId] = useState('')
+  const [bulkValue, setBulkValue] = useState('')
+  const [bulkBooleanValue, setBulkBooleanValue] = useState<'true' | 'false'>(
+    'true'
+  )
+  const [bulkApplying, setBulkApplying] = useState(false)
+
+  useEffect(() => {
+    setActiveFilters({})
+    setPinnedColumnIds(new Set())
+    setActiveFilterColumns(new Set())
+    setHasAppliedDefaultFilterColumns(false)
+    setPendingFilterColumnId('')
+    setExpandedFilterColumns(new Set())
+    setPageSize(DEFAULT_PAGE_SIZE)
+    setCurrentPage(1)
+    setSelectedRowIds(new Set())
+    setCsvImportOpen(false)
+    setCsvImporting(false)
+    setCsvImportFileName('')
+    setCsvImportDelimiter(',')
+    setCsvImportHeaders([])
+    setCsvImportRows([])
+    setCsvImportColumnMap({})
+    setCsvImportStep(1)
+    setCsvImportIdentifierHeader('')
+    setCsvImportError(null)
+    setCsvImportResult(null)
+    setBulkFieldId('')
+    setBulkValue('')
+    setBulkBooleanValue('true')
+    setBulkApplying(false)
+  }, [scopedEntityType])
 
   useEffect(() => {
     setGroupById(groupBy ?? null)
@@ -514,7 +1421,6 @@ export function EntityTable({
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const storageKey = `kong.table.${entityType}`
     const raw = window.localStorage.getItem(storageKey)
     if (!raw) return
     try {
@@ -522,12 +1428,41 @@ export function EntityTable({
         columnOrder?: string[]
         columnWidths?: Record<string, number>
         visibleColumns?: string[]
+        sort?: unknown
+        groupBy?: unknown
+        view?: unknown
+        pageSize?: unknown
+        gridCardSize?: unknown
+        pinnedColumns?: unknown
+        activeFilterColumns?: unknown
+        activeFilters?: unknown
       }
       if (parsed.columnOrder?.length) {
         setColumnOrder(parsed.columnOrder)
       }
       if (parsed.columnWidths) {
         setColumnWidths(parsed.columnWidths)
+      }
+      setSort(parseSortPreference(parsed.sort, allowedColumnIds))
+      setGroupById(parseGroupByPreference(parsed.groupBy, allowedColumnIds))
+      setView(parseViewPreference(parsed.view, allowGridView))
+      setPageSize(clampPageSize(parsed.pageSize))
+      if (entityType === 'projects') {
+        setGridCardSize(clampGridCardSize(parsed.gridCardSize))
+      }
+      setPinnedColumnIds(
+        parseActiveFilterColumns(parsed.pinnedColumns, allowedColumnIds)
+      )
+      const parsedActiveFilterColumns = parseActiveFilterColumns(
+        parsed.activeFilterColumns,
+        allowedColumnIds
+      )
+      setActiveFilterColumns(parsedActiveFilterColumns)
+      setActiveFilters(
+        parseActiveFiltersPreference(parsed.activeFilters, allowedColumnIds)
+      )
+      if (Object.prototype.hasOwnProperty.call(parsed, 'activeFilterColumns')) {
+        setHasAppliedDefaultFilterColumns(true)
       }
       setVisibleColumns(
         buildVisibleColumnSet(
@@ -539,19 +1474,41 @@ export function EntityTable({
     } catch {
       // ignore invalid storage
     }
-  }, [entityType, resolvedColumns])
+  }, [allowGridView, allowedColumnIds, entityType, resolvedColumns, storageKey])
 
   useEffect(() => {
     if (!prefsReady) return
     if (typeof window === 'undefined') return
-    const storageKey = `kong.table.${entityType}`
     const payload = {
       columnOrder,
       columnWidths,
       visibleColumns: Array.from(visibleColumns),
+      sort,
+      groupBy: groupById,
+      view,
+      pageSize,
+      gridCardSize: entityType === 'projects' ? clampGridCardSize(gridCardSize) : undefined,
+      pinnedColumns: Array.from(pinnedColumnIds),
+      activeFilterColumns: Array.from(activeFilterColumns),
+      activeFilters: serializeActiveFiltersPreference(activeFilters),
     }
     window.localStorage.setItem(storageKey, JSON.stringify(payload))
-  }, [columnOrder, columnWidths, visibleColumns, entityType])
+  }, [
+    activeFilterColumns,
+    activeFilters,
+    columnOrder,
+    columnWidths,
+    entityType,
+    gridCardSize,
+    groupById,
+    pageSize,
+    pinnedColumnIds,
+    prefsReady,
+    sort,
+    storageKey,
+    view,
+    visibleColumns,
+  ])
 
   useEffect(() => {
     let isActive = true
@@ -570,12 +1527,47 @@ export function EntityTable({
         return
       }
 
-      const { data, error } = await supabase
-        .from('user_table_preferences')
-        .select('column_order, column_widths, visible_columns')
-        .eq('user_id', userId)
-        .eq('entity_type', entityType)
-        .maybeSingle()
+      const loadLegacyPreferences = async () =>
+        await supabase
+          .from('user_table_preferences')
+          .select('column_order, column_widths, visible_columns')
+          .eq('user_id', userId)
+          .eq('entity_type', scopedEntityType)
+          .maybeSingle()
+
+      const loadExtendedPreferences = async () =>
+        await supabase
+          .from('user_table_preferences')
+          .select(
+            'column_order, column_widths, visible_columns, sort, group_by, view_mode, grid_card_size'
+          )
+          .eq('user_id', userId)
+          .eq('entity_type', scopedEntityType)
+          .maybeSingle()
+
+      let usingExtended = userTablePreferencesHasExtendedColumns !== false
+      let data: unknown = null
+      let error: unknown = null
+
+      if (usingExtended) {
+        const response = await loadExtendedPreferences()
+        data = response.data
+        error = response.error
+
+        if (error && isMissingUserTablePreferenceColumn(error)) {
+          userTablePreferencesHasExtendedColumns = false
+          usingExtended = false
+          const fallback = await loadLegacyPreferences()
+          data = fallback.data
+          error = fallback.error
+        } else if (!error) {
+          userTablePreferencesHasExtendedColumns = true
+        }
+      } else {
+        const response = await loadLegacyPreferences()
+        data = response.data
+        error = response.error
+      }
 
       if (!isActive) return
       if (error) {
@@ -587,20 +1579,43 @@ export function EntityTable({
       }
       userTablePreferencesAvailable = true
 
-      if (data) {
-        if (Array.isArray(data.column_order)) {
-          setColumnOrder(data.column_order)
+      const preferenceData =
+        data && typeof data === 'object'
+          ? (data as Record<string, unknown>)
+          : null
+
+      if (preferenceData) {
+        if (Array.isArray(preferenceData.column_order)) {
+          setColumnOrder(preferenceData.column_order as string[])
         }
-        if (data.column_widths && typeof data.column_widths === 'object') {
-          setColumnWidths(data.column_widths)
+        if (
+          preferenceData.column_widths &&
+          typeof preferenceData.column_widths === 'object'
+        ) {
+          setColumnWidths(preferenceData.column_widths as Record<string, number>)
         }
         setVisibleColumns(
           buildVisibleColumnSet(
             resolvedColumns,
-            Array.isArray(data.visible_columns) ? data.visible_columns : undefined,
-            Array.isArray(data.column_order) ? data.column_order : undefined
+            Array.isArray(preferenceData.visible_columns)
+              ? (preferenceData.visible_columns as string[])
+              : undefined,
+            Array.isArray(preferenceData.column_order)
+              ? (preferenceData.column_order as string[])
+              : undefined
           )
         )
+
+        if (usingExtended) {
+          setSort(parseSortPreference(preferenceData.sort, allowedColumnIds))
+          setGroupById(
+            parseGroupByPreference(preferenceData.group_by, allowedColumnIds)
+          )
+          setView(parseViewPreference(preferenceData.view_mode, allowGridView))
+          if (entityType === 'projects') {
+            setGridCardSize(clampGridCardSize(preferenceData.grid_card_size))
+          }
+        }
       }
       if (isActive) setPrefsReady(true)
     }
@@ -609,7 +1624,7 @@ export function EntityTable({
     return () => {
       isActive = false
     }
-  }, [entityType, resolvedColumns])
+  }, [allowGridView, allowedColumnIds, entityType, resolvedColumns, scopedEntityType])
 
   useEffect(() => {
     if (!prefsReady) return
@@ -622,21 +1637,56 @@ export function EntityTable({
       const userId = authData.user?.id
       if (!userId) return
 
-      const { error } = await supabase.from('user_table_preferences').upsert(
-        {
-          user_id: userId,
-          entity_type: entityType,
-          column_order: columnOrder,
-          column_widths: columnWidths,
-          visible_columns: Array.from(visibleColumns),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,entity_type' }
-      )
-
-      if (isMissingUserTablePreferencesTable(error)) {
-        userTablePreferencesAvailable = false
+      const basePayload = {
+        user_id: userId,
+        entity_type: scopedEntityType,
+        column_order: columnOrder,
+        column_widths: columnWidths,
+        visible_columns: Array.from(visibleColumns),
+        updated_at: new Date().toISOString(),
       }
+
+      const upsertLegacy = async () =>
+        await supabase
+          .from('user_table_preferences')
+          .upsert(basePayload, { onConflict: 'user_id,entity_type' })
+
+      if (userTablePreferencesHasExtendedColumns === false) {
+        const legacyResult = await upsertLegacy()
+        if (isMissingUserTablePreferencesTable(legacyResult.error)) {
+          userTablePreferencesAvailable = false
+        }
+        return
+      }
+
+      const extendedPayload = {
+        ...basePayload,
+        sort: sort ? JSON.stringify(sort) : null,
+        group_by: groupById,
+        view_mode: allowGridView ? view : 'list',
+        grid_card_size:
+          entityType === 'projects' ? clampGridCardSize(gridCardSize) : null,
+      }
+
+      const extendedResult = await supabase
+        .from('user_table_preferences')
+        .upsert(extendedPayload, { onConflict: 'user_id,entity_type' })
+
+      if (isMissingUserTablePreferenceColumn(extendedResult.error)) {
+        userTablePreferencesHasExtendedColumns = false
+        const legacyResult = await upsertLegacy()
+        if (isMissingUserTablePreferencesTable(legacyResult.error)) {
+          userTablePreferencesAvailable = false
+        }
+        return
+      }
+
+      if (isMissingUserTablePreferencesTable(extendedResult.error)) {
+        userTablePreferencesAvailable = false
+        return
+      }
+
+      userTablePreferencesHasExtendedColumns = true
     }
 
     timeout = setTimeout(() => {
@@ -646,7 +1696,19 @@ export function EntityTable({
     return () => {
       if (timeout) clearTimeout(timeout)
     }
-  }, [columnOrder, columnWidths, visibleColumns, entityType])
+  }, [
+    allowGridView,
+    columnOrder,
+    columnWidths,
+    entityType,
+    gridCardSize,
+    groupById,
+    prefsReady,
+    scopedEntityType,
+    sort,
+    view,
+    visibleColumns,
+  ])
 
   useEffect(() => {
     setColumnWidths((prev) => {
@@ -680,12 +1742,77 @@ export function EntityTable({
     [orderedColumns, visibleColumns]
   )
 
+  useEffect(() => {
+    setPinnedColumnIds((prev) => {
+      const next = new Set<string>()
+      for (const columnId of prev) {
+        if (allowedColumnIds.has(columnId)) {
+          next.add(columnId)
+        }
+      }
+      if (next.size === prev.size) return prev
+      return next
+    })
+  }, [allowedColumnIds])
+
+  const pinnedColumnOffsets = useMemo(() => {
+    const offsets: Record<string, number> = {}
+    let leftOffset = 0
+    if (enableRowSelection) {
+      leftOffset += SELECTION_COLUMN_WIDTH
+    }
+    if (groupById) {
+      leftOffset += GROUP_TOGGLE_COLUMN_WIDTH
+    }
+
+    for (const column of displayColumns) {
+      if (!pinnedColumnIds.has(column.id)) continue
+      offsets[column.id] = leftOffset
+
+      const width =
+        columnWidths[column.id] ??
+        (column.width ? Number.parseInt(column.width, 10) : Number.NaN)
+      leftOffset += Number.isNaN(width) ? 120 : width
+    }
+
+    return offsets
+  }, [columnWidths, displayColumns, enableRowSelection, groupById, pinnedColumnIds])
+
+  const hasPinnedDisplayColumns = useMemo(
+    () => displayColumns.some((column) => pinnedColumnIds.has(column.id)),
+    [displayColumns, pinnedColumnIds]
+  )
+
+  const lastPinnedDisplayColumnId = useMemo(() => {
+    let last: string | null = null
+    for (const column of displayColumns) {
+      if (!pinnedColumnIds.has(column.id)) continue
+      last = column.id
+    }
+    return last
+  }, [displayColumns, pinnedColumnIds])
+
+  const resolvedColumnById = useMemo(
+    () => new Map(resolvedColumns.map((column) => [column.id, column])),
+    [resolvedColumns]
+  )
+
+  const csvColumnMatcher = useMemo(() => {
+    const matcher = new Map<string, string>()
+    for (const column of resolvedColumns) {
+      const idMatch = normalizeCsvMatcher(column.id)
+      const labelMatch = normalizeCsvMatcher(column.label)
+      if (idMatch && !matcher.has(idMatch)) matcher.set(idMatch, column.id)
+      if (labelMatch && !matcher.has(labelMatch)) matcher.set(labelMatch, column.id)
+    }
+    return matcher
+  }, [resolvedColumns])
+
   const peopleRefColumnIds = useMemo(
     () =>
       resolvedColumns
         .filter((column) => {
-          const id = column.id.toLowerCase()
-          return id === 'created_by' || id === 'updated_by' || id.endsWith('_by')
+          return isPeopleReferenceColumnId(column.id)
         })
         .map((column) => column.id),
     [resolvedColumns]
@@ -696,15 +1823,17 @@ export function EntityTable({
     const ids = new Set<string>()
     for (const row of data) {
       for (const columnId of peopleRefColumnIds) {
+        const column = resolvedColumnById.get(columnId)
+        if (!column) continue
         const rawValue = row?.[columnId]
-        if (typeof rawValue !== 'string') continue
-        const normalized = rawValue.trim()
-        if (!normalized || !isLikelyUuid(normalized)) continue
-        ids.add(normalized.toLowerCase())
+        for (const normalized of filterKeysForColumnValue(column, rawValue)) {
+          if (!isLikelyUuid(normalized)) continue
+          ids.add(normalized.toLowerCase())
+        }
       }
     }
     return Array.from(ids)
-  }, [data, peopleRefColumnIds])
+  }, [data, peopleRefColumnIds, resolvedColumnById])
 
   useEffect(() => {
     if (peopleRefIds.length === 0) return
@@ -752,12 +1881,12 @@ export function EntityTable({
 
   const filterableColumns = useMemo(() => {
     return resolvedColumns.filter((column) => {
-      const values = new Set(
-        data
-          .map((row) => row[column.id])
-          .filter((value) => value !== null && value !== undefined)
-          .map((value) => String(value))
-      )
+      const values = new Set<string>()
+      for (const row of data) {
+        for (const key of filterKeysForColumnValue(column, row[column.id])) {
+          values.add(key)
+        }
+      }
       return values.size > 0 && values.size <= 12
     })
   }, [resolvedColumns, data])
@@ -765,18 +1894,106 @@ export function EntityTable({
   const filterOptions = useMemo(() => {
     const options: Record<string, string[]> = {}
     filterableColumns.forEach((column) => {
-      const values = Array.from(
-        new Set(
-          data
-            .map((row) => row[column.id])
-            .filter((value) => value !== null && value !== undefined)
-            .map((value) => String(value))
-        )
-      ).sort()
+      const valuesSet = new Set<string>()
+      for (const row of data) {
+        for (const key of filterKeysForColumnValue(column, row[column.id])) {
+          valuesSet.add(key)
+        }
+      }
+      const values = sortFilterValues(column, Array.from(valuesSet))
       options[column.id] = values
     })
     return options
   }, [data, filterableColumns])
+
+  const defaultSelectedFilterColumnIds = useMemo(
+    () => defaultFilterColumnIds(entityType, filterableColumns),
+    [entityType, filterableColumns]
+  )
+
+  useEffect(() => {
+    const filterableIds = new Set(filterableColumns.map((column) => column.id))
+    setActiveFilterColumns((prev) => {
+      const next = new Set<string>()
+      for (const columnId of prev) {
+        if (filterableIds.has(columnId)) {
+          next.add(columnId)
+        }
+      }
+      if (next.size === prev.size) return prev
+      return next
+    })
+  }, [filterableColumns])
+
+  useEffect(() => {
+    if (hasAppliedDefaultFilterColumns) return
+    if (filterableColumns.length === 0) return
+
+    if (activeFilterColumns.size > 0) {
+      setHasAppliedDefaultFilterColumns(true)
+      return
+    }
+
+    setActiveFilterColumns(new Set(defaultSelectedFilterColumnIds))
+    setHasAppliedDefaultFilterColumns(true)
+  }, [
+    activeFilterColumns.size,
+    defaultSelectedFilterColumnIds,
+    filterableColumns.length,
+    hasAppliedDefaultFilterColumns,
+  ])
+
+  const activeFilterableColumns = useMemo(() => {
+    return filterableColumns.filter((column) => activeFilterColumns.has(column.id))
+  }, [activeFilterColumns, filterableColumns])
+
+  const addableFilterColumns = useMemo(() => {
+    return filterableColumns.filter((column) => !activeFilterColumns.has(column.id))
+  }, [activeFilterColumns, filterableColumns])
+
+  useEffect(() => {
+    if (addableFilterColumns.length === 0) {
+      if (pendingFilterColumnId !== '') {
+        setPendingFilterColumnId('')
+      }
+      return
+    }
+
+    const hasPending = addableFilterColumns.some(
+      (column) => column.id === pendingFilterColumnId
+    )
+    if (hasPending) return
+    setPendingFilterColumnId(addableFilterColumns[0].id)
+  }, [addableFilterColumns, pendingFilterColumnId])
+
+  useEffect(() => {
+    setActiveFilters((prev) => {
+      const next: Record<string, Set<string>> = {}
+      let changed = false
+      for (const [columnId, selectedValues] of Object.entries(prev)) {
+        if (!activeFilterColumns.has(columnId)) {
+          changed = true
+          continue
+        }
+
+        const validValues = new Set(filterOptions[columnId] ?? [])
+        const filteredValues = new Set(
+          Array.from(selectedValues).filter((value) => validValues.has(value))
+        )
+        if (filteredValues.size > 0) {
+          next[columnId] = filteredValues
+        }
+        if (filteredValues.size !== selectedValues.size) {
+          changed = true
+        }
+      }
+
+      if (!changed && Object.keys(next).length === Object.keys(prev).length) {
+        return prev
+      }
+      return next
+    })
+  }, [activeFilterColumns, filterOptions])
 
   const filteredData = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -793,10 +2010,39 @@ export function EntityTable({
 
       return Object.entries(activeFilters).every(([columnId, values]) => {
         if (!values.size) return true
-        return values.has(String(row[columnId] ?? ''))
+        const column = resolvedColumnById.get(columnId)
+        if (!column) return true
+        const rowKeys = filterKeysForColumnValue(column, row[columnId])
+        if (rowKeys.length === 0) return false
+        return rowKeys.some((key) => values.has(key))
       })
     })
-  }, [activeFilters, data, displayColumns, searchQuery])
+  }, [activeFilters, data, displayColumns, resolvedColumnById, searchQuery])
+
+  const formatFilterOptionLabel = (column: TableColumn, value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return value
+
+    const temporalKind = inferTemporalKind(column)
+    if (temporalKind) {
+      if (DATE_FILTER_OPTION_KEYS.has(trimmed)) {
+        return DATE_FILTER_OPTION_LABELS[trimmed] || trimmed
+      }
+      const temporalLabel = formatTemporalDisplay(trimmed, temporalKind)
+      if (temporalLabel) {
+        return temporalLabel
+      }
+    }
+
+    const optionLabel = resolveColumnOptionLabel(column, trimmed)
+    if (optionLabel) {
+      return optionLabel
+    }
+
+    if (!isPeopleReferenceColumnId(column.id)) return value
+    if (!isLikelyUuid(trimmed)) return value
+    return profileNamesById[trimmed.toLowerCase()] || value
+  }
 
   const sortedData = useMemo(() => {
     if (!sort) return filteredData
@@ -830,12 +2076,154 @@ export function EntityTable({
     return sorted
   }, [filteredData, sort])
 
-  const groupedData = useMemo<Record<string, any[]>>(() => {
-    if (!groupById) {
-      return { All: sortedData }
+  const getRowSelectionId = (row: any): string | null => {
+    const rawId = row?.id
+    if (rawId === null || rawId === undefined) return null
+    const normalized = String(rawId).trim()
+    return normalized ? normalized : null
+  }
+
+  const selectableFilteredRowIds = useMemo(() => {
+    if (!enableRowSelection) return []
+    return sortedData
+      .map((row) => getRowSelectionId(row))
+      .filter((id): id is string => Boolean(id))
+  }, [enableRowSelection, sortedData])
+
+  const selectableFilteredRowIdSet = useMemo(
+    () => new Set(selectableFilteredRowIds),
+    [selectableFilteredRowIds]
+  )
+
+  useEffect(() => {
+    if (!enableRowSelection) {
+      if (selectedRowIds.size > 0) {
+        setSelectedRowIds(new Set())
+      }
+      return
     }
 
-    return sortedData.reduce<Record<string, any[]>>((acc, item) => {
+    setSelectedRowIds((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set<string>()
+      for (const rowId of prev) {
+        if (selectableFilteredRowIdSet.has(rowId)) {
+          next.add(rowId)
+        }
+      }
+      if (next.size === prev.size) return prev
+      return next
+    })
+  }, [enableRowSelection, selectableFilteredRowIdSet, selectedRowIds.size])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, activeFilters, sort, groupById])
+
+  const totalRows = sortedData.length
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
+  const safeCurrentPage = Math.min(currentPage, pageCount)
+
+  useEffect(() => {
+    if (currentPage !== safeCurrentPage) {
+      setCurrentPage(safeCurrentPage)
+    }
+  }, [currentPage, safeCurrentPage])
+
+  const paginatedData = useMemo(() => {
+    if (totalRows === 0) return []
+    const startIndex = (safeCurrentPage - 1) * pageSize
+    return sortedData.slice(startIndex, startIndex + pageSize)
+  }, [pageSize, safeCurrentPage, sortedData, totalRows])
+
+  const pageRangeStart = totalRows === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1
+  const pageRangeEnd = totalRows === 0 ? 0 : Math.min(totalRows, safeCurrentPage * pageSize)
+
+  const selectedRows = useMemo(() => {
+    if (!enableRowSelection || selectedRowIds.size === 0) return []
+    return sortedData.filter((row) => {
+      const rowId = getRowSelectionId(row)
+      return rowId ? selectedRowIds.has(rowId) : false
+    })
+  }, [enableRowSelection, selectedRowIds, sortedData])
+
+  const selectedRowCount = selectedRows.length
+
+  const bulkEditableColumns = useMemo(
+    () =>
+      resolvedColumns.filter(
+        (column) =>
+          Boolean(column.editable) &&
+          column.id !== 'thumbnail_url' &&
+          column.id !== 'id'
+      ),
+    [resolvedColumns]
+  )
+
+  const bulkFieldColumn = useMemo(
+    () =>
+      bulkEditableColumns.find((column) => column.id === bulkFieldId) ||
+      null,
+    [bulkEditableColumns, bulkFieldId]
+  )
+
+  useEffect(() => {
+    if (bulkEditableColumns.length === 0) {
+      if (bulkFieldId) {
+        setBulkFieldId('')
+      }
+      return
+    }
+    if (!bulkFieldColumn) {
+      setBulkFieldId(bulkEditableColumns[0].id)
+      return
+    }
+    if (bulkFieldColumn.editor === 'checkbox' || bulkFieldColumn.type === 'boolean') {
+      if (bulkValue !== '') {
+        setBulkValue('')
+      }
+      return
+    }
+    if (
+      bulkFieldColumn.editor === 'select' &&
+      bulkFieldColumn.options &&
+      bulkFieldColumn.options.length > 0
+    ) {
+      const hasCurrent = bulkFieldColumn.options.some(
+        (option) => option.value === bulkValue
+      )
+      if (!hasCurrent) {
+        setBulkValue(bulkFieldColumn.options[0].value)
+      }
+    }
+  }, [bulkEditableColumns, bulkFieldColumn, bulkFieldId, bulkValue])
+
+  const pageSelectableRowIds = useMemo(() => {
+    if (!enableRowSelection) return []
+    return paginatedData
+      .map((row) => getRowSelectionId(row))
+      .filter((id): id is string => Boolean(id))
+  }, [enableRowSelection, paginatedData])
+
+  const pageSelectedCount = useMemo(
+    () => pageSelectableRowIds.filter((rowId) => selectedRowIds.has(rowId)).length,
+    [pageSelectableRowIds, selectedRowIds]
+  )
+
+  const allPageRowsSelected =
+    pageSelectableRowIds.length > 0 && pageSelectedCount === pageSelectableRowIds.length
+  const somePageRowsSelected =
+    pageSelectedCount > 0 && pageSelectedCount < pageSelectableRowIds.length
+  const allFilteredRowsSelected =
+    selectableFilteredRowIds.length > 0 &&
+    selectedRowCount === selectableFilteredRowIds.length
+
+  const groupedData = useMemo<Record<string, any[]>>(() => {
+    if (!groupById) {
+      return { All: paginatedData }
+    }
+
+    return paginatedData.reduce<Record<string, any[]>>((acc, item) => {
       const groupKey = item[groupById] || 'Ungrouped'
       if (!acc[groupKey]) {
         acc[groupKey] = []
@@ -843,7 +2231,7 @@ export function EntityTable({
       acc[groupKey].push(item)
       return acc
     }, {})
-  }, [groupById, sortedData])
+  }, [groupById, paginatedData])
 
   const groupKeys = useMemo(() => Object.keys(groupedData), [groupedData])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -872,6 +2260,378 @@ export function EntityTable({
       }
       return next
     })
+  }
+
+  const togglePinnedColumn = (columnId: string) => {
+    setPinnedColumnIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(columnId)) {
+        next.delete(columnId)
+      } else {
+        next.add(columnId)
+      }
+      return next
+    })
+  }
+
+  const toggleRowSelection = (row: any) => {
+    if (!enableRowSelection) return
+    const rowId = getRowSelectionId(row)
+    if (!rowId) return
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowId)) {
+        next.delete(rowId)
+      } else {
+        next.add(rowId)
+      }
+      return next
+    })
+  }
+
+  const toggleCurrentPageSelection = () => {
+    if (!enableRowSelection) return
+    if (pageSelectableRowIds.length === 0) return
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev)
+      if (allPageRowsSelected) {
+        for (const rowId of pageSelectableRowIds) {
+          next.delete(rowId)
+        }
+      } else {
+        for (const rowId of pageSelectableRowIds) {
+          next.add(rowId)
+        }
+      }
+      return next
+    })
+  }
+
+  const selectAllFilteredRows = () => {
+    if (!enableRowSelection) return
+    setSelectedRowIds(new Set(selectableFilteredRowIds))
+  }
+
+  const clearSelectedRows = () => {
+    setSelectedRowIds(new Set())
+  }
+
+  const exportRowsAsCsv = (rows: any[], scope: 'page' | 'filtered' | 'selected') => {
+    if (rows.length === 0 || displayColumns.length === 0) return
+    const document = buildCsvDocument(rows, displayColumns)
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    const baseName = (csvExportFilename || entityType || 'table')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    const filename = `${baseName || 'table'}-${scope}-${timestamp}.csv`
+    downloadCsvFile(document, filename)
+  }
+
+  const resetCsvImportState = () => {
+    setCsvImporting(false)
+    setCsvImportFileName('')
+    setCsvImportDelimiter(',')
+    setCsvImportHeaders([])
+    setCsvImportRows([])
+    setCsvImportColumnMap({})
+    setCsvImportStep(1)
+    setCsvImportIdentifierHeader('')
+    setCsvImportError(null)
+    setCsvImportResult(null)
+  }
+
+  const handleCsvImportDialogToggle = (open: boolean) => {
+    if (!open) {
+      setCsvImportOpen(false)
+      resetCsvImportState()
+      return
+    }
+    setCsvImportOpen(true)
+    setCsvImportStep(1)
+    setCsvImportIdentifierHeader('')
+    setCsvImportError(null)
+    setCsvImportResult(null)
+  }
+
+  const buildDefaultCsvColumnMap = (headers: string[]) => {
+    const usedColumns = new Set<string>()
+    const nextMap: Record<string, string> = {}
+
+    for (const header of headers) {
+      const normalized = normalizeCsvMatcher(header)
+      const matchedColumnId = normalized ? csvColumnMatcher.get(normalized) : undefined
+      if (matchedColumnId && !usedColumns.has(matchedColumnId)) {
+        nextMap[header] = matchedColumnId
+        usedColumns.add(matchedColumnId)
+      } else {
+        nextMap[header] = ''
+      }
+    }
+
+    return nextMap
+  }
+
+  const handleCsvFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+
+    setCsvImportError(null)
+    setCsvImportResult(null)
+
+    try {
+      const text = await file.text()
+      const delimiter = detectCsvDelimiter(text)
+      const parsedRows = parseCsvText(text, delimiter)
+
+      if (parsedRows.length < 2) {
+        throw new Error('CSV must include a header row and at least one data row.')
+      }
+
+      const rawHeaders = parsedRows[0]
+      const uniqueHeaders: string[] = []
+      const duplicateCounter = new Map<string, number>()
+
+      rawHeaders.forEach((header, index) => {
+        const base = String(header || '').trim() || `column_${index + 1}`
+        const seen = duplicateCounter.get(base) ?? 0
+        duplicateCounter.set(base, seen + 1)
+        uniqueHeaders.push(seen === 0 ? base : `${base}_${seen + 1}`)
+      })
+
+      const width = uniqueHeaders.length
+      const bodyRows = parsedRows
+        .slice(1)
+        .map((row) => {
+          const normalized = row.slice(0, width)
+          while (normalized.length < width) {
+            normalized.push('')
+          }
+          return normalized
+        })
+        .filter((row) => row.some((cell) => String(cell).trim() !== ''))
+
+      if (bodyRows.length === 0) {
+        throw new Error('CSV has no non-empty rows to import.')
+      }
+
+      setCsvImportFileName(file.name)
+      setCsvImportDelimiter(delimiter)
+      setCsvImportHeaders(uniqueHeaders)
+      setCsvImportRows(bodyRows)
+      setCsvImportColumnMap(buildDefaultCsvColumnMap(uniqueHeaders))
+      setCsvImportStep(2)
+      setCsvImportIdentifierHeader('')
+    } catch (error) {
+      setCsvImportHeaders([])
+      setCsvImportRows([])
+      setCsvImportColumnMap({})
+      setCsvImportStep(1)
+      setCsvImportIdentifierHeader('')
+      setCsvImportError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to parse CSV file. Please check the file format.'
+      )
+    }
+  }
+
+  const handleCsvColumnMappingChange = (header: string, columnId: string) => {
+    setCsvImportColumnMap((prev) => ({
+      ...prev,
+      [header]: columnId,
+    }))
+  }
+
+  useEffect(() => {
+    if (!csvImportIdentifierHeader) return
+    if (!csvImportHeaders.includes(csvImportIdentifierHeader)) {
+      setCsvImportIdentifierHeader('')
+      return
+    }
+    const mappedColumnId = csvImportColumnMap[csvImportIdentifierHeader]
+    if (!mappedColumnId) {
+      setCsvImportIdentifierHeader('')
+    }
+  }, [csvImportColumnMap, csvImportHeaders, csvImportIdentifierHeader])
+
+  const submitCsvImport = async () => {
+    if (!onCsvImport) return
+    if (csvImportRows.length === 0 || csvImportHeaders.length === 0) {
+      setCsvImportError('Upload a CSV file before importing.')
+      return
+    }
+
+    if (csvMappedEntries.length === 0) {
+      setCsvImportError('Map at least one CSV column to continue.')
+      return
+    }
+
+    const mappedRows: Record<string, unknown>[] = csvImportRows
+      .map((row) => {
+        const payload: Record<string, unknown> = {}
+        for (const entry of csvMappedEntries) {
+          const targetColumn = resolvedColumnById.get(entry.targetColumnId)
+          const rawCell = row[entry.index] ?? ''
+          const nextValue = targetColumn
+            ? parseCsvCellByColumn(rawCell, targetColumn)
+            : rawCell.trim()
+
+          if (nextValue === null || nextValue === '') continue
+          if (Array.isArray(nextValue) && nextValue.length === 0) continue
+          payload[entry.targetColumnId] = nextValue
+        }
+        return payload
+      })
+      .filter((row) => Object.keys(row).length > 0)
+
+    if (mappedRows.length === 0) {
+      setCsvImportError('No mappable values found in the uploaded CSV rows.')
+      return
+    }
+
+    setCsvImporting(true)
+    setCsvImportError(null)
+    setCsvImportResult(null)
+
+    try {
+      const result = await onCsvImport(mappedRows, {
+        fileName: csvImportFileName,
+        headers: csvImportHeaders,
+        columnMap: csvImportColumnMap,
+        delimiter: csvImportDelimiter,
+        identifierHeader: csvImportIdentifierHeader || null,
+        identifierTargetColumn: csvIdentifierTargetColumn,
+      })
+      const failed = Array.isArray(result?.failed) ? result.failed : []
+      const imported =
+        typeof result?.imported === 'number'
+          ? result.imported
+          : Math.max(mappedRows.length - failed.length, 0)
+      setCsvImportResult({
+        imported,
+        failed,
+      })
+      if (failed.length === 0) {
+        setCsvImportFileName('')
+        setCsvImportDelimiter(',')
+        setCsvImportHeaders([])
+        setCsvImportRows([])
+        setCsvImportColumnMap({})
+        setCsvImportStep(1)
+        setCsvImportIdentifierHeader('')
+      }
+    } catch (error) {
+      setCsvImportError(
+        error instanceof Error
+          ? error.message
+          : 'CSV import failed. Please retry.'
+      )
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  const handleBulkDeleteSelected = async () => {
+    if (!onBulkDelete) return
+    if (selectedRows.length === 0) return
+    if (isBulkDeleting) return
+    const confirmed = window.confirm(
+      `Delete ${selectedRows.length} selected item${selectedRows.length === 1 ? '' : 's'}?`
+    )
+    if (!confirmed) return
+
+    setIsBulkDeleting(true)
+    try {
+      await onBulkDelete(selectedRows)
+      setSelectedRowIds(new Set())
+    } catch (error) {
+      reportCellUpdateError(error)
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  const handleBulkFieldUpdate = async () => {
+    if (!onCellUpdate) return
+    if (selectedRows.length === 0) return
+    if (!bulkFieldColumn) return
+    if (bulkApplying) return
+
+    const toBaseValue = () => {
+      if (
+        bulkFieldColumn.editor === 'checkbox' ||
+        bulkFieldColumn.type === 'boolean'
+      ) {
+        return bulkBooleanValue === 'true'
+      }
+
+      if (bulkFieldColumn.editor === 'multiselect') {
+        return stringToList(bulkValue)
+      }
+
+      const inputType = resolveInputType(bulkFieldColumn)
+      if (inputType === 'number') {
+        const trimmed = bulkValue.trim()
+        if (!trimmed) return null
+        const parsed = Number(trimmed)
+        return Number.isNaN(parsed) ? null : parsed
+      }
+      if (inputType === 'date') {
+        const trimmed = bulkValue.trim()
+        return trimmed || null
+      }
+      if (inputType === 'datetime-local') {
+        const trimmed = bulkValue.trim()
+        if (!trimmed) return null
+        const parsed = new Date(trimmed)
+        return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+      }
+
+      if (bulkFieldColumn.editor === 'select') {
+        const trimmed = bulkValue.trim()
+        return trimmed || null
+      }
+
+      return bulkValue
+    }
+
+    setBulkApplying(true)
+    const failures: string[] = []
+
+    try {
+      for (const row of selectedRows) {
+        try {
+          const baseValue = toBaseValue()
+          const nextValue = bulkFieldColumn.parseValue
+            ? bulkFieldColumn.parseValue(baseValue as any, row)
+            : baseValue
+          await onCellUpdate(row, bulkFieldColumn, nextValue)
+        } catch (error) {
+          const rowId = getRowSelectionId(row) || 'row'
+          const message =
+            error instanceof Error ? error.message : 'Update failed'
+          failures.push(`${rowId}: ${message}`)
+        }
+      }
+    } finally {
+      setBulkApplying(false)
+    }
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      reportCellUpdateError(
+        new Error(
+          failures.length > 3
+            ? `${preview}; and ${failures.length - 3} more`
+            : preview
+        )
+      )
+      return
+    }
+
+    setBulkValue('')
   }
 
   const handleDragStart = (columnId: string) => {
@@ -922,6 +2682,38 @@ export function EntityTable({
     setActiveFilters({})
   }
 
+  const addFilterColumn = (columnId: string) => {
+    const normalized = columnId.trim()
+    if (!normalized) return
+    setActiveFilterColumns((prev) => {
+      if (prev.has(normalized)) return prev
+      const next = new Set(prev)
+      next.add(normalized)
+      return next
+    })
+  }
+
+  const removeFilterColumn = (columnId: string) => {
+    setActiveFilterColumns((prev) => {
+      if (!prev.has(columnId)) return prev
+      const next = new Set(prev)
+      next.delete(columnId)
+      return next
+    })
+    setActiveFilters((prev) => {
+      if (!prev[columnId]) return prev
+      const next = { ...prev }
+      delete next[columnId]
+      return next
+    })
+    setExpandedFilterColumns((prev) => {
+      if (!prev.has(columnId)) return prev
+      const next = new Set(prev)
+      next.delete(columnId)
+      return next
+    })
+  }
+
   const toggleFilterValue = (columnId: string, value: string) => {
     setActiveFilters((prev) => {
       const next = { ...prev }
@@ -931,7 +2723,11 @@ export function EntityTable({
       } else {
         set.add(value)
       }
-      next[columnId] = set
+      if (set.size > 0) {
+        next[columnId] = set
+      } else {
+        delete next[columnId]
+      }
       return next
     })
   }
@@ -1097,14 +2893,13 @@ export function EntityTable({
         if (value === null || value === undefined || value === '') {
           return <span className="text-zinc-500">-</span>
         }
-        const normalized = toDateInputValue(value)
-        if (!normalized) {
+        const display = formatDateDisplay(value)
+        if (!display) {
           return <span className="text-zinc-100">{String(value)}</span>
         }
-        const parsed = new Date(`${normalized}T00:00:00`)
         return (
-          <span className="text-zinc-100" title={parsed.toLocaleDateString()}>
-            {parsed.toLocaleDateString()}
+          <span className="text-zinc-100" title={display}>
+            {display}
           </span>
         )
       }
@@ -1112,32 +2907,80 @@ export function EntityTable({
         if (value === null || value === undefined || value === '') {
           return <span className="text-zinc-500">-</span>
         }
-        const parsed = new Date(value)
-        if (Number.isNaN(parsed.getTime())) {
+        const display = formatDateTimeDisplay(value)
+        if (!display) {
           return <span className="text-zinc-100">{String(value)}</span>
         }
         return (
-          <span className="text-zinc-100" title={parsed.toLocaleString()}>
-            {parsed.toLocaleString()}
+          <span className="text-zinc-100" title={display}>
+            {display}
           </span>
         )
       }
-      case 'thumbnail':
+      case 'thumbnail': {
+        const thumbnailSource = normalizeThumbnailSource(value)
+
+        if (column.editable && onCellUpdate) {
+          return (
+            <label
+              className="flex cursor-pointer items-center justify-center"
+              title="Upload thumbnail"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onClick={(event) => event.stopPropagation()}
+                onChange={async (event) => {
+                  event.stopPropagation()
+                  const file = event.target.files?.[0]
+                  event.currentTarget.value = ''
+                  if (!file) return
+                  if (!file.type.startsWith('image/')) {
+                    reportCellUpdateError(new Error('Thumbnail must be an image file'))
+                    return
+                  }
+                  if (file.size > MAX_THUMBNAIL_UPLOAD_BYTES) {
+                    reportCellUpdateError(
+                      new Error('Thumbnail image is too large (max 8MB)')
+                    )
+                    return
+                  }
+                  try {
+                    const dataUrl = await optimizeThumbnailDataUrl(file)
+                    await onCellUpdate(row, column, dataUrl)
+                  } catch (error) {
+                    reportCellUpdateError(error)
+                  }
+                }}
+              />
+              <ThumbnailPreview
+                source={thumbnailSource}
+                className="h-10 w-10 rounded object-cover ring-1 ring-zinc-700 transition hover:ring-amber-400"
+                fallback={
+                  <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-800 text-[10px] text-zinc-500 transition hover:text-zinc-200">
+                    Upload
+                  </div>
+                }
+              />
+            </label>
+          )
+        }
         return (
           <div className="flex items-center justify-center">
-            {value ? (
-              <img
-                src={value}
-                alt=""
-                className="h-10 w-10 rounded object-cover"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-500">
-                Upload
-              </div>
-            )}
+            <ThumbnailPreview
+              source={thumbnailSource}
+              className="h-10 w-10 rounded object-cover"
+              fallback={
+                <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-500">
+                  Upload
+                </div>
+              }
+            />
           </div>
         )
+      }
       case 'link':
         if (column.linkHref) {
           const href = column.linkHref(row)
@@ -1249,28 +3092,58 @@ export function EntityTable({
           return <span className="text-zinc-500">-</span>
         }
 
-        const formatted =
-          typeof column.formatValue === 'function'
-            ? column.formatValue(value, row)
-            : value
+        const hasCustomFormatter = typeof column.formatValue === 'function'
+        let formatted = hasCustomFormatter
+          ? column.formatValue?.(value, row)
+          : value
+
+        if (!hasCustomFormatter && column.options?.length) {
+          const rawValues = unknownToStringList(value)
+          if (rawValues.length > 1 || Array.isArray(value)) {
+            const labeled = optionValuesToLabels(rawValues, column.options)
+            if (labeled.trim()) {
+              formatted = labeled
+            }
+          } else {
+            const optionLabel = resolveColumnOptionLabel(
+              column,
+              String(value).trim()
+            )
+            if (optionLabel) {
+              formatted = optionLabel
+            }
+          }
+        }
+
+        if (!hasCustomFormatter && isPeopleReferenceColumnId(column.id)) {
+          const rawValues = unknownToStringList(formatted)
+          if (rawValues.length > 1 || Array.isArray(formatted)) {
+            const labels = rawValues.map((rawItem) => {
+              const normalized = rawItem.trim()
+              if (!normalized) return ''
+              if (!isLikelyUuid(normalized)) return normalized
+              return profileNamesById[normalized.toLowerCase()] || normalized
+            })
+            const joined = labels.filter(Boolean).join(', ')
+            if (joined) {
+              formatted = joined
+            }
+          } else if (typeof formatted === 'string') {
+            const normalized = formatted.trim()
+            if (isLikelyUuid(normalized)) {
+              formatted =
+                profileNamesById[normalized.toLowerCase()] || normalized
+            }
+          }
+        }
 
         const temporal = inferTemporalKind(column)
-        if (temporal === 'date') {
-          const normalized = toDateInputValue(formatted)
-          if (normalized) {
-            const parsed = new Date(`${normalized}T00:00:00`)
+        if (temporal) {
+          const display = formatTemporalDisplay(formatted, temporal)
+          if (display) {
             return (
-              <span className="text-zinc-100" title={parsed.toLocaleDateString()}>
-                {parsed.toLocaleDateString()}
-              </span>
-            )
-          }
-        } else if (temporal === 'datetime') {
-          const parsed = new Date(formatted)
-          if (!Number.isNaN(parsed.getTime())) {
-            return (
-              <span className="text-zinc-100" title={parsed.toLocaleString()}>
-                {parsed.toLocaleString()}
+              <span className="text-zinc-100" title={display}>
+                {display}
               </span>
             )
           }
@@ -1372,22 +3245,166 @@ export function EntityTable({
 
   const handleGridCardContextMenu = (
     row: any,
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLElement>
   ) => {
     if (onRowContextMenu) return
     openBuiltInContextMenu(row, event)
   }
 
+  const csvMappedEntries = useMemo(
+    () =>
+      csvImportHeaders
+        .map((header, index) => ({
+          header,
+          index,
+          targetColumnId: csvImportColumnMap[header] || '',
+        }))
+        .filter((entry) => entry.targetColumnId),
+    [csvImportColumnMap, csvImportHeaders]
+  )
+  const csvMappedColumnCount = csvMappedEntries.length
+  const csvMappedTargetColumns = useMemo(
+    () =>
+      csvMappedEntries.map((entry) => ({
+        header: entry.header,
+        targetColumnId: entry.targetColumnId,
+        targetColumnLabel:
+          resolvedColumnById.get(entry.targetColumnId)?.label || entry.targetColumnId,
+      })),
+    [csvMappedEntries, resolvedColumnById]
+  )
+  const hasCsvDataLoaded = csvImportRows.length > 0 && csvImportHeaders.length > 0
+  const csvPreviewRows = csvImportRows.slice(0, 5)
+  const csvMappedPreviewRows = useMemo(
+    () =>
+      csvPreviewRows.map((row) =>
+        csvMappedEntries.map((entry) => row[entry.index] || '')
+      ),
+    [csvMappedEntries, csvPreviewRows]
+  )
+  const csvImportSteps = [
+    { id: 1, label: 'Step 1: Add your data' },
+    { id: 2, label: 'Step 2: Map column names' },
+    { id: 3, label: 'Step 3: Specify ID' },
+    { id: 4, label: 'Step 4: Preview' },
+  ] as const
+  const canVisitCsvStep = (stepId: number) => {
+    if (stepId <= 1) return true
+    if (!hasCsvDataLoaded) return false
+    if (stepId <= 2) return true
+    if (csvMappedColumnCount === 0) return false
+    return true
+  }
+  const goToCsvStep = (stepId: number) => {
+    if (!canVisitCsvStep(stepId)) return
+    setCsvImportStep(stepId)
+    setCsvImportError(null)
+  }
+  const goToNextCsvStep = () => {
+    if (csvImportStep === 1) {
+      if (!hasCsvDataLoaded) {
+        setCsvImportError('Upload a CSV file before continuing.')
+        return
+      }
+      goToCsvStep(2)
+      return
+    }
+    if (csvImportStep === 2) {
+      if (csvMappedColumnCount === 0) {
+        setCsvImportError('Map at least one column before continuing.')
+        return
+      }
+      goToCsvStep(3)
+      return
+    }
+    if (csvImportStep === 3) {
+      goToCsvStep(4)
+    }
+  }
+  const goToPreviousCsvStep = () => {
+    const previous = Math.max(1, csvImportStep - 1)
+    goToCsvStep(previous)
+  }
+  const csvIdentifierTargetColumn = csvImportIdentifierHeader
+    ? csvImportColumnMap[csvImportIdentifierHeader] || null
+    : null
+
+  const toolbarActions = (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={displayColumns.length === 0 || totalRows === 0}
+            className="flex items-center gap-1 rounded-sm border border-zinc-700 px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            CSV
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="border-zinc-700 bg-zinc-900 text-zinc-100"
+        >
+          <DropdownMenuLabel className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">
+            Export CSV
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-zinc-700" />
+          <DropdownMenuItem
+            onSelect={() => exportRowsAsCsv(paginatedData, 'page')}
+            className="focus:bg-zinc-800 focus:text-zinc-100"
+            disabled={paginatedData.length === 0}
+          >
+            Export Current Page ({paginatedData.length})
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => exportRowsAsCsv(sortedData, 'filtered')}
+            className="focus:bg-zinc-800 focus:text-zinc-100"
+            disabled={sortedData.length === 0}
+          >
+            Export Filtered ({sortedData.length})
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => exportRowsAsCsv(selectedRows, 'selected')}
+            className="focus:bg-zinc-800 focus:text-zinc-100"
+            disabled={selectedRows.length === 0}
+          >
+            Export Selected ({selectedRows.length})
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {onCsvImport ? (
+        <button
+          type="button"
+          onClick={() => handleCsvImportDialogToggle(true)}
+          className="flex items-center gap-1 rounded-sm border border-zinc-700 px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Import CSV
+        </button>
+      ) : null}
+    </>
+  )
+
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
       {showToolbar && (
         <TableToolbar
           entityType={entityType}
           columns={resolvedColumns}
           visibleColumns={visibleColumns}
+          pinnedColumnIds={pinnedColumnIds}
           onToggleColumn={toggleColumn}
+          onTogglePinnedColumn={togglePinnedColumn}
+          allowGridView={allowGridView}
           onAdd={onAdd}
+          view={view}
           onViewChange={setView}
+          showGridSizeControl={allowGridView && entityType === 'projects'}
+          gridCardSize={gridCardSize}
+          onGridCardSizeChange={(value) => setGridCardSize(clampGridCardSize(value))}
           sort={sort}
           onSortChange={setSort}
           groupBy={groupById}
@@ -1398,9 +3415,10 @@ export function EntityTable({
           filtersOpen={filtersOpen}
           onToggleFilters={() => setFiltersOpen((prev) => !prev)}
           onCloseFilters={() => setFiltersOpen(false)}
+          toolbarActions={toolbarActions}
           filtersPanel={
             showFiltersPanel && filterableColumns.length > 0 ? (
-              <div className="absolute left-0 top-full z-30 mt-2 hidden w-72 lg:block">
+              <div className="absolute left-0 top-full z-30 mt-2 hidden w-[22rem] lg:block">
                 <div className="rounded-md border border-zinc-800 bg-zinc-950/95 p-3 text-sm text-zinc-200 shadow-lg">
                   <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
                     <span>Filters</span>
@@ -1408,51 +3426,97 @@ export function EntityTable({
                       onClick={clearFilters}
                       className="text-[10px] uppercase tracking-[0.2em] text-amber-400 hover:text-amber-300"
                     >
-                      Clear all
+                      Clear values
                     </button>
                   </div>
 
-                  <div className="mt-3 space-y-4">
-                    {filterableColumns.map((column) => (
-                      <div key={column.id}>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                          {column.label}
-                        </p>
-                        <div className="mt-2 space-y-2">
-                          {(filterOptions[column.id] ?? [])
-                            .slice(
-                              0,
-                              expandedFilterColumns.has(column.id) ? undefined : 5
-                            )
-                            .map((value) => (
-                              <label
-                                key={value}
-                                className="flex items-center gap-2 text-xs text-zinc-300"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={activeFilters[column.id]?.has(value) ?? false}
-                                  onChange={() => toggleFilterValue(column.id, value)}
-                                  className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
-                                />
-                                <span>{value}</span>
-                              </label>
-                            ))}
-                          {(filterOptions[column.id]?.length ?? 0) > 5 && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      value={pendingFilterColumnId}
+                      onChange={(event) => setPendingFilterColumnId(event.target.value)}
+                      disabled={addableFilterColumns.length === 0}
+                      className="flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:text-zinc-500"
+                    >
+                      {addableFilterColumns.length === 0 ? (
+                        <option value="">All available filters added</option>
+                      ) : (
+                        addableFilterColumns.map((column) => (
+                          <option key={column.id} value={column.id}>
+                            {column.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => addFilterColumn(pendingFilterColumnId)}
+                      disabled={!pendingFilterColumnId}
+                      className="rounded border border-zinc-700 px-2 py-1.5 text-[10px] uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Add Filter
+                    </button>
+                  </div>
+
+                  {activeFilterableColumns.length === 0 ? (
+                    <div className="mt-3 rounded border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+                      No active filters. Add a field to filter this page.
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {activeFilterableColumns.map((column) => (
+                        <div
+                          key={column.id}
+                          className="rounded border border-zinc-800 bg-zinc-900/50 p-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                              {column.label}
+                            </p>
                             <button
                               type="button"
-                              onClick={() => toggleFilterExpand(column.id)}
-                              className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-200"
+                              onClick={() => removeFilterColumn(column.id)}
+                              className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition hover:text-zinc-200"
                             >
-                              {expandedFilterColumns.has(column.id)
-                                ? 'Show less'
-                                : 'Show more'}
+                              Remove
                             </button>
-                          )}
+                          </div>
+
+                          <div className="mt-2 space-y-2">
+                            {(filterOptions[column.id] ?? [])
+                              .slice(
+                                0,
+                                expandedFilterColumns.has(column.id) ? undefined : 5
+                              )
+                              .map((value) => (
+                                <label
+                                  key={value}
+                                  className="flex items-center gap-2 text-xs text-zinc-300"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={activeFilters[column.id]?.has(value) ?? false}
+                                    onChange={() => toggleFilterValue(column.id, value)}
+                                    className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
+                                  />
+                                  <span>{formatFilterOptionLabel(column, value)}</span>
+                                </label>
+                              ))}
+                            {(filterOptions[column.id]?.length ?? 0) > 5 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleFilterExpand(column.id)}
+                                className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-200"
+                              >
+                                {expandedFilterColumns.has(column.id)
+                                  ? 'Show less'
+                                  : 'Show more'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null
@@ -1460,59 +3524,297 @@ export function EntityTable({
         />
       )}
 
-      <div className="flex flex-1">
-        <div className="relative flex-1">
-          <div className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70 shadow-sm">
-            <div className="overflow-x-auto">
-              {view === 'grid' ? (
+      {enableRowSelection && selectedRowCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300">
+          <span className="font-medium uppercase tracking-[0.16em] text-zinc-200">
+            {selectedRowCount} selected
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {onCellUpdate && bulkEditableColumns.length > 0 && bulkFieldColumn ? (
+              <>
+                <span className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                  Bulk update
+                </span>
+                <select
+                  value={bulkFieldId}
+                  onChange={(event) => {
+                    setBulkFieldId(event.target.value)
+                    setBulkValue('')
+                  }}
+                  disabled={bulkApplying}
+                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkEditableColumns.map((column) => (
+                    <option key={column.id} value={column.id}>
+                      {column.label}
+                    </option>
+                  ))}
+                </select>
+                {bulkFieldColumn.editor === 'select' &&
+                bulkFieldColumn.options &&
+                bulkFieldColumn.options.length > 0 ? (
+                  <select
+                    value={bulkValue}
+                    onChange={(event) => setBulkValue(event.target.value)}
+                    disabled={bulkApplying}
+                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {bulkFieldColumn.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : bulkFieldColumn.editor === 'checkbox' ||
+                  bulkFieldColumn.type === 'boolean' ? (
+                  <select
+                    value={bulkBooleanValue}
+                    onChange={(event) =>
+                      setBulkBooleanValue(
+                        event.target.value === 'false' ? 'false' : 'true'
+                      )
+                    }
+                    disabled={bulkApplying}
+                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                ) : (
+                  <input
+                    type={resolveInputType(bulkFieldColumn)}
+                    value={bulkValue}
+                    onChange={(event) => setBulkValue(event.target.value)}
+                    disabled={bulkApplying}
+                    placeholder={
+                      bulkFieldColumn.editor === 'multiselect'
+                        ? 'Comma-separated values'
+                        : 'Value'
+                    }
+                    className="min-w-[170px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={handleBulkFieldUpdate}
+                  disabled={bulkApplying}
+                  className="rounded border border-amber-400/70 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-amber-200 transition hover:border-amber-300 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkApplying ? 'Applying...' : 'Apply'}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={toggleCurrentPageSelection}
+              className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+            >
+              {allPageRowsSelected ? 'Unselect page' : 'Select page'}
+            </button>
+            {!allFilteredRowsSelected ? (
+              <button
+                type="button"
+                onClick={selectAllFilteredRows}
+                className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+              >
+                Select filtered ({sortedData.length})
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={clearSelectedRows}
+              className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+            >
+              Clear
+            </button>
+            {onBulkDelete ? (
+              <button
+                type="button"
+                onClick={handleBulkDeleteSelected}
+                disabled={isBulkDeleting}
+                className="flex items-center gap-1 rounded border border-red-400/60 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-red-300 transition hover:border-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {isBulkDeleting ? 'Deleting...' : 'Delete selected'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70 shadow-sm">
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
+              {allowGridView && view === 'grid' ? (
                 <div
                   className={`grid gap-4 p-3 ${
                     entityType === 'projects'
-                      ? 'bg-zinc-950 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                      ? 'bg-zinc-950'
                       : 'sm:grid-cols-2 xl:grid-cols-3'
                   }`}
+                  style={
+                    entityType === 'projects'
+                      ? {
+                          gridTemplateColumns: `repeat(auto-fill, minmax(${clampGridCardSize(
+                            gridCardSize
+                          )}px, 1fr))`,
+                        }
+                      : undefined
+                  }
                 >
-                  {sortedData.length === 0 && emptyState ? (
+                  {paginatedData.length === 0 && emptyState ? (
                     <div className="col-span-full rounded-md border border-zinc-800 bg-zinc-950/40 p-8">
                       {emptyState}
                     </div>
                   ) : null}
-                  {sortedData.map((row, index) => {
+                  {paginatedData.map((row, index) => {
+                    const rowSelectionId = getRowSelectionId(row)
+                    const isRowSelected = rowSelectionId
+                      ? selectedRowIds.has(rowSelectionId)
+                      : false
+
                     if (entityType === 'projects') {
-                      const thumb = row.thumbnail_url
                       const name = row.name || 'Untitled'
+                      const thumbnailColumn =
+                        resolvedColumns.find((column) => column.id === 'thumbnail_url') ??
+                        ({
+                          id: 'thumbnail_url',
+                          label: 'Thumbnail',
+                          type: 'thumbnail',
+                          editable: true,
+                        } as TableColumn)
+                      const canEditProjectThumbnail = Boolean(
+                        thumbnailColumn.editable && onCellUpdate
+                      )
+                      const projectThumbnail = normalizeThumbnailSource(row?.thumbnail_url)
                       return (
-                        <button
+                        <div
                           key={row.id || index}
-                          className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 text-left shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition hover:border-zinc-700"
-                          onClick={() => onRowClick?.(row)}
+                          className={`relative overflow-hidden rounded-md border bg-zinc-950 text-left shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition ${
+                            isRowSelected
+                              ? 'border-amber-400/80'
+                              : 'border-zinc-800 hover:border-zinc-700'
+                          }`}
                           onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                         >
-                          <div className="flex aspect-square w-full items-center justify-center bg-zinc-900 text-xs text-zinc-500">
-                            {thumb ? (
-                              <img
-                                src={thumb}
-                                alt=""
-                                className="h-full w-full object-cover"
+                          {enableRowSelection && rowSelectionId ? (
+                            <label
+                              className="absolute left-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-zinc-700 bg-zinc-900/90"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isRowSelected}
+                                onChange={() => toggleRowSelection(row)}
+                                className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
                               />
+                            </label>
+                          ) : null}
+                          <div className="relative aspect-square w-full bg-zinc-900">
+                            {canEditProjectThumbnail ? (
+                              <label
+                                className="group/thumb block h-full w-full cursor-pointer"
+                                title="Upload thumbnail"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={async (event) => {
+                                    event.stopPropagation()
+                                    const file = event.target.files?.[0]
+                                    event.currentTarget.value = ''
+                                    if (!file) return
+                                    if (!file.type.startsWith('image/')) {
+                                      reportCellUpdateError(
+                                        new Error('Thumbnail must be an image file')
+                                      )
+                                      return
+                                    }
+                                    if (file.size > MAX_THUMBNAIL_UPLOAD_BYTES) {
+                                      reportCellUpdateError(
+                                        new Error('Thumbnail image is too large (max 8MB)')
+                                      )
+                                      return
+                                    }
+
+                                    try {
+                                      const dataUrl = await optimizeThumbnailDataUrl(file)
+                                      await onCellUpdate?.(row, thumbnailColumn, dataUrl)
+                                    } catch (error) {
+                                      reportCellUpdateError(error)
+                                    }
+                                  }}
+                                />
+                                <ThumbnailPreview
+                                  source={projectThumbnail}
+                                  className="absolute inset-0 block h-full w-full object-cover"
+                                  fallback={
+                                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                                      Upload Thumbnail
+                                    </div>
+                                  }
+                                />
+                                <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-zinc-900/80 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-zinc-300 opacity-0 transition group-hover/thumb:opacity-100">
+                                  Change
+                                </span>
+                              </label>
                             ) : (
-                              <span className="text-zinc-400 underline">Upload Thumbnail</span>
+                              <ThumbnailPreview
+                                source={projectThumbnail}
+                                className="absolute inset-0 block h-full w-full object-cover"
+                                fallback={
+                                  <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                                    No Thumbnail
+                                  </div>
+                                }
+                              />
                             )}
                           </div>
                           <div className="border-t border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-zinc-300">
-                            <span className="underline">{name}</span>
+                            {row?.id ? (
+                              <Link
+                                href={`/apex/${row.id}`}
+                                className="underline transition hover:text-amber-300"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {name}
+                              </Link>
+                            ) : (
+                              <span className="underline">{name}</span>
+                            )}
                           </div>
-                        </button>
+                        </div>
                       )
                     }
 
                     return (
                       <button
                         key={row.id || index}
-                        className="flex flex-col gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 p-3 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+                        className={`relative flex flex-col gap-2 rounded-md border bg-zinc-950/60 p-3 text-left transition hover:bg-zinc-900 ${
+                          isRowSelected
+                            ? 'border-amber-400/80'
+                            : 'border-zinc-800 hover:border-zinc-700'
+                        }`}
                         onClick={() => onRowClick?.(row)}
                         onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                       >
+                        {enableRowSelection && rowSelectionId ? (
+                          <label
+                            className="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-zinc-700 bg-zinc-900/90"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isRowSelected}
+                              onChange={() => toggleRowSelection(row)}
+                              className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                            />
+                          </label>
+                        ) : null}
                         {displayColumns.slice(0, 3).map((column) => (
                           <div key={column.id}>
                             <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
@@ -1528,42 +3830,80 @@ export function EntityTable({
                   })}
                 </div>
               ) : (
-                <table className="w-max table-auto">
-                  <thead className="border-b border-zinc-800 bg-zinc-950">
+                <table className="w-max min-w-full table-auto">
+                  <thead className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950">
                     <tr>
-                      {groupById && <th className="w-8" />}
-                      {displayColumns.map((column) => (
+                      {enableRowSelection ? (
                         <th
-                          key={column.id}
-                          draggable
-                          onDragStart={() => handleDragStart(column.id)}
-                          onDragEnd={() => setDraggedColumnId(null)}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={() => handleDrop(column.id)}
-                          className={`${densityClasses.header} cursor-grab select-none text-left font-semibold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-200`}
-                          style={{
-                            width: columnWidths[column.id] ?? column.width,
-                            minWidth: 80,
-                          }}
+                          className={`${densityClasses.header} sticky left-0 z-40 w-10 bg-zinc-950 text-center`}
+                          style={{ width: SELECTION_COLUMN_WIDTH, minWidth: SELECTION_COLUMN_WIDTH }}
                         >
-                          <div className="relative flex items-center justify-between gap-2">
-                            <span>{column.label}</span>
-                            <span
-                              role="separator"
-                              onMouseDown={(event) => handleResizeStart(column.id, event)}
-                              className="absolute -right-2 top-0 h-full w-3 cursor-col-resize"
-                            />
-                          </div>
+                          <input
+                            type="checkbox"
+                            checked={allPageRowsSelected}
+                            onChange={toggleCurrentPageSelection}
+                            aria-label="Select rows on current page"
+                            aria-checked={somePageRowsSelected ? 'mixed' : allPageRowsSelected}
+                            className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                          />
                         </th>
+                      ) : null}
+                      {groupById && (
+                        <th
+                          className={`w-8 ${
+                            hasPinnedDisplayColumns || enableRowSelection
+                              ? 'sticky z-40 bg-zinc-950'
+                              : ''
+                          }`}
+                          style={{
+                            left: enableRowSelection ? SELECTION_COLUMN_WIDTH : 0,
+                          }}
+                        />
+                      )}
+                      {displayColumns.map((column) => (
+                        (() => {
+                          const isPinned = pinnedColumnIds.has(column.id)
+                          const isLastPinned = lastPinnedDisplayColumnId === column.id
+
+                          return (
+                            <th
+                              key={column.id}
+                              draggable
+                              onDragStart={() => handleDragStart(column.id)}
+                              onDragEnd={() => setDraggedColumnId(null)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleDrop(column.id)}
+                              className={`${densityClasses.header} cursor-grab select-none text-left font-semibold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-200 ${
+                                isPinned ? 'sticky z-30 bg-zinc-950' : ''
+                              } ${isPinned && isLastPinned ? 'shadow-[1px_0_0_rgba(63,63,70,0.9)]' : ''}`}
+                              style={{
+                                width: columnWidths[column.id] ?? column.width,
+                                minWidth: 80,
+                                left: isPinned ? pinnedColumnOffsets[column.id] ?? 0 : undefined,
+                              }}
+                            >
+                              <div className="relative flex items-center justify-between gap-2">
+                                <span>{column.label}</span>
+                                <span
+                                  role="separator"
+                                  onMouseDown={(event) => handleResizeStart(column.id, event)}
+                                  className="absolute -right-2 top-0 h-full w-3 cursor-col-resize"
+                                />
+                              </div>
+                            </th>
+                          )
+                        })()
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedData.length === 0 && emptyState ? (
+                    {paginatedData.length === 0 && emptyState ? (
                       <tr className="border-b border-zinc-800">
                         <td
                           colSpan={
-                            displayColumns.length + (groupById ? 1 : 0)
+                            displayColumns.length +
+                            (groupById ? 1 : 0) +
+                            (enableRowSelection ? 1 : 0)
                           }
                           className="px-6 py-16"
                         >
@@ -1571,7 +3911,7 @@ export function EntityTable({
                         </td>
                       </tr>
                     ) : null}
-                    {sortedData.length > 0 && groupKeys.map((groupKey) => {
+                    {paginatedData.length > 0 && groupKeys.map((groupKey) => {
                       const isExpanded = !groupById || expandedGroups.has(groupKey)
 
                       return (
@@ -1579,7 +3919,11 @@ export function EntityTable({
                           {groupById && (
                             <tr className="border-b border-zinc-800 bg-zinc-950">
                               <td
-                                colSpan={displayColumns.length + 1}
+                                colSpan={
+                                  displayColumns.length +
+                                  1 +
+                                  (enableRowSelection ? 1 : 0)
+                                }
                                 className="px-2.5 py-2 text-sm cursor-pointer hover:bg-zinc-900"
                                 onClick={() => toggleGroup(groupKey)}
                               >
@@ -1595,38 +3939,85 @@ export function EntityTable({
                             </tr>
                           )}
                           {isExpanded &&
-                            groupedData[groupKey].map((row, rowIndex) => (
-                              <tr
-                                key={row.id || rowIndex}
-                                className="cursor-pointer border-b border-zinc-800 transition hover:bg-zinc-900"
-                                onClick={() => onRowClick?.(row)}
-                                onContextMenu={(event) => handleListRowContextMenu(row, event)}
-                              >
-                                {groupById && <td className="w-8" />}
-                                {displayColumns.map((column) => (
-                                  // Cell edit affordance can be icon-only, double-click, or both.
-                                  <td
-                                    key={column.id}
-                                    className={`${densityClasses.cell}`}
-                                    style={{
-                                      width: columnWidths[column.id] ?? column.width,
-                                      minWidth: 80,
-                                    }}
-                                    onDoubleClick={(event) => {
-                                      const useDoubleClick =
-                                        cellEditTrigger === 'double_click' ||
-                                        cellEditTrigger === 'both'
-                                      if (!useDoubleClick) return
-                                      event.stopPropagation()
-                                      startEditing(row, column)
-                                    }}
-                                  >
-                                     {editingCell?.rowId === row.id &&
-                                    editingCell?.columnId === column.id &&
-                                    column.editable &&
-                                    onCellUpdate &&
-                                    column.editor !== 'checkbox' ? (
-                                      column.editor === 'multiselect' ? (
+                            groupedData[groupKey].map((row, rowIndex) => {
+                              const rowSelectionId = getRowSelectionId(row)
+                              const isRowSelected = rowSelectionId
+                                ? selectedRowIds.has(rowSelectionId)
+                                : false
+
+                              return (
+                                <tr
+                                  key={row.id || rowIndex}
+                                  className={`group cursor-pointer border-b border-zinc-800 transition hover:bg-zinc-900 ${
+                                    isRowSelected ? 'bg-zinc-900/70' : ''
+                                  }`}
+                                  onClick={() => onRowClick?.(row)}
+                                  onContextMenu={(event) => handleListRowContextMenu(row, event)}
+                                >
+                                  {enableRowSelection ? (
+                                    <td
+                                      className={`${densityClasses.cell} sticky left-0 z-30 bg-zinc-950 text-center group-hover:bg-zinc-900`}
+                                      style={{
+                                        width: SELECTION_COLUMN_WIDTH,
+                                        minWidth: SELECTION_COLUMN_WIDTH,
+                                      }}
+                                      onClick={(event) => event.stopPropagation()}
+                                    >
+                                      {rowSelectionId ? (
+                                        <input
+                                          type="checkbox"
+                                          checked={isRowSelected}
+                                          onChange={() => toggleRowSelection(row)}
+                                          className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                                        />
+                                      ) : null}
+                                    </td>
+                                  ) : null}
+                                  {groupById && (
+                                    <td
+                                      className={`w-8 ${
+                                        hasPinnedDisplayColumns || enableRowSelection
+                                          ? 'sticky z-20 bg-zinc-950 group-hover:bg-zinc-900'
+                                          : ''
+                                      }`}
+                                      style={{
+                                        left: enableRowSelection
+                                          ? SELECTION_COLUMN_WIDTH
+                                          : 0,
+                                      }}
+                                    />
+                                  )}
+                                  {displayColumns.map((column) => {
+                                    const isPinned = pinnedColumnIds.has(column.id)
+                                    const isLastPinned = lastPinnedDisplayColumnId === column.id
+
+                                    return (
+                                    // Cell edit affordance can be icon-only, double-click, or both.
+                                    <td
+                                      key={column.id}
+                                      className={`${densityClasses.cell} ${
+                                        isPinned ? 'sticky z-10 bg-zinc-950 group-hover:bg-zinc-900' : ''
+                                      } ${isPinned && isLastPinned ? 'shadow-[1px_0_0_rgba(63,63,70,0.85)]' : ''}`}
+                                      style={{
+                                        width: columnWidths[column.id] ?? column.width,
+                                        minWidth: 80,
+                                        left: isPinned ? pinnedColumnOffsets[column.id] ?? 0 : undefined,
+                                      }}
+                                      onDoubleClick={(event) => {
+                                        const useDoubleClick =
+                                          cellEditTrigger === 'double_click' ||
+                                          cellEditTrigger === 'both'
+                                        if (!useDoubleClick) return
+                                        event.stopPropagation()
+                                        startEditing(row, column)
+                                      }}
+                                    >
+                                       {editingCell?.rowId === row.id &&
+                                      editingCell?.columnId === column.id &&
+                                      column.editable &&
+                                      onCellUpdate &&
+                                      column.editor !== 'checkbox' ? (
+                                        column.editor === 'multiselect' ? (
                                         <div
                                           className="relative w-full"
                                           onClick={(event) => event.stopPropagation()}
@@ -1651,7 +4042,10 @@ export function EntityTable({
                                               >
                                                 <span className="truncate">
                                                   {draftListValue.length > 0
-                                                    ? draftListValue.join(', ')
+                                                    ? optionValuesToLabels(
+                                                        draftListValue,
+                                                        column.options
+                                                      )
                                                     : `Select ${column.label.toLowerCase()}`}
                                                 </span>
                                                 <ChevronDown
@@ -1730,7 +4124,8 @@ export function EntityTable({
                                           rows={3}
                                           autoFocus
                                         />
-                                      ) : column.editor === 'select' ? (
+                                      ) : column.editor === 'select' &&
+                                        (column.options ?? []).length > 0 ? (
                                         <select
                                           value={draftValue}
                                           onChange={async (event) => {
@@ -1782,35 +4177,36 @@ export function EntityTable({
                                           className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
                                           autoFocus
                                         />
-                                      )
-                                    ) : (
-                                      <div className="group/cell relative min-h-[18px]">
-                                        {renderCell(column, row[column.id], row)}
+                                        )
+                                      ) : (
+                                        <div className="group/cell relative min-h-[18px]">
+                                          {renderCell(column, row[column.id], row)}
 
-                                        {(cellEditTrigger === 'icon' || cellEditTrigger === 'both') &&
-                                        column.editable &&
-                                        onCellUpdate &&
-                                        column.editor !== 'checkbox' ? (
-                                          <button
-                                            type="button"
-                                            aria-label={`Edit ${column.label}`}
-                                            title={`Edit ${column.label}`}
-                                            onClick={(event) => {
-                                              event.preventDefault()
-                                              event.stopPropagation()
-                                              startEditing(row, column)
-                                            }}
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 rounded-sm p-1 text-zinc-500 opacity-0 transition hover:bg-zinc-800 hover:text-zinc-200 group-hover/cell:opacity-100"
-                                          >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    )}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
+                                          {(cellEditTrigger === 'icon' || cellEditTrigger === 'both') &&
+                                          column.editable &&
+                                          onCellUpdate &&
+                                          column.editor !== 'checkbox' ? (
+                                            <button
+                                              type="button"
+                                              aria-label={`Edit ${column.label}`}
+                                              title={`Edit ${column.label}`}
+                                              onClick={(event) => {
+                                                event.preventDefault()
+                                                event.stopPropagation()
+                                                startEditing(row, column)
+                                              }}
+                                              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-sm p-1 text-zinc-500 opacity-0 transition hover:bg-zinc-800 hover:text-zinc-200 group-hover/cell:opacity-100"
+                                            >
+                                              <Pencil className="h-3.5 w-3.5" />
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      )}
+                                    </td>
+                                  )})}
+                                </tr>
+                              )
+                            })}
                         </React.Fragment>
                       )
                     })}
@@ -1819,12 +4215,392 @@ export function EntityTable({
               )}
             </div>
 
-            <div className="border-t border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-400" />
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
+              <span>
+                Showing {pageRangeStart}-{pageRangeEnd} of {totalRows}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                  Rows
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(event) => {
+                    setPageSize(clampPageSize(event.target.value))
+                    setCurrentPage(1)
+                  }}
+                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="min-w-[90px] text-center">
+                  Page {safeCurrentPage} / {pageCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(pageCount, prev + 1))
+                  }
+                  disabled={safeCurrentPage >= pageCount}
+                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {null}
       </div>
+
+      {onCsvImport ? (
+        <Dialog open={csvImportOpen} onOpenChange={handleCsvImportDialogToggle}>
+          <DialogContent
+            showCloseButton={!csvImporting}
+            className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] sm:!max-w-[calc(100vw-1rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+          >
+            <div className="border-b border-zinc-800 px-4 py-4 sm:px-5">
+              <DialogTitle className="text-xl font-semibold text-zinc-100">
+                Bulk CSV Import
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-zinc-400">
+                Upload your file, map source columns, choose an optional ID column, then
+                preview before import.
+              </DialogDescription>
+            </div>
+
+            <div className="border-b border-zinc-800 px-4 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center gap-1">
+                {csvImportSteps.map((step) => {
+                  const isActive = csvImportStep === step.id
+                  const isEnabled = canVisitCsvStep(step.id)
+                  return (
+                    <button
+                      key={step.id}
+                      type="button"
+                      onClick={() => goToCsvStep(step.id)}
+                      disabled={!isEnabled || csvImporting}
+                      className={`rounded px-2 py-1 text-sm transition ${
+                        isActive
+                          ? 'bg-sky-500/20 text-sky-300'
+                          : isEnabled
+                            ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                            : 'cursor-not-allowed text-zinc-600'
+                      }`}
+                    >
+                      {step.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="min-w-0 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+              {csvImportError ? (
+                <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {csvImportError}
+                </div>
+              ) : null}
+
+              {csvImportResult ? (
+                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  Imported {csvImportResult.imported} row(s)
+                  {csvImportResult.failed.length > 0
+                    ? ` with ${csvImportResult.failed.length} failure(s).`
+                    : ' successfully.'}
+                  {csvImportResult.failed.length > 0 ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-300">
+                      {csvImportResult.failed.slice(0, 8).map((failure, index) => (
+                        <li key={`${failure.row}-${index}`}>
+                          Row {failure.row}: {failure.message}
+                        </li>
+                      ))}
+                      {csvImportResult.failed.length > 8 ? (
+                        <li>
+                          ...and {csvImportResult.failed.length - 8} more failure(s)
+                        </li>
+                      ) : null}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {csvImportStep === 1 ? (
+                <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-4">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    CSV file
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={handleCsvFileChange}
+                    disabled={csvImporting}
+                    className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 file:mr-3 file:rounded file:border file:border-zinc-700 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200"
+                  />
+                  {csvImportFileName ? (
+                    <p className="mt-3 text-xs text-zinc-400">
+                      Loaded <span className="text-zinc-200">{csvImportFileName}</span> with{' '}
+                      {csvImportRows.length} row(s), delimiter{' '}
+                      <span className="text-zinc-200">
+                        {csvImportDelimiter === '\t' ? 'TAB' : csvImportDelimiter}
+                      </span>
+                      .
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs text-zinc-500">
+                      Upload a CSV with header row. Continue to map each source column.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {csvImportStep === 2 ? (
+                <div className="flex min-h-[420px] min-w-0 flex-col rounded-md border border-zinc-800 bg-zinc-900/30">
+                  <div className="border-b border-zinc-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    Column mapping ({csvMappedColumnCount}/{csvImportHeaders.length})
+                  </div>
+                  <div className="border-b border-zinc-800 px-3 py-2 text-[11px] text-zinc-500">
+                    Scroll horizontally to view and map all columns.
+                  </div>
+                  {csvImportHeaders.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-zinc-400">
+                      Upload a CSV first to map columns.
+                    </div>
+                  ) : (
+                    <div className="min-h-0 w-full max-w-full flex-1 overflow-x-scroll overflow-y-hidden pb-1">
+                      <div className="h-full min-w-max overflow-y-auto">
+                        <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+                        <tbody>
+                          <tr className="bg-zinc-950/95 text-zinc-500">
+                            <th className="sticky left-0 z-20 border-b border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                              Your Column
+                            </th>
+                            {csvImportHeaders.map((header, index) => (
+                              <th
+                                key={`${header}-${index}`}
+                                className="min-w-[160px] border-b border-r border-zinc-800 px-3 py-2 text-left font-medium text-zinc-300"
+                              >
+                                {header}
+                              </th>
+                            ))}
+                          </tr>
+                          <tr>
+                            <th className="sticky left-0 z-20 border-b border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                              Target Column
+                            </th>
+                            {csvImportHeaders.map((header) => {
+                              const mappedValue = csvImportColumnMap[header] || ''
+                              return (
+                                <td
+                                  key={`mapping-${header}`}
+                                  className="border-b border-r border-zinc-800 px-2 py-2"
+                                >
+                                  <select
+                                    value={mappedValue}
+                                    onChange={(event) =>
+                                      handleCsvColumnMappingChange(header, event.target.value)
+                                    }
+                                    disabled={csvImporting}
+                                    className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  >
+                                    <option value="">Not importing</option>
+                                    {resolvedColumns.map((column) => {
+                                      const isTakenByOtherHeader = csvImportHeaders.some(
+                                        (otherHeader) =>
+                                          otherHeader !== header &&
+                                          csvImportColumnMap[otherHeader] === column.id
+                                      )
+                                      return (
+                                        <option
+                                          key={column.id}
+                                          value={column.id}
+                                          disabled={isTakenByOtherHeader}
+                                        >
+                                          {column.label}
+                                        </option>
+                                      )
+                                    })}
+                                  </select>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                          <tr>
+                            <th className="sticky left-0 z-20 border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                              Data Preview
+                            </th>
+                            {csvImportHeaders.map((header, index) => (
+                              <td
+                                key={`preview-${header}-${index}`}
+                                className="max-w-[180px] border-r border-zinc-800 px-3 py-2 text-zinc-300"
+                              >
+                                <span className="block truncate">
+                                  {csvImportRows[0]?.[index] || '-'}
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {csvImportStep === 3 ? (
+                <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
+                  <div className="text-sm font-medium text-zinc-200">Specify ID column</div>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Optional. Choose a mapped source column to use as external identifier
+                    during import.
+                  </p>
+                  <div className="mt-4 max-w-md">
+                    <select
+                      value={csvImportIdentifierHeader}
+                      onChange={(event) =>
+                        setCsvImportIdentifierHeader(event.target.value)
+                      }
+                      disabled={csvImporting || csvMappedTargetColumns.length === 0}
+                      className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">None (always create rows)</option>
+                      {csvMappedTargetColumns.map((entry) => (
+                        <option key={entry.header} value={entry.header}>
+                          {entry.header} -&gt; {entry.targetColumnLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {csvImportIdentifierHeader && csvIdentifierTargetColumn ? (
+                    <p className="mt-3 text-xs text-zinc-400">
+                      Selected ID mapping: <span className="text-zinc-200">{csvImportIdentifierHeader}</span>{' '}
+                      -&gt; <span className="text-zinc-200">{csvIdentifierTargetColumn}</span>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {csvImportStep === 4 ? (
+                <div className="space-y-4">
+                  <div className="rounded-md border border-zinc-800 bg-zinc-900/30 px-3 py-2 text-xs text-zinc-400">
+                    Ready to import <span className="text-zinc-200">{csvImportRows.length}</span>{' '}
+                    row(s) with <span className="text-zinc-200">{csvMappedColumnCount}</span>{' '}
+                    mapped column(s).
+                  </div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-900/30">
+                    <div className="border-b border-zinc-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                      Preview ({csvMappedPreviewRows.length} of {csvImportRows.length})
+                    </div>
+                    {csvMappedColumnCount === 0 ? (
+                      <div className="px-3 py-4 text-sm text-zinc-400">
+                        No mapped columns available.
+                      </div>
+                    ) : (
+                      <div className="max-h-[260px] overflow-auto">
+                        <table className="min-w-full table-auto text-xs">
+                          <thead className="sticky top-0 z-10 bg-zinc-950/95 text-zinc-500">
+                            <tr>
+                              {csvMappedTargetColumns.map((entry) => (
+                                <th key={entry.header} className="px-3 py-2 text-left">
+                                  {entry.targetColumnLabel}
+                                </th>
+                              ))}
+                            </tr>
+                            <tr>
+                              {csvMappedTargetColumns.map((entry) => (
+                                <th
+                                  key={`source-${entry.header}`}
+                                  className="px-3 pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600"
+                                >
+                                  {entry.header}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {csvMappedPreviewRows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="border-t border-zinc-800">
+                                {row.map((value, columnIndex) => (
+                                  <td
+                                    key={`${rowIndex}-${columnIndex}`}
+                                    className="max-w-[220px] truncate px-3 py-2 text-zinc-300"
+                                  >
+                                    {value || '-'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => handleCsvImportDialogToggle(false)}
+                disabled={csvImporting}
+                className="rounded border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Close
+              </button>
+              <div className="flex items-center gap-2">
+                {csvImportStep > 1 ? (
+                  <button
+                    type="button"
+                    onClick={goToPreviousCsvStep}
+                    disabled={csvImporting}
+                    className="rounded border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                ) : null}
+                {csvImportStep < 4 ? (
+                  <button
+                    type="button"
+                    onClick={goToNextCsvStep}
+                    disabled={csvImporting}
+                    className="rounded border border-sky-500 bg-sky-500/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submitCsvImport}
+                    disabled={
+                      csvImporting ||
+                      csvImportRows.length === 0 ||
+                      csvMappedColumnCount === 0
+                    }
+                    className="rounded border border-amber-400 bg-amber-400/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {csvImporting ? 'Importing...' : `Import ${csvImportRows.length} Row(s)`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {contextMenu ? (
         <div

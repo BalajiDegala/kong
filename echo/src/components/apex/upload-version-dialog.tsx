@@ -1,12 +1,20 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Paperclip } from 'lucide-react'
+import { ChevronDown, Paperclip, Upload, X } from 'lucide-react'
 import { createVersion, uploadVersionFile } from '@/actions/versions'
 import { createClient } from '@/lib/supabase/client'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,16 +37,129 @@ interface UploadVersionDialogProps {
   lockEntity?: boolean
 }
 
+type MultiSelectOption = {
+  value: string
+  label: string
+}
+
 const ENTITY_TYPES = [
   { value: 'asset', label: 'Asset' },
   { value: 'shot', label: 'Shot' },
   { value: 'sequence', label: 'Sequence' },
 ]
 
+const STATUS_FALLBACK_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
+
 const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
 const inputClass =
   'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
-const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+const selectClass =
+  'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b))
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function optimizeThumbnailDataUrl(file: File) {
+  const rawDataUrl = await fileToDataUrl(file)
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Invalid image file'))
+    img.src = rawDataUrl
+  })
+
+  const maxSide = 256
+  const ratio = Math.min(maxSide / img.width, maxSide / img.height, 1)
+  const width = Math.max(1, Math.round(img.width * ratio))
+  const height = Math.max(1, Math.round(img.height * ratio))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Failed to process image')
+  ctx.drawImage(img, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', 0.84)
+}
+
+function MultiSelectDropdown({
+  id,
+  values,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  id: string
+  values: string[]
+  options: MultiSelectOption[]
+  placeholder: string
+  disabled?: boolean
+  onChange: (nextValues: string[]) => void
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          disabled={disabled}
+          className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
+            disabled
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+          }`}
+        >
+          <span className="truncate text-left">{values.length > 0 ? values.join(', ') : placeholder}</span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+      >
+        {options.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={values.includes(option.value)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                const isChecked = checked === true
+                if (isChecked) {
+                  if (values.includes(option.value)) return
+                  onChange([...values, option.value])
+                  return
+                }
+                onChange(values.filter((item) => item !== option.value))
+              }}
+              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function UploadVersionDialog({
   open,
@@ -57,6 +178,10 @@ export function UploadVersionDialog({
   const [projectLabel, setProjectLabel] = useState(projectId)
   const [showMoreFields, setShowMoreFields] = useState(false)
   const [extraFields, setExtraFields] = useState<Record<string, any>>({})
+  const [statusNames, setStatusNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
+  const [thumbnailFileName, setThumbnailFileName] = useState('')
 
   const [assets, setAssets] = useState<any[]>([])
   const [shots, setShots] = useState<any[]>([])
@@ -70,6 +195,9 @@ export function UploadVersionDialog({
     description: '',
     artist_id: '',
     link: '',
+    status: 'pending',
+    tags: [] as string[],
+    thumbnail_blur_hash: '',
     entity_type: (defaultEntityType ?? '') as '' | 'asset' | 'shot' | 'sequence',
     entity_id: defaultEntityId ? String(defaultEntityId) : '',
     task_id: defaultTaskId ? String(defaultTaskId) : '',
@@ -78,7 +206,7 @@ export function UploadVersionDialog({
   useEffect(() => {
     if (!open) return
     setShowMoreFields(false)
-    loadData()
+    void loadData()
   }, [open, projectId])
 
   useEffect(() => {
@@ -101,6 +229,8 @@ export function UploadVersionDialog({
       { data: tasksData },
       { data: usersData },
       { data: projectData },
+      statuses,
+      tags,
     ] = await Promise.all([
       supabase
         .from('assets')
@@ -128,6 +258,8 @@ export function UploadVersionDialog({
         .select('name, code')
         .eq('id', projectId)
         .maybeSingle(),
+      listStatusNames('version'),
+      listTagNames(),
     ])
 
     setAssets(assetsData || [])
@@ -136,6 +268,8 @@ export function UploadVersionDialog({
     setTasks(tasksData || [])
     setUsers(usersData || [])
     setProjectLabel(projectData?.code || projectData?.name || projectId)
+    setStatusNames(uniqueSorted(statuses))
+    setTagNames(uniqueSorted(tags))
   }
 
   const entities =
@@ -156,12 +290,61 @@ export function UploadVersionDialog({
     )
   }, [tasks, formData.entity_type, formData.entity_id])
 
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const status of statusNames) {
+      const normalized = status.trim()
+      if (normalized) values.add(normalized)
+    }
+    const current = formData.status.trim()
+    if (current) values.add(current)
+    if (values.size === 0) {
+      for (const fallback of STATUS_FALLBACK_VALUES) values.add(fallback)
+    }
+    return Array.from(values)
+  }, [formData.status, statusNames])
+
+  const tagOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const tag of tagNames) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const tag of formData.tags) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [formData.tags, tagNames])
+
   const handleFileSelect = (file: File | null) => {
     if (!file) return
     setSelectedFile(file)
     if (!formData.code) {
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, '')
       setFormData((prev) => ({ ...prev, code: nameWithoutExt }))
+    }
+  }
+
+  const handleThumbnailFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Thumbnail must be an image file')
+      return
+    }
+
+    try {
+      const optimized = await optimizeThumbnailDataUrl(file)
+      setThumbnailDataUrl(optimized)
+      setThumbnailFileName(file.name)
+      setError(null)
+    } catch (thumbnailError) {
+      setError(thumbnailError instanceof Error ? thumbnailError.message : 'Failed to process thumbnail')
+    } finally {
+      event.target.value = ''
     }
   }
 
@@ -205,6 +388,10 @@ export function UploadVersionDialog({
         file_path: uploadResult.data?.path,
         artist_id: formData.artist_id || null,
         link: formData.link || null,
+        status: formData.status || undefined,
+        tags: formData.tags,
+        thumbnail_url: thumbnailDataUrl || undefined,
+        thumbnail_blur_hash: formData.thumbnail_blur_hash.trim() || undefined,
         uploaded_movie: uploadResult.data?.publicUrl || null,
         ...extraFields,
       })
@@ -218,11 +405,16 @@ export function UploadVersionDialog({
         description: '',
         artist_id: '',
         link: '',
+        status: 'pending',
+        tags: [],
+        thumbnail_blur_hash: '',
         entity_type: defaultEntityType ?? '',
         entity_id: defaultEntityId ? String(defaultEntityId) : '',
         task_id: defaultTaskId ? String(defaultTaskId) : '',
       })
       setSelectedFile(null)
+      setThumbnailDataUrl(null)
+      setThumbnailFileName('')
       setExtraFields({})
       setShowMoreFields(false)
       onOpenChange(false)
@@ -451,6 +643,43 @@ export function UploadVersionDialog({
                   </Select>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="status" className="text-sm font-medium text-zinc-300">
+                      Status
+                    </Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger id="status" className={selectClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="tags" className="text-sm font-medium text-zinc-300">
+                      Tags
+                    </Label>
+                    <MultiSelectDropdown
+                      id="tags"
+                      values={formData.tags}
+                      options={tagOptions}
+                      placeholder="Select tags"
+                      disabled={isLoading}
+                      onChange={(nextTags) => setFormData({ ...formData, tags: nextTags })}
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-[120px_1fr] items-start gap-3">
                   <Label htmlFor="version_number" className={labelClass}>
                     Version Number:
@@ -471,6 +700,65 @@ export function UploadVersionDialog({
                   />
                 </div>
 
+                <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+                  <Label htmlFor="thumbnail_file" className={labelClass}>
+                    Thumbnail:
+                  </Label>
+                  <div className="space-y-3">
+                    <label
+                      htmlFor="thumbnail_file"
+                      className="flex min-h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-900 px-4 py-4 text-center transition hover:border-zinc-500"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-zinc-300">
+                        <Upload className="h-4 w-4" />
+                        <span>{thumbnailFileName || 'Upload thumbnail image'}</span>
+                      </div>
+                    </label>
+                    <Input
+                      id="thumbnail_file"
+                      type="file"
+                      accept="image/*"
+                      disabled={isLoading}
+                      className="sr-only"
+                      onChange={handleThumbnailFileChange}
+                    />
+
+                    {thumbnailDataUrl ? (
+                      <div className="space-y-2">
+                        <img
+                          src={thumbnailDataUrl}
+                          alt="Thumbnail preview"
+                          className="h-24 w-24 rounded-md border border-zinc-700 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setThumbnailDataUrl(null)
+                            setThumbnailFileName('')
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-zinc-300 transition hover:text-zinc-100"
+                        >
+                          <X className="h-3 w-3" />
+                          Clear thumbnail
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+                  <Label htmlFor="thumbnail_blur_hash" className={labelClass}>
+                    Blur Hash:
+                  </Label>
+                  <Input
+                    id="thumbnail_blur_hash"
+                    value={formData.thumbnail_blur_hash}
+                    onChange={(e) => setFormData({ ...formData, thumbnail_blur_hash: e.target.value })}
+                    disabled={isLoading}
+                    className={inputClass}
+                  />
+                </div>
+
                 <SchemaExtraFields
                   entity="version"
                   values={extraFields}
@@ -484,11 +772,14 @@ export function UploadVersionDialog({
                     'artist_id',
                     'link',
                     'task_id',
+                    'status',
+                    'tags',
                     'movie_url',
                     'file_path',
                     'uploaded_movie',
                     'frames_path',
                     'thumbnail_url',
+                    'thumbnail_blur_hash',
                   ])}
                 />
               </div>

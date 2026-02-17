@@ -7,7 +7,7 @@ import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { CreatePlaylistDialog } from '@/components/apex/create-playlist-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
-import { deletePlaylist, updatePlaylist } from '@/actions/playlists'
+import { createPlaylist, deletePlaylist, updatePlaylist } from '@/actions/playlists'
 import { List, Plus } from 'lucide-react'
 
 export default function PlaylistsPage({
@@ -67,6 +67,76 @@ export default function PlaylistsPage({
         playlist.id === row.id ? { ...playlist, [column.id]: value } : playlist
       )
     )
+  }
+
+  function toBooleanLike(value: unknown): boolean {
+    if (typeof value === 'boolean') return value
+    const normalized = String(value ?? '').trim().toLowerCase()
+    return ['true', '1', 'yes', 'y', 'on'].includes(normalized)
+  }
+
+  async function handleBulkDelete(rows: any[]) {
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const rowId = String(row?.id ?? '').trim()
+      if (!rowId) continue
+      const result = await deletePlaylist(rowId, projectId)
+      if (result?.error) {
+        failures.push(`${String(row?.name ?? '').trim() || rowId}: ${result.error}`)
+      }
+    }
+
+    loadPlaylists(projectId)
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      throw new Error(
+        failures.length > 3 ? `${preview}; and ${failures.length - 3} more` : preview
+      )
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = String(row.name ?? '').trim()
+      const code = String(row.code ?? '').trim() || name.replace(/\s+/g, '_').toUpperCase()
+
+      if (!name) {
+        failed.push({
+          row: index + 2,
+          message: 'Playlist name is required.',
+        })
+        continue
+      }
+
+      try {
+        const result = await createPlaylist({
+          project_id: projectId,
+          name,
+          code,
+          description: String(row.description ?? '').trim() || undefined,
+          locked: toBooleanLike(row.locked),
+        })
+
+        if (result?.error) {
+          throw new Error(result.error)
+        }
+        imported += 1
+      } catch (error) {
+        failed.push({
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Failed to import playlist row.',
+        })
+      }
+    }
+
+    loadPlaylists(projectId)
+    return { imported, failed }
   }
 
   const columns = [
@@ -143,6 +213,9 @@ export default function PlaylistsPage({
             columns={columns}
             data={playlists}
             entityType="playlists"
+            csvExportFilename="apex-playlists"
+            onCsvImport={handleCsvImport}
+            onBulkDelete={handleBulkDelete}
             onAdd={() => setShowCreateDialog(true)}
             onDelete={handleDelete}
             onCellUpdate={handleCellUpdate}

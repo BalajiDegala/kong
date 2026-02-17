@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
+import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
 
 function normalizeCodeToken(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -94,6 +95,9 @@ export async function createShot(
     return { error: error.message }
   }
 
+  // Fire-and-forget activity logging
+  logEntityCreated('shot', data.id, formData.project_id, data)
+
   revalidatePath(`/apex/${formData.project_id}/shots`)
   return { data }
 }
@@ -116,6 +120,13 @@ export async function updateShot(
     return { error: 'Not authenticated' }
   }
 
+  // Fetch current row before update to capture old values
+  const { data: oldData } = await supabase
+    .from('shots')
+    .select('*')
+    .eq('id', shotId)
+    .maybeSingle()
+
   const updateData: Record<string, unknown> = await pickEntityColumnsForWrite(
     supabase,
     'shot',
@@ -134,6 +145,12 @@ export async function updateShot(
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Fire-and-forget activity logging
+  if (oldData) {
+    const projectId = options?.projectId || oldData.project_id
+    logEntityUpdated('shot', shotId, projectId, oldData, updateData)
   }
 
   const shouldRevalidate = options?.revalidate !== false
@@ -163,10 +180,21 @@ export async function deleteShot(shotId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
+  // Fetch before delete for logging
+  const { data: oldData } = await supabase
+    .from('shots')
+    .select('*')
+    .eq('id', shotId)
+    .maybeSingle()
+
   const { error } = await supabase.from('shots').delete().eq('id', shotId)
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (oldData) {
+    logEntityDeleted('shot', shotId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/shots`)

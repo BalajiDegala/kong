@@ -8,7 +8,7 @@ import { EditAssetDialog } from '@/components/apex/edit-asset-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
-import { deleteAsset, updateAsset } from '@/actions/assets'
+import { createAsset, deleteAsset, updateAsset } from '@/actions/assets'
 import { listTagNames } from '@/lib/tags/options'
 import { listStatusNames } from '@/lib/status/options'
 import type { TableColumn } from '@/components/table/types'
@@ -342,6 +342,78 @@ export default function AssetsPage({
     )
   }
 
+  async function handleBulkDelete(rows: AssetRow[]) {
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const rowId = asText(row?.id).trim()
+      if (!rowId) continue
+      const result = await deleteAsset(rowId, projectId)
+      if (result?.error) {
+        failures.push(`${asText(row?.name).trim() || rowId}: ${result.error}`)
+      }
+    }
+
+    refreshProjectData()
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      throw new Error(
+        failures.length > 3 ? `${preview}; and ${failures.length - 3} more` : preview
+      )
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = asText(row.name).trim()
+      const code = asText(row.code).trim() || name
+      const assetType = asText(row.asset_type).trim() || 'prop'
+
+      if (!name) {
+        failed.push({
+          row: index + 2,
+          message: 'Asset name is required.',
+        })
+        continue
+      }
+
+      try {
+        const result = await createAsset({
+          ...(row as Record<string, unknown>),
+          project_id: projectId,
+          name,
+          code,
+          asset_type: assetType,
+          status: asText(row.status).trim() || undefined,
+          tags: parseListValue(row.tags),
+          shots: parseListValue(row.shots),
+          sequences: parseListValue(row.sequences),
+          sub_assets: parseListValue(row.sub_assets),
+          parent_assets: parseListValue(row.parent_assets),
+          vendor_groups: parseListValue(row.vendor_groups),
+        })
+
+        if (result?.error) {
+          throw new Error(result.error)
+        }
+        imported += 1
+      } catch (error) {
+        failed.push({
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Failed to import asset row.',
+        })
+      }
+    }
+
+    refreshProjectData()
+    return { imported, failed }
+  }
+
   const columns = useMemo<TableColumn[]>(
     () => [
       { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail', width: '88px' },
@@ -589,8 +661,10 @@ export default function AssetsPage({
             columns={columns}
             data={assets}
             entityType="assets"
+            csvExportFilename="apex-assets"
+            onCsvImport={handleCsvImport}
+            onBulkDelete={(rows) => handleBulkDelete(rows as AssetRow[])}
             onAdd={() => setShowCreateDialog(true)}
-            groupBy="asset_type"
             onEdit={(row) => handleEdit(row as AssetRow)}
             onDelete={(row) => handleDelete(row as AssetRow)}
             onCellUpdate={(row, column, value) => handleCellUpdate(row as AssetRow, column, value)}

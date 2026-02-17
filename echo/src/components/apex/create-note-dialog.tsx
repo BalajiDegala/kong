@@ -2,13 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, X } from 'lucide-react'
+import { ChevronDown, Upload, X } from 'lucide-react'
 import { createNote } from '@/actions/notes'
 import { uploadNoteAttachment } from '@/actions/attachments'
 import { createClient } from '@/lib/supabase/client'
 import { listStatusNames } from '@/lib/status/options'
+import { listTagNames } from '@/lib/tags/options'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +65,75 @@ function uniqueSorted(values: string[]): string[] {
   )
 }
 
+type MultiSelectOption = {
+  value: string
+  label: string
+}
+
+function MultiSelectDropdown({
+  id,
+  values,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  id: string
+  values: string[]
+  options: MultiSelectOption[]
+  placeholder: string
+  disabled?: boolean
+  onChange: (nextValues: string[]) => void
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          disabled={disabled}
+          className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
+            disabled
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+          }`}
+        >
+          <span className="truncate text-left">{values.length > 0 ? values.join(', ') : placeholder}</span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+      >
+        {options.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={values.includes(option.value)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                const isChecked = checked === true
+                if (isChecked) {
+                  if (values.includes(option.value)) return
+                  onChange([...values, option.value])
+                  return
+                }
+                onChange(values.filter((item) => item !== option.value))
+              }}
+              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function CreateNoteDialog({
   open,
   onOpenChange,
@@ -77,6 +153,7 @@ export function CreateNoteDialog({
   const [tasks, setTasks] = useState<any[]>([])
   const [versions, setVersions] = useState<any[]>([])
   const [statusNames, setStatusNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<string[]>([])
   const [extraFields, setExtraFields] = useState<Record<string, any>>({})
   const [showMoreFields, setShowMoreFields] = useState(false)
 
@@ -87,6 +164,7 @@ export function CreateNoteDialog({
     entity_id: defaultEntityId ? String(defaultEntityId) : '',
     task_id: defaultTaskId ? String(defaultTaskId) : '',
     status: 'open',
+    tags: [] as string[],
     f_to: '',
     note_type: '',
     links: '',
@@ -105,6 +183,21 @@ export function CreateNoteDialog({
     }
     return Array.from(values)
   }, [formData.status, statusNames])
+
+  const tagOptions = useMemo<MultiSelectOption[]>(() => {
+    const values = new Set<string>()
+    for (const tag of tagNames) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    for (const tag of formData.tags) {
+      const normalized = tag.trim()
+      if (normalized) values.add(normalized)
+    }
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [formData.tags, tagNames])
 
   useEffect(() => {
     if (!open) return
@@ -132,6 +225,7 @@ export function CreateNoteDialog({
       sequencesResult,
       versionsResult,
       statuses,
+      tags,
     ] = await Promise.all([
       supabase
         .from('assets')
@@ -159,6 +253,7 @@ export function CreateNoteDialog({
         .eq('project_id', projectId)
         .order('created_at', { ascending: false }),
       listStatusNames('note'),
+      listTagNames(),
     ])
 
     setAssets(assetsResult.data || [])
@@ -167,6 +262,7 @@ export function CreateNoteDialog({
     setSequences(sequencesResult.data || [])
     setVersions(versionsResult.data || [])
     setStatusNames(uniqueSorted(statuses))
+    setTagNames(uniqueSorted(tags))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,6 +285,7 @@ export function CreateNoteDialog({
         entity_id: formData.entity_id || undefined,
         task_id: formData.task_id || undefined,
         status: formData.status || 'open',
+        tags: formData.tags,
         f_to: parseList(formData.f_to),
         note_type: formData.note_type || null,
         links: parseList(formData.links),
@@ -213,6 +310,7 @@ export function CreateNoteDialog({
         entity_id: defaultEntityId ? String(defaultEntityId) : '',
         task_id: defaultTaskId ? String(defaultTaskId) : '',
         status: 'open',
+        tags: [],
         f_to: '',
         note_type: '',
         links: '',
@@ -413,6 +511,20 @@ export function CreateNoteDialog({
                 </div>
 
                 <div className="grid grid-cols-[95px_1fr] items-start gap-3">
+                  <Label htmlFor="tags" className={labelClass}>
+                    Tags:
+                  </Label>
+                  <MultiSelectDropdown
+                    id="tags"
+                    values={formData.tags}
+                    options={tagOptions}
+                    placeholder="Select tags"
+                    disabled={isLoading}
+                    onChange={(nextTags) => setFormData({ ...formData, tags: nextTags })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-[95px_1fr] items-start gap-3">
                   <Label htmlFor="entity_type" className={labelClass}>
                     Link To:
                   </Label>
@@ -515,6 +627,7 @@ export function CreateNoteDialog({
                     'subject',
                     'content',
                     'status',
+                    'tags',
                     'thumbnail_url',
                     'links',
                     'f_to',

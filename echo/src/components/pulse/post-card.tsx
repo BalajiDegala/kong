@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { MoreHorizontal, Trash2, Edit, Globe, FolderOpen, X, Check } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { MoreHorizontal, Trash2, Edit, Globe, FolderOpen, X, Check, Link as LinkIcon } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { deletePost, updatePost } from '@/actions/posts'
 import { PostMediaGallery } from './post-media-gallery'
@@ -44,6 +44,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: PostCardProps) {
+  const menuRef = useRef<HTMLDivElement>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -52,7 +53,12 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
   const [displayContent, setDisplayContent] = useState(post.content)
   const [isSaving, setIsSaving] = useState(false)
   const [videoMedia, setVideoMedia] = useState<any>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
   const isAuthor = currentUserId === post.author?.id
+  const resolvedProjectId =
+    post.project_id?.toString() ||
+    post.projects?.[0]?.id?.toString() ||
+    post.sequences?.find((sequence) => typeof sequence.project_id === 'number')?.project_id?.toString()
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -98,6 +104,37 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
     setEditContent(displayContent)
   }
 
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/pulse/post/${post.id}`
+    await navigator.clipboard.writeText(url)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('keydown', handleEscape)
+      }
+    }
+  }, [showMenu])
+
   return (
     <>
       <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
@@ -124,13 +161,31 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                 <span className="text-zinc-600">·</span>
                 <Globe className="h-3 w-3" />
                 <span className="capitalize">{post.visibility}</span>
+                <span className="text-zinc-600">·</span>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition"
+                  title="Copy link to post"
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="h-3 w-3 text-green-400" />
+                      <span className="text-green-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="h-3 w-3" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
 
           {/* Menu */}
           {isAuthor && (
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1 text-zinc-500 hover:text-zinc-300 rounded transition"
@@ -340,7 +395,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
         <div className="border-t border-zinc-800 px-4 py-3">
           <CommentThread
             postId={post.id}
-            projectId={post.project_id?.toString()}
+            projectId={resolvedProjectId}
             currentUserId={currentUserId}
             commentCount={post.comment_count}
           />
@@ -354,6 +409,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
           <VideoReviewModal
             media={videoMedia}
             postId={post.id}
+            projectId={resolvedProjectId}
             onClose={() => setVideoMedia(null)}
           />
         </>

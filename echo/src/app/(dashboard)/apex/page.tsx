@@ -7,7 +7,7 @@ import { EntityTable } from '@/components/table/entity-table'
 import { CreateProjectDialog } from '@/components/apex/create-project-dialog'
 import { EditProjectDialog } from '@/components/apex/edit-project-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
-import { deleteProject, updateProject } from '@/actions/projects'
+import { createProject, deleteProject, updateProject } from '@/actions/projects'
 import type { TableColumn } from '@/components/table/types'
 import { listTagNames, parseTagsValue } from '@/lib/tags/options'
 import { listStatusNames } from '@/lib/status/options'
@@ -121,6 +121,8 @@ export default function ApexPage() {
       payload.description = String(value ?? '')
     } else if (column.id === 'tags') {
       payload.tags = parseTagsValue(value)
+    } else if (column.id === 'thumbnail_url') {
+      payload.thumbnail_url = String(value ?? '').trim() || null
     } else {
       return
     }
@@ -133,9 +135,111 @@ export default function ApexPage() {
     await loadProjects()
   }
 
+  async function handleBulkDelete(rows: any[]) {
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const rowId = String(row?.id ?? '').trim()
+      if (!rowId) continue
+      const result = await deleteProject(rowId)
+      if (result?.error) {
+        failures.push(`${row?.name || rowId}: ${result.error}`)
+      }
+    }
+
+    await loadProjects()
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      throw new Error(
+        failures.length > 3
+          ? `${preview}; and ${failures.length - 3} more`
+          : preview
+      )
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = String(row.name ?? '').trim()
+      const code = String(row.code ?? '').trim()
+
+      if (!name || !code) {
+        failed.push({
+          row: index + 2,
+          message: 'Both name and code are required.',
+        })
+        continue
+      }
+
+      try {
+        const createResult = await createProject({
+          name,
+          code,
+          description: String(row.description ?? '').trim() || undefined,
+          tags: parseTagsValue(row.tags),
+        })
+
+        if (createResult.error || !createResult.data) {
+          throw new Error(createResult.error || 'Create failed')
+        }
+
+        const postCreatePayload: {
+          status?: string
+          thumbnail_url?: string
+        } = {}
+        const status = String(row.status ?? '').trim()
+        if (status) {
+          postCreatePayload.status = status
+        }
+
+        const thumbnail = String(row.thumbnail_url ?? '').trim()
+        if (thumbnail) {
+          postCreatePayload.thumbnail_url = thumbnail
+        }
+
+        if (Object.keys(postCreatePayload).length > 0) {
+          const updateResult = await updateProject(
+            String(createResult.data.id),
+            postCreatePayload
+          )
+          if (updateResult.error) {
+            throw new Error(updateResult.error)
+          }
+        }
+
+        imported += 1
+      } catch (error) {
+        failed.push({
+          row: index + 2,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to import this row.',
+        })
+      }
+    }
+
+    await loadProjects()
+    await loadTagOptions()
+    await loadStatusOptions()
+
+    return { imported, failed }
+  }
+
   // Prepare columns for table view
   const columns = [
-    { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '90px' },
+    {
+      id: 'thumbnail_url',
+      label: 'Thumbnail',
+      type: 'thumbnail' as const,
+      width: '90px',
+      editable: true,
+    },
     {
       id: 'name',
       label: 'Project Name',
@@ -239,9 +343,9 @@ export default function ApexPage() {
         <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-zinc-100">Projects</h1>
+              <h1 className="text-2xl font-bold text-zinc-100">Apex</h1>
               <p className="mt-1 text-sm text-zinc-400">
-                Manage your production projects and workflows
+                Project Excel
               </p>
             </div>
             <button
@@ -281,6 +385,9 @@ export default function ApexPage() {
             columns={columns}
             data={projects}
             entityType="projects"
+            csvExportFilename="apex-projects"
+            onCsvImport={handleCsvImport}
+            onBulkDelete={handleBulkDelete}
             onAdd={() => setShowCreateDialog(true)}
             onEdit={handleEdit}
             onDelete={handleDelete}

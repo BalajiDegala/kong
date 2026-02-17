@@ -8,7 +8,7 @@ import { EditSequenceDialog } from '@/components/apex/edit-sequence-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
-import { deleteSequence, updateSequence } from '@/actions/sequences'
+import { createSequence, deleteSequence, updateSequence } from '@/actions/sequences'
 import { listTagNames } from '@/lib/tags/options'
 import { listStatusNames } from '@/lib/status/options'
 import type { TableColumn } from '@/components/table/types'
@@ -314,6 +314,76 @@ export default function SequencesPage({
     )
   }
 
+  async function handleBulkDelete(rows: SequenceRow[]) {
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const rowId = asText(row?.id).trim()
+      if (!rowId) continue
+      const result = await deleteSequence(rowId, projectId)
+      if (result?.error) {
+        failures.push(`${asText(row?.name).trim() || rowId}: ${result.error}`)
+      }
+    }
+
+    refreshProjectData()
+
+    if (failures.length > 0) {
+      const preview = failures.slice(0, 3).join('; ')
+      throw new Error(
+        failures.length > 3 ? `${preview}; and ${failures.length - 3} more` : preview
+      )
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = asText(row.name).trim()
+      const code = asText(row.code).trim() || name
+
+      if (!name) {
+        failed.push({
+          row: index + 2,
+          message: 'Sequence name is required.',
+        })
+        continue
+      }
+
+      try {
+        const result = await createSequence({
+          ...(row as Record<string, unknown>),
+          project_id: projectId,
+          name,
+          code,
+          status: asText(row.status).trim() || undefined,
+          tags: parseListValue(row.tags),
+          shots: parseListValue(row.shots),
+          assets: parseListValue(row.assets),
+          cc: parseListValue(row.cc),
+          plates: parseListValue(row.plates),
+          cuts: parseListValue(row.cuts),
+        })
+
+        if (result?.error) {
+          throw new Error(result.error)
+        }
+        imported += 1
+      } catch (error) {
+        failed.push({
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Failed to import sequence row.',
+        })
+      }
+    }
+
+    refreshProjectData()
+    return { imported, failed }
+  }
+
   const columns = useMemo<TableColumn[]>(
     () => [
       { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail', width: '88px' },
@@ -506,6 +576,9 @@ export default function SequencesPage({
             columns={columns}
             data={sequences}
             entityType="sequences"
+            csvExportFilename="apex-sequences"
+            onCsvImport={handleCsvImport}
+            onBulkDelete={(rows) => handleBulkDelete(rows as SequenceRow[])}
             onAdd={() => setShowCreateDialog(true)}
             onEdit={(row) => handleEdit(row as SequenceRow)}
             onDelete={(row) => handleDelete(row as SequenceRow)}

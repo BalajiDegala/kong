@@ -18,7 +18,7 @@ export default async function PostPage({
     redirect('/auth/login')
   }
 
-  // Fetch post without FK join to profiles (author_id FK points to auth.users, not profiles)
+  // Fetch post with media and reactions
   const { data: post, error } = await supabase
     .from('posts')
     .select(`
@@ -45,9 +45,42 @@ export default async function PostPage({
     author = profile
   }
 
+  // Fetch entity associations for breadcrumbs
+  const [projectsData, sequencesData, shotsData, tasksData, usersData] = await Promise.all([
+    supabase
+      .from('post_projects')
+      .select('project:projects(id, name, code)')
+      .eq('post_id', postId),
+    supabase
+      .from('post_sequences')
+      .select('sequence:sequences(id, name)')
+      .eq('post_id', postId),
+    supabase
+      .from('post_shots')
+      .select('shot:shots(id, name)')
+      .eq('post_id', postId),
+    supabase
+      .from('post_tasks')
+      .select('task:tasks(id, name)')
+      .eq('post_id', postId),
+    supabase
+      .from('post_users')
+      .select('user_id')
+      .eq('post_id', postId),
+  ])
+
+  const entities = {
+    projects: projectsData.data?.map((p: any) => p.project).filter(Boolean) || [],
+    sequences: sequencesData.data?.map((s: any) => s.sequence).filter(Boolean) || [],
+    shots: shotsData.data?.map((s: any) => s.shot).filter(Boolean) || [],
+    tasks: tasksData.data?.map((t: any) => t.task).filter(Boolean) || [],
+    users: usersData.data?.map((u: any) => u.user_id).filter(Boolean) || [],
+  }
+
   return (
     <PostDetailPage
       post={{ ...post, author }}
+      entities={entities}
       currentUserId={user.id}
     />
   )

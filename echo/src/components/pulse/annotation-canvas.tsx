@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react'
 import type { AnnotationTool } from './annotation-toolbar'
 
 interface AnnotationShape {
@@ -27,27 +27,61 @@ interface AnnotationCanvasProps {
   onAnnotationCreated?: (shape: AnnotationShape) => void
 }
 
-export function AnnotationCanvas({
-  width,
-  height,
-  isDrawing,
-  activeTool,
-  activeColor,
-  strokeWidth,
-  existingAnnotations = [],
-  onAnnotationCreated,
-}: AnnotationCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isMouseDown, setIsMouseDown] = useState(false)
-  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
-  const [currentPoint, setCurrentPoint] = useState<{ x: number; y: number } | null>(null)
-  const [freehandPoints, setFreehandPoints] = useState<number[][]>([])
-  const [shapes, setShapes] = useState<AnnotationShape[]>([])
+export interface AnnotationCanvasRef {
+  exportAnnotatedFrame: (videoElement: HTMLVideoElement) => Promise<Blob | null>
+}
 
-  // Sync existing annotations
-  useEffect(() => {
-    setShapes(existingAnnotations)
-  }, [existingAnnotations])
+export const AnnotationCanvas = forwardRef<AnnotationCanvasRef, AnnotationCanvasProps>(
+  function AnnotationCanvas({
+    width,
+    height,
+    isDrawing,
+    activeTool,
+    activeColor,
+    strokeWidth,
+    existingAnnotations = [],
+    onAnnotationCreated,
+  }, ref) {
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const [isMouseDown, setIsMouseDown] = useState(false)
+    const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
+    const [currentPoint, setCurrentPoint] = useState<{ x: number; y: number } | null>(null)
+    const [freehandPoints, setFreehandPoints] = useState<number[][]>([])
+    const [shapes, setShapes] = useState<AnnotationShape[]>([])
+
+    // Sync existing annotations
+    useEffect(() => {
+      setShapes(existingAnnotations)
+    }, [existingAnnotations])
+
+    // Expose export method via ref
+    useImperativeHandle(ref, () => ({
+      exportAnnotatedFrame: async (videoElement: HTMLVideoElement): Promise<Blob | null> => {
+        try {
+          const offscreenCanvas = document.createElement('canvas')
+          offscreenCanvas.width = width
+          offscreenCanvas.height = height
+          const ctx = offscreenCanvas.getContext('2d')
+          if (!ctx) return null
+
+          // Draw video frame as base layer
+          ctx.drawImage(videoElement, 0, 0, width, height)
+
+          // Draw all annotations on top (existing + pending)
+          for (const shape of shapes) {
+            drawShape(ctx, shape)
+          }
+
+          // Export as PNG blob
+          return new Promise<Blob | null>(resolve => {
+            offscreenCanvas.toBlob(blob => resolve(blob), 'image/png', 0.9)
+          })
+        } catch (error) {
+          console.error('Failed to export annotated frame:', error)
+          return null
+        }
+      }
+    }), [width, height, shapes])
 
   const getCanvasPoint = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current
@@ -195,19 +229,20 @@ export function AnnotationCanvas({
     setFreehandPoints([])
   }
 
-  return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      className={`absolute inset-0 w-full h-full ${isDrawing ? 'cursor-crosshair' : 'pointer-events-none'}`}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    />
-  )
-}
+    return (
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        className={`absolute inset-0 w-full h-full ${isDrawing ? 'cursor-crosshair' : 'pointer-events-none'}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
+    )
+  }
+)
 
 function drawShape(ctx: CanvasRenderingContext2D, shape: AnnotationShape) {
   ctx.strokeStyle = shape.color

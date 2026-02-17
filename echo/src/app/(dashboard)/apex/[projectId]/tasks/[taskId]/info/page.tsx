@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { formatDateLikeForDisplay } from '@/lib/date-display'
 
 export default async function TaskInfoPage({
   params,
@@ -79,14 +80,21 @@ export default async function TaskInfoPage({
           Task Info
         </div>
         <div className="divide-y divide-zinc-800">
-          {fields.map((field) => (
-            <div key={field.label} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span className="text-zinc-400">{field.label}</span>
-              <span className="max-w-[60%] truncate text-zinc-100" title={String(field.value ?? '')}>
-                {field.value || '-'}
-              </span>
-            </div>
-          ))}
+          {fields.map((field) => {
+            const formattedDate = formatDateLikeForDisplay(field.value)
+            const value = formattedDate ?? field.value
+            const hasValue = value !== null && value !== undefined && value !== ''
+            const display = hasValue ? String(value) : '-'
+
+            return (
+              <div key={field.label} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-zinc-400">{field.label}</span>
+                <span className="max-w-[60%] truncate text-zinc-100" title={display}>
+                  {display}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

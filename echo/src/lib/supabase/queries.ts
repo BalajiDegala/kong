@@ -461,6 +461,112 @@ export async function getUserActivity(
 }
 
 // =============================================================================
+// ENTITY ACTIVITY & HISTORY QUERIES
+// =============================================================================
+
+export async function getEntityActivity(
+  supabase: SupabaseClient,
+  entityType: string,
+  entityId: number | string,
+  options?: { limit?: number; offset?: number }
+) {
+  const limit = options?.limit ?? 50
+  const offset = options?.offset ?? 0
+
+  const { data, error } = await supabase
+    .from('activity_events')
+    .select(`
+      *,
+      actor:profiles!activity_events_actor_id_fkey(id, display_name, avatar_url)
+    `)
+    .eq('entity_type', entityType)
+    .eq('entity_id', Number(entityId))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw error
+  return data
+}
+
+export async function getEntityHistory(
+  supabase: SupabaseClient,
+  entityType: string,
+  entityId: number | string,
+  options?: { attributeName?: string; limit?: number; offset?: number }
+) {
+  const limit = options?.limit ?? 50
+  const offset = options?.offset ?? 0
+
+  let query = supabase
+    .from('activity_events')
+    .select(`
+      *,
+      actor:profiles!activity_events_actor_id_fkey(id, display_name, avatar_url)
+    `)
+    .eq('entity_type', entityType)
+    .eq('entity_id', Number(entityId))
+    .not('attribute_name', 'is', null)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (options?.attributeName) {
+    query = query.eq('attribute_name', options.attributeName)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  return data
+}
+
+export async function getProjectEventLog(
+  supabase: SupabaseClient,
+  projectId: number | string,
+  filters?: {
+    eventType?: string
+    entityType?: string
+    actorId?: string
+    startDate?: string
+    endDate?: string
+  },
+  options?: { limit?: number; offset?: number }
+) {
+  const limit = options?.limit ?? 100
+  const offset = options?.offset ?? 0
+
+  let query = supabase
+    .from('activity_events')
+    .select(`
+      *,
+      actor:profiles!activity_events_actor_id_fkey(id, display_name, avatar_url)
+    `)
+    .eq('project_id', Number(projectId))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (filters?.eventType) {
+    query = query.eq('event_type', filters.eventType)
+  }
+  if (filters?.entityType) {
+    query = query.eq('entity_type', filters.entityType)
+  }
+  if (filters?.actorId) {
+    query = query.eq('actor_id', filters.actorId)
+  }
+  if (filters?.startDate) {
+    query = query.gte('created_at', filters.startDate)
+  }
+  if (filters?.endDate) {
+    query = query.lte('created_at', filters.endDate)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  return data
+}
+
+// =============================================================================
 // ECHO — CONVERSATION QUERIES
 // =============================================================================
 
