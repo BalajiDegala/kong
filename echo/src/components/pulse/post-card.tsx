@@ -137,34 +137,34 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
 
   return (
     <>
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between px-4 pt-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold text-zinc-300">
+            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-foreground/70">
               {post.author?.display_name?.[0]?.toUpperCase() || '?'}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-zinc-200">
+                <span className="text-sm font-semibold text-foreground/80">
                   {post.author?.display_name || 'Unknown'}
                 </span>
                 {post.project && (
-                  <span className="flex items-center gap-1 text-xs text-zinc-500">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <FolderOpen className="h-3 w-3" />
                     {post.project.name}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
-                <span className="text-zinc-600">·</span>
+                <span className="text-muted-foreground">·</span>
                 <Globe className="h-3 w-3" />
                 <span className="capitalize">{post.visibility}</span>
-                <span className="text-zinc-600">·</span>
+                <span className="text-muted-foreground">·</span>
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition"
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground/70 transition"
                   title="Copy link to post"
                 >
                   {linkCopied ? (
@@ -188,15 +188,15 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
             <div ref={menuRef} className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-1 text-zinc-500 hover:text-zinc-300 rounded transition"
+                className="p-1 text-muted-foreground hover:text-foreground/70 rounded transition"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-36 rounded-md border border-zinc-700 bg-zinc-800 py-1 shadow-lg z-10">
+                <div className="absolute right-0 top-full mt-1 w-36 rounded-md border border-border bg-accent py-1 shadow-lg z-10">
                   <button
                     onClick={handleEdit}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-foreground/70 hover:bg-secondary"
                   >
                     <Edit className="h-3.5 w-3.5" />
                     Edit
@@ -206,7 +206,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                       setShowDeleteConfirm(true)
                       setShowMenu(false)
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-zinc-700"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-secondary"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Delete
@@ -219,7 +219,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
 
         {/* Entity Tags */}
         {(post.projects?.length || post.sequences?.length || post.shots?.length || post.tasks?.length || post.mentioned_users?.length) ? (
-          <div className="px-4 pt-2 pb-1 border-t border-zinc-800/50">
+          <div className="px-4 pt-2 pb-1 border-t border-border/50">
             <div className="flex flex-wrap items-center gap-1.5">
               {post.projects?.map((project) => (
                 <button
@@ -307,7 +307,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                   <button
                     key={`task-${task.id}`}
                     onClick={() => onEntityClick?.('task', task.id)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition max-w-xs"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition max-w-xs"
                     title={fullPath}
                   >
                     <Check className="h-3 w-3 flex-shrink-0" />
@@ -320,7 +320,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                 <button
                   key={`user-${user.id}`}
                   onClick={() => onEntityClick?.('user', user.id)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-zinc-700 text-zinc-300 border border-zinc-600 hover:bg-zinc-600 transition"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-secondary text-foreground/70 border border-border hover:bg-muted-foreground/40 transition"
                 >
                   @{user.display_name}
                 </button>
@@ -338,14 +338,14 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                 onChange={(e) => setEditContent(e.target.value)}
                 disabled={isSaving}
                 rows={4}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                className="w-full px-3 py-2 bg-accent border border-border rounded-md text-sm text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 autoFocus
               />
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving || !editContent.trim()}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-zinc-900 rounded-md text-sm font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="h-3.5 w-3.5" />
                   {isSaving ? 'Saving...' : 'Save'}
@@ -353,7 +353,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
                 <button
                   onClick={handleCancelEdit}
                   disabled={isSaving}
-                  className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+                  className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground/80"
                 >
                   Cancel
                 </button>
@@ -365,7 +365,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
               dangerouslySetInnerHTML={{ __html: post.content_html }}
             />
           ) : (
-            <p className="text-sm text-zinc-300 whitespace-pre-wrap">{displayContent}</p>
+            <p className="text-sm text-foreground/70 whitespace-pre-wrap">{displayContent}</p>
           )}
         </div>
 
@@ -392,7 +392,7 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
         </div>
 
         {/* Comments */}
-        <div className="border-t border-zinc-800 px-4 py-3">
+        <div className="border-t border-border px-4 py-3">
           <CommentThread
             postId={post.id}
             projectId={resolvedProjectId}
@@ -425,22 +425,22 @@ export function PostCard({ post, currentUserId, onDeleted, onEntityClick }: Post
           />
 
           {/* Modal */}
-          <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-800">
-              <h3 className="text-lg font-semibold text-zinc-100">Delete Post</h3>
+          <div className="relative bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Delete Post</h3>
             </div>
 
             <div className="px-6 py-4">
-              <p className="text-sm text-zinc-300">
+              <p className="text-sm text-foreground/70">
                 Are you sure you want to delete this post? This action cannot be undone.
               </p>
             </div>
 
-            <div className="px-6 py-4 bg-zinc-800/50 flex items-center justify-end gap-2">
+            <div className="px-6 py-4 bg-accent/50 flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-zinc-100 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-foreground/70 hover:text-foreground disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -70,23 +70,23 @@ export default function InboxPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
-        <h1 className="text-xl font-bold text-zinc-100">Inbox</h1>
+      <div className="flex items-center justify-between border-b border-border px-6 py-3">
+        <h1 className="text-xl font-bold text-foreground">Inbox</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={handleMarkAllRead}
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-card hover:text-foreground/80"
           >
             <CheckCheck className="h-4 w-4" />
             Mark All Read
           </button>
-          <div className="flex items-center gap-1 rounded-md border border-zinc-800 p-0.5">
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             <button
               onClick={() => setFilter('all')}
               className={`rounded px-3 py-1 text-sm transition ${
                 filter === 'all'
-                  ? 'bg-zinc-800 text-zinc-100'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/80'
               }`}
             >
               All
@@ -95,8 +95,8 @@ export default function InboxPage() {
               onClick={() => setFilter('unread')}
               className={`rounded px-3 py-1 text-sm transition ${
                 filter === 'unread'
-                  ? 'bg-zinc-800 text-zinc-100'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/80'
               }`}
             >
               Unread
@@ -108,16 +108,16 @@ export default function InboxPage() {
       {/* Two-pane layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left pane — notification list */}
-        <div className="w-[400px] shrink-0 overflow-y-auto border-r border-zinc-800">
+        <div className="w-[400px] shrink-0 overflow-y-auto border-r border-border">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-zinc-400">Loading...</p>
+              <p className="text-sm text-muted-foreground">Loading...</p>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <InboxIcon className="mb-3 h-10 w-10 text-zinc-700" />
-              <p className="text-sm font-medium text-zinc-300">You&apos;re all caught up!</p>
-              <p className="mt-1 text-xs text-zinc-500">No notifications to show.</p>
+              <InboxIcon className="mb-3 h-10 w-10 text-muted-foreground/70" />
+              <p className="text-sm font-medium text-foreground/70">You&apos;re all caught up!</p>
+              <p className="mt-1 text-xs text-muted-foreground">No notifications to show.</p>
             </div>
           ) : (
             notifications.map((notification) => (
@@ -137,8 +137,8 @@ export default function InboxPage() {
             <NotificationDetail notification={selected} />
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-center">
-              <InboxIcon className="mb-3 h-10 w-10 text-zinc-700" />
-              <p className="text-sm text-zinc-400">
+              <InboxIcon className="mb-3 h-10 w-10 text-muted-foreground/70" />
+              <p className="text-sm text-muted-foreground">
                 Select a notification to view details
               </p>
             </div>

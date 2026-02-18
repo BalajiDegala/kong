@@ -44,25 +44,25 @@ export function TaskPostsPage({
         <div className="flex items-center gap-2 text-sm mb-2">
           <Link
             href="/pulse"
-            className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition"
+            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground/80 transition"
           >
             <ArrowLeft className="h-4 w-4" />
             Pulse
           </Link>
-          <span className="text-zinc-600">/</span>
+          <span className="text-muted-foreground">/</span>
           <Link
             href={`/pulse/project/${projectId}/posts`}
-            className="text-zinc-400 hover:text-zinc-200 transition"
+            className="text-muted-foreground hover:text-foreground/80 transition"
           >
             {project.code || project.name}
           </Link>
 
           {entityDetails?.sequence && (
             <>
-              <span className="text-zinc-600">/</span>
+              <span className="text-muted-foreground">/</span>
               <Link
                 href={`/pulse/project/${projectId}/sequence/${entityDetails.sequence.id}/posts`}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-muted-foreground hover:text-foreground/80 transition"
               >
                 {entityDetails.sequence.name}
               </Link>
@@ -71,10 +71,10 @@ export function TaskPostsPage({
 
           {entityDetails?.shot && (
             <>
-              <span className="text-zinc-600">/</span>
+              <span className="text-muted-foreground">/</span>
               <Link
                 href={`/pulse/project/${projectId}/shot/${entityDetails.shot.id}/posts`}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-muted-foreground hover:text-foreground/80 transition"
               >
                 {entityDetails.shot.name}
               </Link>
@@ -83,22 +83,22 @@ export function TaskPostsPage({
 
           {entityDetails?.asset && (
             <>
-              <span className="text-zinc-600">/</span>
-              <span className="text-zinc-400">{entityDetails.asset.name}</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-muted-foreground">{entityDetails.asset.name}</span>
             </>
           )}
 
-          <span className="text-zinc-600">/</span>
-          <span className="text-zinc-300">{task.name}</span>
+          <span className="text-muted-foreground">/</span>
+          <span className="text-foreground/70">{task.name}</span>
         </div>
 
         <div className="flex items-center gap-2 mb-1">
-          <CheckSquare className="h-5 w-5 text-amber-400" />
-          <h1 className="text-lg font-semibold text-zinc-100">
+          <CheckSquare className="h-5 w-5 text-primary" />
+          <h1 className="text-lg font-semibold text-foreground">
             {task.name}
           </h1>
         </div>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Activity feed for task {task.name}
         </p>
       </div>

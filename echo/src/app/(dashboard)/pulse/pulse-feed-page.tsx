@@ -97,10 +97,10 @@ export function PulseFeedPage({ currentUserId, profile }: PulseFeedPageProps) {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Activity className="h-5 w-5 text-amber-400" />
-          <h1 className="text-lg font-semibold text-zinc-100">Pulse</h1>
+          <Activity className="h-5 w-5 text-primary" />
+          <h1 className="text-lg font-semibold text-foreground">Pulse</h1>
         </div>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Share updates, review media, and collaborate across projects.
         </p>
       </div>

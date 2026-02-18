@@ -25,7 +25,7 @@ export function TestPostButton() {
         Test Create Post (Direct)
       </button>
       {result && (
-        <pre className="mt-2 p-2 bg-zinc-900 rounded text-xs">
+        <pre className="mt-2 p-2 bg-card rounded text-xs">
           {JSON.stringify(result, null, 2)}
         </pre>
       )}

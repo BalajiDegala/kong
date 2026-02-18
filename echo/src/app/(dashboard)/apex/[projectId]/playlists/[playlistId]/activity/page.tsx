@@ -19,7 +19,7 @@ export default async function PlaylistActivityPage({
 
   return (
     <div className="p-6">
-      <h3 className="mb-4 text-sm font-semibold text-zinc-100">Activity</h3>
+      <h3 className="mb-4 text-sm font-semibold text-foreground">Activity</h3>
       <ActivityFeed events={events} />
     </div>
   )

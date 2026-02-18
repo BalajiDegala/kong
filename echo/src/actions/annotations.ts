@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 export async function createAnnotation(formData: {
   post_media_id?: number
   version_id?: number
+  note_id?: number
+  project_id?: string | number
   frame_number: number
   timecode?: string
   annotation_data: Record<string, unknown>
@@ -25,26 +27,48 @@ export async function createAnnotation(formData: {
     return { error: 'Either post_media_id or version_id is required' }
   }
 
-  const { data, error } = await supabase
+  const insertPayload = {
+    post_media_id: formData.post_media_id || null,
+    version_id: formData.version_id || null,
+    note_id: formData.note_id || null,
+    author_id: user.id,
+    frame_number: formData.frame_number,
+    timecode: formData.timecode || null,
+    annotation_data: formData.annotation_data,
+    annotation_text: formData.annotation_text || null,
+    status: 'active',
+  }
+
+  let { data, error } = await supabase
     .from('annotations')
-    .insert({
-      post_media_id: formData.post_media_id || null,
-      version_id: formData.version_id || null,
-      author_id: user.id,
-      frame_number: formData.frame_number,
-      timecode: formData.timecode || null,
-      annotation_data: formData.annotation_data,
-      annotation_text: formData.annotation_text || null,
-      status: 'active',
-    })
+    .insert(insertPayload)
     .select()
     .single()
+
+  // Backward compatibility for environments where note_id has not been migrated yet.
+  if (error && /note_id/i.test(error.message || '')) {
+    const legacyPayload: Record<string, unknown> = { ...insertPayload }
+    delete legacyPayload.note_id
+    const legacyResult = await supabase
+      .from('annotations')
+      .insert(legacyPayload)
+      .select()
+      .single()
+    data = legacyResult.data
+    error = legacyResult.error
+  }
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidatePath('/pulse')
+  if (formData.version_id && formData.project_id) {
+    revalidatePath(`/apex/${formData.project_id}/versions/${formData.version_id}/review`)
+    revalidatePath(`/apex/${formData.project_id}/versions/${formData.version_id}/activity`)
+  } else {
+    revalidatePath('/pulse')
+  }
+
   return { data }
 }
 

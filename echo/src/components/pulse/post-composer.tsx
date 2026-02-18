@@ -148,17 +148,17 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900">
+    <div className="rounded-lg border border-border bg-card">
       {/* Author bar */}
       <div className="flex items-center gap-3 px-4 pt-3">
-        <div className="h-8 w-8 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-medium text-zinc-300">
+        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-medium text-foreground/70">
           {authorProfile?.display_name?.[0]?.toUpperCase() || '?'}
         </div>
-        <span className="text-sm font-medium text-zinc-300">
+        <span className="text-sm font-medium text-foreground/70">
           {authorProfile?.display_name || 'You'}
         </span>
         {projectId && (
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
+          <span className="text-xs text-muted-foreground bg-accent px-2 py-0.5 rounded">
             Project Post
           </span>
         )}
@@ -203,9 +203,9 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-2">
+      <div className="flex items-center justify-between border-t border-border px-4 py-2">
         <div className="flex items-center gap-1">
-          <label className="cursor-pointer p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition">
+          <label className="cursor-pointer p-2 text-muted-foreground hover:text-foreground/80 hover:bg-accent rounded transition">
             <ImagePlus className="h-4 w-4" />
             <input
               type="file"
@@ -215,7 +215,7 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
               onChange={handleFileSelect}
             />
           </label>
-          <label className="cursor-pointer p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition">
+          <label className="cursor-pointer p-2 text-muted-foreground hover:text-foreground/80 hover:bg-accent rounded transition">
             <Video className="h-4 w-4" />
             <input
               type="file"
@@ -238,7 +238,7 @@ export function PostComposer({ projectId, authorProfile, onPostCreated }: PostCo
             handleSubmit()
           }}
           disabled={isSubmitting || (!editor?.getText().trim() && mediaFiles.length === 0)}
-          className="flex items-center gap-2 rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-zinc-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition"
           title={
             !editor ? 'Editor not ready' :
             !editor?.getText().trim() && mediaFiles.length === 0 ? 'Type something or add media' :

@@ -27,11 +27,11 @@ export function ConversationList({ conversations, dmDisplayNames }: Conversation
     <div className="flex flex-col gap-4">
       {/* Channels */}
       <div>
-        <h3 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <h3 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Channels
         </h3>
         {channels.length === 0 ? (
-          <p className="px-3 text-sm text-zinc-600">No channels yet</p>
+          <p className="px-3 text-sm text-muted-foreground">No channels yet</p>
         ) : (
           <div className="space-y-0.5">
             {channels.map((conv) => {
@@ -42,14 +42,14 @@ export function ConversationList({ conversations, dmDisplayNames }: Conversation
                   href={`/echo/${conv.id}`}
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition ${
                     isActive
-                      ? 'bg-zinc-800 text-amber-400'
-                      : 'text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100'
+                      ? 'bg-accent text-primary'
+                      : 'text-foreground/70 hover:bg-accent/50 hover:text-foreground'
                   }`}
                 >
-                  <Hash className="h-4 w-4 shrink-0 text-zinc-500" />
+                  <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="truncate">{conv.name}</span>
                   {conv.project && (
-                    <span className="ml-auto truncate text-xs text-zinc-600">
+                    <span className="ml-auto truncate text-xs text-muted-foreground">
                       {conv.project.code}
                     </span>
                   )}
@@ -62,11 +62,11 @@ export function ConversationList({ conversations, dmDisplayNames }: Conversation
 
       {/* DMs */}
       <div>
-        <h3 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <h3 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Direct Messages
         </h3>
         {dms.length === 0 ? (
-          <p className="px-3 text-sm text-zinc-600">No messages yet</p>
+          <p className="px-3 text-sm text-muted-foreground">No messages yet</p>
         ) : (
           <div className="space-y-0.5">
             {dms.map((conv) => {
@@ -78,11 +78,11 @@ export function ConversationList({ conversations, dmDisplayNames }: Conversation
                   href={`/echo/${conv.id}`}
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition ${
                     isActive
-                      ? 'bg-zinc-800 text-amber-400'
-                      : 'text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100'
+                      ? 'bg-accent text-primary'
+                      : 'text-foreground/70 hover:bg-accent/50 hover:text-foreground'
                   }`}
                 >
-                  <MessageCircle className="h-4 w-4 shrink-0 text-zinc-500" />
+                  <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="truncate">{displayName}</span>
                 </Link>
               )

@@ -296,7 +296,7 @@ export default function ApexPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading projects...</p>
+        <p className="text-muted-foreground">Loading projects...</p>
       </div>
     )
   }
@@ -340,17 +340,17 @@ export default function ApexPage() {
 
       <div className="flex h-full flex-col">
         {/* Page Header */}
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-4">
+        <div className="border-b border-border bg-background px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-zinc-100">Apex</h1>
-              <p className="mt-1 text-sm text-zinc-400">
+              <h1 className="text-2xl font-bold text-foreground">Apex</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Project Excel
               </p>
             </div>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               <Plus className="h-4 w-4" />
               New Project
@@ -361,19 +361,19 @@ export default function ApexPage() {
         {/* Empty State or Table */}
         {projects.length === 0 ? (
         <div className="flex flex-1 items-center justify-center p-6">
-          <div className="flex max-w-md flex-col items-center justify-center rounded-lg border-2 border-dashed border-zinc-800 p-12 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800">
-              <Plus className="h-8 w-8 text-zinc-500" />
+          <div className="flex max-w-md flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent">
+              <Plus className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-zinc-100">
+            <h3 className="mb-2 text-lg font-semibold text-foreground">
               No projects yet
             </h3>
-            <p className="mb-6 text-sm text-zinc-400">
+            <p className="mb-6 text-sm text-muted-foreground">
               Get started by creating your first project. Projects help you organize assets, shots, and tasks for your production.
             </p>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="rounded-lg bg-amber-500 px-6 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               Create Your First Project
             </button>

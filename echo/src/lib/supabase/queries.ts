@@ -434,6 +434,7 @@ export async function getProjectActivity(
     `)
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit)
 
   if (error) throw error
@@ -454,6 +455,7 @@ export async function getUserActivity(
     `)
     .eq('actor_id', userId)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit)
 
   if (error) throw error
@@ -482,6 +484,7 @@ export async function getEntityActivity(
     .eq('entity_type', entityType)
     .eq('entity_id', Number(entityId))
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (error) throw error
@@ -507,6 +510,7 @@ export async function getEntityHistory(
     .eq('entity_id', Number(entityId))
     .not('attribute_name', 'is', null)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (options?.attributeName) {
@@ -542,6 +546,7 @@ export async function getProjectEventLog(
     `)
     .eq('project_id', Number(projectId))
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (filters?.eventType) {

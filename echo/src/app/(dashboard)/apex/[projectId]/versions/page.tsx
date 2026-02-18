@@ -357,7 +357,7 @@ export default function VersionsPage({
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading versions...</p>
+        <p className="text-muted-foreground">Loading versions...</p>
       </div>
     )
   }
@@ -397,7 +397,7 @@ export default function VersionsPage({
         action={
           <button
             onClick={() => setShowUploadDialog(true)}
-            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+            className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
           >
             <Upload className="h-4 w-4" />
             Upload Version
@@ -418,7 +418,7 @@ export default function VersionsPage({
             action={
               <button
                 onClick={() => setShowUploadDialog(true)}
-                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
               >
                 Upload First Version
               </button>

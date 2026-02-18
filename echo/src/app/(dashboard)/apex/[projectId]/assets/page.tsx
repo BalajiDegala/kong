@@ -596,7 +596,7 @@ export default function AssetsPage({
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading assets...</p>
+        <p className="text-muted-foreground">Loading assets...</p>
       </div>
     )
   }
@@ -635,7 +635,7 @@ export default function AssetsPage({
         action={
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+            className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
           >
             <Plus className="h-4 w-4" />
             Add Asset
@@ -650,7 +650,7 @@ export default function AssetsPage({
             action={
               <button
                 onClick={() => setShowCreateDialog(true)}
-                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
               >
                 Create First Asset
               </button>

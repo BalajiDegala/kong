@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
@@ -19,10 +19,26 @@ function toTitleCase(str: string): string {
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+interface EventLogEvent {
+  id: number
+  entity_type: string | null
+  event_type: string | null
+  description: string | null
+  created_at: string
+  actor?: {
+    display_name?: string | null
+  } | null
+}
+
+function getTimestamp(value: string): number {
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
 export default function EventLogPage() {
   const params = useParams()
   const projectId = params.projectId as string
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<EventLogEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [entityType, setEntityType] = useState('')
   const [eventType, setEventType] = useState('')
@@ -55,10 +71,18 @@ export default function EventLogPage() {
     fetchEvents()
   }, [fetchEvents])
 
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => {
+      const timeDiff = getTimestamp(b.created_at) - getTimestamp(a.created_at)
+      if (timeDiff !== 0) return timeDiff
+      return b.id - a.id
+    })
+  }, [events])
+
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-zinc-100">Event Log</h3>
+        <h3 className="text-lg font-semibold text-foreground">Event Log</h3>
         <EventLogFilterBar
           entityType={entityType}
           eventType={eventType}
@@ -69,40 +93,40 @@ export default function EventLogPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <p className="text-sm text-zinc-400">Loading events...</p>
+          <p className="text-sm text-muted-foreground">Loading events...</p>
         </div>
-      ) : events.length === 0 ? (
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-          <p className="text-sm text-zinc-400">No events found.</p>
+      ) : sortedEvents.length === 0 ? (
+        <div className="rounded-md border border-border bg-background/70 p-6">
+          <p className="text-sm text-muted-foreground">No events found.</p>
         </div>
       ) : (
-        <div className="rounded-md border border-zinc-800">
+        <div className="rounded-md border border-border">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Date</TableHead>
-                <TableHead className="text-zinc-400">Entity Type</TableHead>
-                <TableHead className="text-zinc-400">Event Type</TableHead>
-                <TableHead className="text-zinc-400">Description</TableHead>
-                <TableHead className="text-zinc-400">Actor</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Date</TableHead>
+                <TableHead className="text-muted-foreground">Entity Type</TableHead>
+                <TableHead className="text-muted-foreground">Event Type</TableHead>
+                <TableHead className="text-muted-foreground">Description</TableHead>
+                <TableHead className="text-muted-foreground">Actor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id} className="border-zinc-800 hover:bg-zinc-900/50">
-                  <TableCell className="whitespace-nowrap text-sm text-zinc-400">
+              {sortedEvents.map((event) => (
+                <TableRow key={event.id} className="border-border hover:bg-card/50">
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-200">
+                  <TableCell className="text-sm text-foreground/80">
                     {toTitleCase(event.entity_type || '-')}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-200">
+                  <TableCell className="text-sm text-foreground/80">
                     {toTitleCase(event.event_type || '-')}
                   </TableCell>
-                  <TableCell className="max-w-[400px] truncate text-sm text-zinc-400">
+                  <TableCell className="max-w-[400px] truncate text-sm text-muted-foreground">
                     {event.description || event.event_type?.replace(/_/g, ' ') || '-'}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-400">
+                  <TableCell className="text-sm text-muted-foreground">
                     {event.actor?.display_name || 'Unknown'}
                   </TableCell>
                 </TableRow>

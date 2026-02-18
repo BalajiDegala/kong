@@ -230,16 +230,16 @@ export function TableToolbar({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/80 px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         {allowGridView ? (
-          <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-950">
+          <div className="flex items-center rounded-sm border border-border bg-background">
             <button
               onClick={() => handleViewChange('grid')}
               className={`px-2 py-1.5 text-xs transition ${
                 currentView === 'grid'
-                  ? 'bg-zinc-800 text-zinc-100'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/70'
               }`}
               title="Grid View"
             >
@@ -249,8 +249,8 @@ export function TableToolbar({
               onClick={() => handleViewChange('list')}
               className={`px-2 py-1.5 text-xs transition ${
                 currentView === 'list'
-                  ? 'bg-zinc-800 text-zinc-100'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/70'
               }`}
               title="List View"
             >
@@ -260,8 +260,8 @@ export function TableToolbar({
         ) : null}
 
         {allowGridView && showGridSizeControl && currentView === 'grid' ? (
-          <div className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+          <div className="flex items-center gap-2 rounded-sm border border-border bg-background px-2 py-1.5">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Size
             </span>
             <input
@@ -273,7 +273,7 @@ export function TableToolbar({
               onChange={(event) =>
                 onGridCardSizeChange?.(Number.parseInt(event.target.value, 10))
               }
-              className="h-3 w-24 accent-amber-400"
+              className="h-3 w-24 accent-primary"
               aria-label="Grid card size"
             />
           </div>
@@ -282,7 +282,7 @@ export function TableToolbar({
         {onAdd ? (
           <button
             onClick={onAdd}
-            className="flex items-center gap-2 rounded-sm border border-amber-400 bg-amber-400/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:bg-amber-300"
+            className="flex items-center gap-2 rounded-sm border border-primary bg-primary/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:bg-primary"
           >
             <Plus className="h-4 w-4" />
             Add {entityLabel}
@@ -294,18 +294,18 @@ export function TableToolbar({
           <div className="relative">
           <button
             onClick={() => toggleMenu('sort')}
-            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-card hover:text-foreground/80"
           >
             Sort
             <ChevronDown className="h-3 w-3" />
           </button>
           {openMenu === 'sort' && (
-            <div className="absolute left-0 top-full z-20 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-200 shadow-lg">
-              <div className="flex items-center justify-between px-2 pb-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-background p-2 text-xs text-foreground/80 shadow-lg">
+              <div className="flex items-center justify-between px-2 pb-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 <span>Sort by</span>
                 <button
                   onClick={clearSort}
-                  className="text-amber-400 hover:text-amber-300"
+                  className="text-primary hover:text-primary/80"
                 >
                   Clear
                 </button>
@@ -315,11 +315,11 @@ export function TableToolbar({
                   <button
                     key={column.id}
                     onClick={() => handleSort(column.id)}
-                    className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-zinc-900"
+                    className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-card"
                   >
                     <span>{column.label}</span>
                     {sort?.id === column.id && (
-                      <span className="text-[10px] uppercase text-zinc-400">
+                      <span className="text-[10px] uppercase text-muted-foreground">
                         {sort.direction}
                       </span>
                     )}
@@ -333,23 +333,23 @@ export function TableToolbar({
           <div className="relative">
           <button
             onClick={() => toggleMenu('group')}
-            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-card hover:text-foreground/80"
           >
             Group
             <ChevronDown className="h-3 w-3" />
           </button>
           {openMenu === 'group' && (
-            <div className="absolute left-0 top-full z-20 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-200 shadow-lg">
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-background p-2 text-xs text-foreground/80 shadow-lg">
               <div className="overflow-y-auto pr-1" style={{ maxHeight: `${MENU_MAX_HEIGHT}px` }}>
                 <button
                   onClick={() => {
                     onGroupByChange(null)
                     setOpenMenu(null)
                   }}
-                  className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-zinc-900"
+                  className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-card"
                 >
                   <span>None</span>
-                  {!groupBy && <span className="text-[10px] uppercase text-zinc-400">On</span>}
+                  {!groupBy && <span className="text-[10px] uppercase text-muted-foreground">On</span>}
                 </button>
                 {columns.map((column) => (
                   <button
@@ -358,11 +358,11 @@ export function TableToolbar({
                       onGroupByChange(column.id)
                       setOpenMenu(null)
                     }}
-                    className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-zinc-900"
+                    className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-card"
                   >
                     <span>{column.label}</span>
                     {groupBy === column.id && (
-                      <span className="text-[10px] uppercase text-zinc-400">On</span>
+                      <span className="text-[10px] uppercase text-muted-foreground">On</span>
                     )}
                   </button>
                 ))}
@@ -374,45 +374,45 @@ export function TableToolbar({
           <div className="relative">
           <button
             onClick={() => toggleMenu('fields')}
-            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-card hover:text-foreground/80"
           >
             Fields
             <ChevronDown className="h-3 w-3" />
           </button>
           {openMenu === 'fields' && (
-            <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-sm border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-200 shadow-lg">
+            <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-sm border border-border bg-background p-2 text-xs text-foreground/80 shadow-lg">
               <input
                 type="text"
                 placeholder={`Search ${entityLabel} fields...`}
                 value={fieldSearchQuery}
                 onChange={(event) => setFieldSearchQuery(event.target.value)}
-                className="mb-2 w-full rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="mb-2 w-full rounded-sm border border-border bg-card px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <button
                 onClick={() => {
                   setOpenMenu(null)
                   openManageColumns()
                 }}
-                className="mb-2 flex w-full items-center rounded-sm px-2 py-1.5 text-left text-zinc-200 hover:bg-zinc-900"
+                className="mb-2 flex w-full items-center rounded-sm px-2 py-1.5 text-left text-foreground/80 hover:bg-card"
               >
                 Manage Columns...
               </button>
-              <div className="mb-2 border-t border-zinc-800" />
-              <div className="px-2 pb-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              <div className="mb-2 border-t border-border" />
+              <div className="px-2 pb-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Visible columns
               </div>
               <div className="overflow-y-auto pr-1" style={{ maxHeight: `${MENU_MAX_HEIGHT}px` }}>
                 {filteredFieldColumns.map((column) => (
                   <div
                     key={column.id}
-                    className="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 hover:bg-zinc-900"
+                    className="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 hover:bg-card"
                   >
                     <label className="flex min-w-0 flex-1 items-center gap-2">
                       <input
                         type="checkbox"
                         checked={visibleColumns.has(column.id)}
                         onChange={() => onToggleColumn(column.id)}
-                        className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
+                        className="h-3 w-3 rounded border border-border bg-card"
                       />
                       <span className="truncate">{column.label}</span>
                     </label>
@@ -425,8 +425,8 @@ export function TableToolbar({
                         }}
                         className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] transition ${
                           pinnedColumnIds?.has(column.id)
-                            ? 'border-amber-400/70 text-amber-300 hover:border-amber-300 hover:text-amber-200'
-                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                            ? 'border-primary/70 text-primary/80 hover:border-primary/70 hover:text-primary'
+                            : 'border-border text-muted-foreground hover:border-border hover:text-foreground/80'
                         }`}
                       >
                         {pinnedColumnIds?.has(column.id) ? 'Pinned' : 'Pin'}
@@ -435,7 +435,7 @@ export function TableToolbar({
                   </div>
                 ))}
                 {filteredFieldColumns.length === 0 ? (
-                  <div className="px-2 py-2 text-zinc-500">No matching fields</div>
+                  <div className="px-2 py-2 text-muted-foreground">No matching fields</div>
                 ) : null}
               </div>
             </div>
@@ -451,8 +451,8 @@ export function TableToolbar({
             onClick={onToggleFilters}
             className={`rounded-sm border px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition ${
               filtersOpen
-                ? 'border-amber-400 text-amber-300'
-                : 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                ? 'border-primary text-primary/80'
+                : 'border-border text-foreground/70 hover:border-border hover:text-foreground'
             }`}
           >
             Filter {filterCount > 0 ? `(${filterCount})` : ''}
@@ -460,13 +460,13 @@ export function TableToolbar({
           {filtersOpen ? filtersPanel : null}
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder={`Search ${entityLabel}s...`}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-56 rounded-sm border border-zinc-800 bg-zinc-950 py-1.5 pl-8 pr-3 text-xs text-zinc-100 placeholder-zinc-500 transition focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-56 rounded-sm border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>
@@ -474,10 +474,10 @@ export function TableToolbar({
       <Dialog open={manageColumnsOpen} onOpenChange={handleManageColumnsOpenChange}>
         <DialogContent
           showCloseButton={false}
-          className="w-full max-w-2xl border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+          className="w-full max-w-2xl border-border bg-background p-0 text-foreground"
         >
-          <div className="border-b border-zinc-800 px-6 py-4">
-            <DialogTitle className="text-2xl font-semibold text-zinc-100">
+          <div className="border-b border-border px-6 py-4">
+            <DialogTitle className="text-2xl font-semibold text-foreground">
               Manage Columns
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -491,16 +491,16 @@ export function TableToolbar({
               placeholder={`Search ${entityLabel} fields...`}
               value={manageSearchQuery}
               onChange={(event) => setManageSearchQuery(event.target.value)}
-              className="mb-3 w-full rounded-sm border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="mb-3 w-full rounded-sm border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
-            <label className="mb-3 flex items-center gap-2 border-b border-zinc-800 pb-3 text-sm text-zinc-300">
+            <label className="mb-3 flex items-center gap-2 border-b border-border pb-3 text-sm text-foreground/70">
               <input
                 ref={toggleAllRef}
                 type="checkbox"
                 checked={allColumnsVisible}
                 onChange={handleToggleAllManaged}
-                className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                className="h-4 w-4 rounded border border-border bg-card"
               />
               <span>Toggle All</span>
             </label>
@@ -509,35 +509,35 @@ export function TableToolbar({
               {filteredManageColumns.map((column) => (
                 <label
                   key={column.id}
-                  className="flex items-center gap-2 rounded-sm px-1 py-1.5 text-sm text-zinc-200 hover:bg-zinc-900"
+                  className="flex items-center gap-2 rounded-sm px-1 py-1.5 text-sm text-foreground/80 hover:bg-card"
                 >
                   <input
                     type="checkbox"
                     checked={managedColumns.has(column.id)}
                     onChange={() => toggleManagedColumn(column.id)}
-                    className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                    className="h-4 w-4 rounded border border-border bg-card"
                   />
                   <span>{column.label}</span>
                 </label>
               ))}
               {filteredManageColumns.length === 0 ? (
-                <div className="px-1 py-2 text-sm text-zinc-500">No matching fields</div>
+                <div className="px-1 py-2 text-sm text-muted-foreground">No matching fields</div>
               ) : null}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-6 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-3">
             <button
               type="button"
               onClick={() => setManageColumnsOpen(false)}
-              className="rounded-sm border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+              className="rounded-sm border border-border px-3 py-1.5 text-sm text-foreground/70 transition hover:border-border hover:text-foreground"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={applyManagedColumns}
-              className="rounded-sm border border-amber-400 bg-amber-400/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-amber-300"
+              className="rounded-sm border border-primary bg-primary/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-primary"
             >
               Apply
             </button>

@@ -65,7 +65,7 @@ export function PostMediaGallery({ media, onVideoSelect }: PostMediaGalleryProps
             return (
               <div
                 key={item.id}
-                className="bg-zinc-800 animate-pulse aspect-video"
+                className="bg-accent animate-pulse aspect-video"
               />
             )
           }
@@ -75,7 +75,7 @@ export function PostMediaGallery({ media, onVideoSelect }: PostMediaGalleryProps
               <button
                 key={item.id}
                 onClick={() => onVideoSelect?.(item)}
-                className="relative aspect-video bg-zinc-900 group"
+                className="relative aspect-video bg-card group"
               >
                 <video
                   src={url}
@@ -84,7 +84,7 @@ export function PostMediaGallery({ media, onVideoSelect }: PostMediaGalleryProps
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition">
                   <div className="rounded-full bg-white/90 p-3">
-                    <Play className="h-6 w-6 text-zinc-900 fill-zinc-900" />
+                    <Play className="h-6 w-6 text-primary-foreground fill-primary-foreground" />
                   </div>
                 </div>
               </button>
@@ -95,7 +95,7 @@ export function PostMediaGallery({ media, onVideoSelect }: PostMediaGalleryProps
             <button
               key={item.id}
               onClick={() => setLightboxIndex(index)}
-              className="aspect-video bg-zinc-900 overflow-hidden"
+              className="aspect-video bg-card overflow-hidden"
             >
               <img
                 src={url}

@@ -420,7 +420,7 @@ export default function PeoplePage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading people...</p>
+        <p className="text-muted-foreground">Loading people...</p>
       </div>
     )
   }
@@ -478,18 +478,18 @@ export default function PeoplePage() {
       />
 
       <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
+        <div className="border-b border-border bg-background px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-zinc-400" />
-              <h2 className="text-lg font-semibold text-zinc-100">People</h2>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">People</h2>
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
                 {profiles.length}
               </span>
             </div>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               <Plus className="h-4 w-4" />
               Add User
@@ -501,14 +501,14 @@ export default function PeoplePage() {
           {profiles.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
-                <Users className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">No users yet</h3>
-                <p className="mb-4 text-sm text-zinc-400">
+                <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">No users yet</h3>
+                <p className="mb-4 text-sm text-muted-foreground">
                   Create users and assign project access to start using Kong.
                 </p>
                 <button
                   onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
                 >
                   Create First User
                 </button>
@@ -537,13 +537,13 @@ export default function PeoplePage() {
           }}
         >
           <div
-            className="absolute min-w-[180px] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-2xl"
+            className="absolute min-w-[180px] rounded-md border border-border bg-card p-1 shadow-2xl"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-100 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition hover:bg-accent"
               onClick={() => {
                 openEditDialog(contextMenu.row)
                 setContextMenu(null)
@@ -554,7 +554,7 @@ export default function PeoplePage() {
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-100 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition hover:bg-accent"
               onClick={() => {
                 openAccessDialog(contextMenu.row)
                 setContextMenu(null)
@@ -565,7 +565,7 @@ export default function PeoplePage() {
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-accent"
               onClick={() => {
                 openDeleteDialog(contextMenu.row)
                 setContextMenu(null)
@@ -710,13 +710,13 @@ function CreateUserDialog({
         onOpenChange(o)
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Plus className="h-5 w-5" />
             Create User
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription className="text-muted-foreground">
             Create a new user account and assign project access.
           </DialogDescription>
         </DialogHeader>
@@ -724,35 +724,35 @@ function CreateUserDialog({
         <div className="space-y-3 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">First Name</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">First Name</label>
               <input
                 type="text"
                 value={firstname}
                 onChange={(e) => setFirstname(e.target.value)}
                 placeholder="Balaji"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Last Name</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Last Name</label>
               <input
                 type="text"
                 value={lastname}
                 onChange={(e) => setLastname(e.target.value)}
                 placeholder="Degala"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Avatar</label>
-            <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-zinc-800">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Avatar</label>
+            <div className="flex items-center gap-3 rounded-md border border-border bg-card/40 p-2">
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-accent">
                 {avatarDataUrl ? (
                   <img src={avatarDataUrl} alt="" className="h-12 w-12 object-cover" />
                 ) : (
-                  <User className="h-4 w-4 text-zinc-500" />
+                  <User className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
               <div className="flex-1">
@@ -760,9 +760,9 @@ function CreateUserDialog({
                   type="file"
                   accept="image/*"
                   onChange={(e) => void handleAvatarSelect(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200 hover:file:bg-zinc-700"
+                  className="w-full text-xs text-foreground/70 file:mr-3 file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:text-foreground/80 hover:file:bg-secondary"
                 />
-                <p className="mt-1 truncate text-xs text-zinc-500">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {avatarFileName || 'Optional'}
                 </p>
               </div>
@@ -773,7 +773,7 @@ function CreateUserDialog({
                     setAvatarDataUrl(null)
                     setAvatarFileName('')
                   }}
-                  className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-zinc-600"
+                  className="rounded-md border border-border px-2 py-1 text-xs text-foreground/70 hover:border-border"
                 >
                   Remove
                 </button>
@@ -782,7 +782,7 @@ function CreateUserDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">
               <span className="flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5" /> Display Name
               </span>
@@ -792,12 +792,12 @@ function CreateUserDialog({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Balaji Degala"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">
               <span className="flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5" /> Email
               </span>
@@ -807,34 +807,34 @@ function CreateUserDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="balajid@d2.com"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Password</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min 6 characters"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Department</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Department</label>
               <input
                 type="text"
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
                 placeholder="e.g. Pipeline TD"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 <span className="flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5" /> Role
                 </span>
@@ -842,7 +842,7 @@ function CreateUserDialog({
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 <option value="member">Member</option>
                 <option value="beta">Beta</option>
@@ -851,16 +851,16 @@ function CreateUserDialog({
             </div>
           </div>
 
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+          <div className="rounded-md border border-border bg-card/40 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-200">Projects</p>
-              <span className="text-xs text-zinc-500">
+              <p className="text-sm font-medium text-foreground/80">Projects</p>
+              <span className="text-xs text-muted-foreground">
                 {Object.keys(projectAccess).length} selected
               </span>
             </div>
 
             {projects.length === 0 ? (
-              <p className="text-sm text-zinc-500">No projects available to assign.</p>
+              <p className="text-sm text-muted-foreground">No projects available to assign.</p>
             ) : (
               <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
                 {projects.map((project) => {
@@ -869,14 +869,14 @@ function CreateUserDialog({
                   return (
                     <div
                       key={project.id}
-                      className="grid grid-cols-[1fr_110px] items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5"
+                      className="grid grid-cols-[1fr_110px] items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5"
                     >
-                      <label className="flex items-center gap-2 text-sm text-zinc-200">
+                      <label className="flex items-center gap-2 text-sm text-foreground/80">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => toggleProjectAccess(project.id, e.target.checked)}
-                          className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                          className="h-4 w-4 rounded border border-border bg-card"
                         />
                         <span>{projectDisplayName(project)}</span>
                       </label>
@@ -885,7 +885,7 @@ function CreateUserDialog({
                         value={selectedRole}
                         disabled={!checked}
                         onChange={(e) => setProjectRole(project.id, e.target.value)}
-                        className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-md border border-border bg-accent px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {PROJECT_ROLE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -905,7 +905,7 @@ function CreateUserDialog({
           <button
             onClick={handleCreate}
             disabled={isCreating || !email.trim() || !password.trim() || !displayName.trim()}
-            className="w-full rounded-md bg-amber-500 px-4 py-2.5 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
           >
             {isCreating ? 'Creating...' : 'Create User'}
           </button>
@@ -1034,66 +1034,66 @@ function EditUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Pencil className="h-5 w-5" />
             Edit User
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription className="text-muted-foreground">
             Update profile details for {userName}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 overflow-y-auto pr-1">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Email</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Email</label>
             <input
               type="text"
               value={user?.email || ''}
               disabled
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-400"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-muted-foreground"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">First Name</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">First Name</label>
               <input
                 type="text"
                 value={firstname}
                 onChange={(e) => setFirstname(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Last Name</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Last Name</label>
               <input
                 type="text"
                 value={lastname}
                 onChange={(e) => setLastname(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Display Name</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Display Name</label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Role</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 <option value="member">Member</option>
                 <option value="beta">Beta</option>
@@ -1101,11 +1101,11 @@ function EditUserDialog({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Status</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Status</label>
               <select
                 value={active ? 'active' : 'inactive'}
                 onChange={(e) => setActive(e.target.value === 'active')}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -1114,11 +1114,11 @@ function EditUserDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Department</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Department</label>
             <select
               value={departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
             >
               <option value="">None</option>
               {departments.map((department) => (
@@ -1129,12 +1129,12 @@ function EditUserDialog({
             </select>
           </div>
 
-          <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-zinc-800">
+          <div className="flex items-center gap-3 rounded-md border border-border bg-card/40 p-3">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-accent">
               {avatarDataUrl ? (
                 <img src={avatarDataUrl} alt="" className="h-16 w-16 object-cover" />
               ) : (
-                <User className="h-5 w-5 text-zinc-500" />
+                <User className="h-5 w-5 text-muted-foreground" />
               )}
             </div>
             <div className="flex-1">
@@ -1142,9 +1142,9 @@ function EditUserDialog({
                 type="file"
                 accept="image/*"
                 onChange={(e) => void handleAvatarSelect(e.target.files?.[0] || null)}
-                className="w-full text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200 hover:file:bg-zinc-700"
+                className="w-full text-xs text-foreground/70 file:mr-3 file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:text-foreground/80 hover:file:bg-secondary"
               />
-              <p className="mt-1 truncate text-xs text-zinc-500">
+              <p className="mt-1 truncate text-xs text-muted-foreground">
                 {fileName || 'JPEG/PNG/WebP accepted'}
               </p>
             </div>
@@ -1156,7 +1156,7 @@ function EditUserDialog({
             <button
               type="button"
               onClick={() => setAvatarDataUrl(null)}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-600"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground/70 transition hover:border-border"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove Avatar
@@ -1164,14 +1164,14 @@ function EditUserDialog({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onOpenChange(false)}
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-zinc-600"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground/80 transition hover:border-border"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -1265,28 +1265,28 @@ function ManageProjectAccessDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <KeyRound className="h-5 w-5" />
             Manage Project Access
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription className="text-muted-foreground">
             Assign shows/projects for {userName}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 overflow-y-auto pr-1">
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+          <div className="rounded-md border border-border bg-card/40 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-200">Projects</p>
-              <span className="text-xs text-zinc-500">
+              <p className="text-sm font-medium text-foreground/80">Projects</p>
+              <span className="text-xs text-muted-foreground">
                 {Object.keys(projectAccess).length} selected
               </span>
             </div>
 
             {projects.length === 0 ? (
-              <p className="text-sm text-zinc-500">No projects available.</p>
+              <p className="text-sm text-muted-foreground">No projects available.</p>
             ) : (
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                 {projects.map((project) => {
@@ -1295,14 +1295,14 @@ function ManageProjectAccessDialog({
                   return (
                     <div
                       key={project.id}
-                      className="grid grid-cols-[1fr_110px] items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5"
+                      className="grid grid-cols-[1fr_110px] items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5"
                     >
-                      <label className="flex items-center gap-2 text-sm text-zinc-200">
+                      <label className="flex items-center gap-2 text-sm text-foreground/80">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => toggleProjectAccess(project.id, e.target.checked)}
-                          className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                          className="h-4 w-4 rounded border border-border bg-card"
                         />
                         <span>{projectDisplayName(project)}</span>
                       </label>
@@ -1311,7 +1311,7 @@ function ManageProjectAccessDialog({
                         value={selectedRole}
                         disabled={!checked}
                         onChange={(e) => setProjectRole(project.id, e.target.value)}
-                        className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-md border border-border bg-accent px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {PROJECT_ROLE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -1331,14 +1331,14 @@ function ManageProjectAccessDialog({
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
             >
               {isSaving ? 'Saving...' : 'Save Access'}
             </button>

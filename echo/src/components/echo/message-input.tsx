@@ -43,7 +43,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   }
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-950 p-4">
+    <div className="border-t border-border bg-background p-4">
       <div className="mx-auto flex max-w-3xl items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -52,7 +52,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
           rows={1}
-          className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+          className="flex-1 resize-none rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
           style={{ maxHeight: '150px' }}
           onInput={(e) => {
             const target = e.target as HTMLTextAreaElement
@@ -63,7 +63,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         <button
           onClick={handleSend}
           disabled={!content.trim() || isSending}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-black transition hover:bg-amber-400 disabled:opacity-50 disabled:hover:bg-amber-500"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-black transition hover:bg-primary disabled:opacity-50 disabled:hover:bg-primary"
         >
           <Send className="h-4 w-4" />
         </button>

@@ -67,8 +67,8 @@ export function ReactionPicker({
               flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition
               ${
                 r.hasReacted
-                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                  : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                  ? 'bg-primary/20 border border-primary/40 text-primary'
+                  : 'bg-accent border border-border text-muted-foreground hover:border-border'
               }
             `}
           >
@@ -81,20 +81,20 @@ export function ReactionPicker({
       <div className="relative">
         <button
           onClick={() => setShowPicker(!showPicker)}
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition"
+          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-accent border border-border text-muted-foreground hover:text-foreground/70 hover:border-border transition"
         >
           +
         </button>
 
         {/* Picker dropdown */}
         {showPicker && (
-          <div className="absolute bottom-full left-0 mb-1 flex gap-1 rounded-lg bg-zinc-800 border border-zinc-700 p-1.5 shadow-lg z-10">
+          <div className="absolute bottom-full left-0 mb-1 flex gap-1 rounded-lg bg-accent border border-border p-1.5 shadow-lg z-10">
             {REACTIONS.map(r => (
               <button
                 key={r.type}
                 onClick={() => handleToggle(r.type)}
                 title={r.label}
-                className="p-1 hover:bg-zinc-700 rounded transition text-base"
+                className="p-1 hover:bg-secondary rounded transition text-base"
               >
                 {r.emoji}
               </button>

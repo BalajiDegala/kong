@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
+import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
+import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
 import { AssetTabs } from '@/components/layout/asset-tabs'
 
 export default async function AssetLayout({
@@ -38,80 +41,131 @@ export default async function AssetLayout({
     redirect(`/apex/${projectId}/assets`)
   }
 
+  const { data: assetOptions } = await supabase
+    .from('assets')
+    .select('id, code, name')
+    .eq('project_id', projectId)
+    .order('code', { ascending: true })
+
   const sequenceLabel = asset.sequence
     ? `${asset.sequence.code} - ${asset.sequence.name}`
     : '-'
   const shotLabel = asset.shot ? `${asset.shot.code} - ${asset.shot.name}` : '-'
+  const title = `${asset.code || asset.name}${asset.code && asset.name ? ` · ${asset.name}` : ''}`
+  const switchOptions = (assetOptions || []).map((option) => ({
+    id: String(option.id),
+    label: `${option.code || `Asset ${option.id}`}${option.name ? ` · ${option.name}` : ''}`,
+  }))
+  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'asset')
+  const fields = applyFieldOptionMap(
+    appendAutoHeaderFields(
+      'asset',
+      asset as Record<string, unknown>,
+      [
+      {
+        id: 'status',
+        label: 'Status',
+        type: 'text',
+        value: asset.status || null,
+        editable: true,
+        column: 'status',
+      },
+      {
+        id: 'asset_type',
+        label: 'Type',
+        type: 'text',
+        value: asset.asset_type || null,
+        editable: true,
+        column: 'asset_type',
+      },
+      {
+        id: 'task_template',
+        label: 'Template',
+        type: 'text',
+        value: asset.task_template || null,
+        editable: true,
+        column: 'task_template',
+      },
+      {
+        id: 'sequence',
+        label: 'Sequence',
+        type: 'readonly',
+        value: sequenceLabel,
+      },
+      {
+        id: 'shot',
+        label: 'Shot',
+        type: 'readonly',
+        value: shotLabel,
+      },
+      {
+        id: 'client_name',
+        label: 'Client Name',
+        type: 'text',
+        value: asset.client_name || null,
+        editable: true,
+        column: 'client_name',
+      },
+      {
+        id: 'dd_client_name',
+        label: 'DD Client Name',
+        type: 'text',
+        value: asset.dd_client_name || null,
+        editable: true,
+        column: 'dd_client_name',
+      },
+      {
+        id: 'keep',
+        label: 'Keep',
+        type: 'boolean',
+        value: Boolean(asset.keep),
+        editable: true,
+        column: 'keep',
+      },
+      {
+        id: 'outsource',
+        label: 'Outsource',
+        type: 'boolean',
+        value: Boolean(asset.outsource),
+        editable: true,
+        column: 'outsource',
+      },
+    ],
+      {
+        excludeColumns: ['sequence', 'shot'],
+      }
+    ),
+    fieldOptionMap
+  )
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-4">
-        <div className="flex gap-6">
-          <div className="h-24 w-36 rounded-md border border-zinc-800 bg-zinc-900">
-            {asset.thumbnail_url ? (
-              <img
-                src={asset.thumbnail_url}
-                alt=""
-                className="h-full w-full rounded-md object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                No Thumbnail
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-xl font-semibold text-zinc-100">{asset.name}</h3>
-              <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs uppercase tracking-[0.2em] text-zinc-300">
-                {asset.asset_type || 'asset'}
-              </span>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200">
-                {asset.status || 'pending'}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-zinc-400">
-              {asset.description || 'No description'}
-            </p>
-
-            <div className="mt-4 grid gap-4 text-xs sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Type</p>
-                <p className="mt-1 text-zinc-100">{asset.asset_type || '-'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Template</p>
-                <p className="mt-1 text-zinc-100">{asset.task_template || '-'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Sequence</p>
-                <p className="mt-1 text-zinc-100">{sequenceLabel}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Shot</p>
-                <p className="mt-1 text-zinc-100">{shotLabel}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Client Name</p>
-                <p className="mt-1 text-zinc-100">{asset.client_name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">DD Client Name</p>
-                <p className="mt-1 text-zinc-100">{asset.dd_client_name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Keep</p>
-                <p className="mt-1 text-zinc-100">{asset.keep ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Outsource</p>
-                <p className="mt-1 text-zinc-100">{asset.outsource ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <EntityDetailHeader
+        entityType="asset"
+        entityPlural="assets"
+        entityId={assetId}
+        projectId={projectId}
+        title={title}
+        badge={asset.status || 'pending'}
+        description={asset.description}
+        descriptionColumn="description"
+        thumbnailUrl={asset.thumbnail_url}
+        thumbnailColumn="thumbnail_url"
+        thumbnailPlaceholder="No Thumbnail"
+        switchOptions={switchOptions}
+        tabPaths={[
+          'activity',
+          'info',
+          'tasks',
+          'versions',
+          'notes',
+          'publishes',
+          'shots',
+          'history',
+        ]}
+        fields={fields}
+        defaultVisibleFieldIds={['asset_type', 'task_template', 'sequence', 'shot']}
+      />
 
       <AssetTabs projectId={projectId} assetId={assetId} />
 

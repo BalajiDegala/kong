@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { formatDateLikeForDisplay } from '@/lib/date-display'
+import { EntityInfoPanel } from '@/components/apex/entity-info-panel'
+import { buildEntityInfoFields } from '@/lib/apex/entity-info-fields'
+import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
 
 export default async function VersionInfoPage({
   params,
@@ -28,70 +30,53 @@ export default async function VersionInfoPage({
     redirect(`/apex/${projectId}/versions`)
   }
 
-  const fields = [
-    { label: 'Version Code', value: version.code },
-    { label: 'Version Number', value: version.version_number },
-    { label: 'Status', value: version.status },
-    { label: 'Description', value: version.description },
-    { label: 'Artist', value: version.artist?.display_name || version.artist?.full_name },
-    { label: 'Task', value: version.task?.name },
-    { label: 'Client Approved', value: version.client_approved ? 'Yes' : 'No' },
-    { label: 'Client Approved At', value: version.client_approved_at },
-    { label: 'Client Approved By', value: version.client_approved_by },
-    { label: 'Client Version Name', value: version.client_version_name },
-    { label: 'Cuts', value: version.cuts },
-    { label: 'Date Viewed', value: version.date_viewed },
-    { label: 'Department', value: version.department },
-    { label: 'Editorial QC', value: version.editorial_qc },
-    { label: 'First Frame', value: version.first_frame },
-    { label: 'Last Frame', value: version.last_frame },
-    { label: 'Frame Count', value: version.frame_count },
-    { label: 'Frame Range', value: version.frame_range },
-    { label: 'Flagged', value: version.flagged ? 'Yes' : 'No' },
-    { label: 'Movie Aspect Ratio', value: version.movie_aspect_ratio },
-    { label: 'Movie Has Slate', value: version.movie_has_slate ? 'Yes' : 'No' },
-    { label: 'Nuke Script', value: version.nuke_script },
-    { label: 'Path to Frames', value: version.frames_path },
-    { label: 'Path to Movie', value: version.movie_url },
-    { label: 'Playlists', value: Array.isArray(version.playlists) ? version.playlists.join(', ') : version.playlists },
-    { label: 'Published Files', value: Array.isArray(version.published_files) ? version.published_files.join(', ') : version.published_files },
-    { label: 'Send EXRs', value: version.send_exrs ? 'Yes' : 'No' },
-    { label: 'Source Clip', value: version.source_clip },
-    { label: 'Tags', value: Array.isArray(version.tags) ? version.tags.join(', ') : version.tags },
-    { label: 'Task Template', value: version.task_template },
-    { label: 'Type', value: version.version_type },
-    { label: 'Uploaded Movie', value: version.uploaded_movie },
-    { label: 'Viewed/Unviewed', value: version.viewed_status },
-    { label: 'Project', value: version.project?.code || version.project?.name },
-    { label: 'Created At', value: version.created_at },
-    { label: 'Updated At', value: version.updated_at },
-    { label: 'Id', value: version.id },
-  ]
+  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'version')
+  const fields = applyFieldOptionMap(
+    buildEntityInfoFields(
+      'version',
+      version as Record<string, unknown>,
+      [
+      {
+        id: 'artist_display',
+        label: 'Artist',
+        type: 'readonly',
+        value: version.artist?.display_name || version.artist?.full_name || null,
+      },
+      {
+        id: 'task_display',
+        label: 'Task',
+        type: 'readonly',
+        value: version.task?.name || null,
+      },
+      {
+        id: 'project_display',
+        label: 'Project',
+        type: 'readonly',
+        value: version.project?.code || version.project?.name || null,
+      },
+    ],
+      {
+        excludeColumns: [
+          'artist',
+          'artist_id',
+          'task',
+          'task_id',
+          'project',
+          'project_id',
+          'created_by',
+        ],
+      }
+    ),
+    fieldOptionMap
+  )
 
   return (
-    <div className="p-6">
-      <div className="rounded-md border border-zinc-800 bg-zinc-950/70">
-        <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
-          Version Info
-        </div>
-        <div className="divide-y divide-zinc-800">
-          {fields.map((field) => {
-            const formattedDate = formatDateLikeForDisplay(field.value)
-            const value = formattedDate ?? field.value
-            const hasValue = value !== null && value !== undefined && value !== ''
-            const display = hasValue ? String(value) : '-'
-
-            return (
-              <div key={field.label} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-zinc-400">{field.label}</span>
-                <span className="max-w-[60%] truncate text-zinc-100" title={display}>
-                  {display}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
+    <EntityInfoPanel
+      entityType="version"
+      entityId={versionId}
+      projectId={projectId}
+      title="Version Info"
+      fields={fields}
+    />
   )
 }

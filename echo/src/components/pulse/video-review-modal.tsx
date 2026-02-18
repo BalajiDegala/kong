@@ -1,14 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Pencil } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef, type ComponentType } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import { ArrowUpRight, Circle, Eraser, Pencil, Square, Type, Undo2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAnnotation } from '@/actions/annotations'
 import { createPostComment, uploadCommentAttachment } from '@/actions/posts'
 import { VideoPlayer } from './video-player'
-import { AnnotationCanvas, type AnnotationCanvasRef } from './annotation-canvas'
-import { AnnotationToolbar, type AnnotationTool } from './annotation-toolbar'
-import { AnnotationList } from './annotation-list'
+import {
+  AnnotationCanvas,
+  type AnnotationCanvasRef,
+  type AnnotationShape,
+  type AnnotationCanvasTool,
+} from './annotation-canvas'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 
 interface VideoReviewModalProps {
   media: {
@@ -23,45 +30,133 @@ interface VideoReviewModalProps {
   onClose: () => void
 }
 
-export function VideoReviewModal({ media, versionId, postId, projectId, onClose }: VideoReviewModalProps) {
-  console.log('VideoReviewModal mounted with props:', { mediaId: media.id, versionId, postId, projectId })
+type PulseCommentAttachment = {
+  id: string
+  file_name: string
+  file_type: string
+  storage_path: string
+  signed_url: string
+}
 
+type PulseComment = {
+  id: number
+  content: string
+  created_at: string
+  author_name: string
+  frame_number: number | null
+  timecode: string | null
+  attachments: PulseCommentAttachment[]
+}
+
+type NoteRow = {
+  id: number
+  content: string | null
+  created_at: string
+  author_id: string | null
+  attachments?: Array<{
+    id?: number | string | null
+    file_name?: string | null
+    file_type?: string | null
+    storage_path?: string | null
+  }> | null
+}
+
+type AnnotationMetaRow = {
+  note_id: number | null
+  frame_number: number | null
+  timecode: string | null
+}
+
+const PULSE_ANNOTATION_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#3b82f6',
+  '#a855f7',
+  '#ffffff',
+]
+
+const PULSE_ANNOTATION_STROKES = [1, 2, 3, 5, 8]
+
+const PULSE_ANNOTATION_TOOLS: Array<{
+  id: AnnotationCanvasTool
+  label: string
+  icon: ComponentType<{ className?: string }>
+}> = [
+  { id: 'freehand', label: 'Pen', icon: Pencil },
+  { id: 'arrow', label: 'Arrow', icon: ArrowUpRight },
+  { id: 'ellipse', label: 'Circle', icon: Circle },
+  { id: 'rectangle', label: 'Rectangle', icon: Square },
+  { id: 'text', label: 'Text', icon: Type },
+]
+
+function formatTimecode(frame: number, fps: number) {
+  const safeFrame = Math.max(frame, 1)
+  const timeInSeconds = (safeFrame - 1) / fps
+  const h = Math.floor(timeInSeconds / 3600)
+  const m = Math.floor((timeInSeconds % 3600) / 60)
+  const s = Math.floor(timeInSeconds % 60)
+  const f = Math.floor((timeInSeconds % 1) * fps)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`
+}
+
+function formatRelativeTime(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Recently'
+  return formatDistanceToNow(parsed, { addSuffix: true })
+}
+
+function isImageAttachment(fileType: string, fileName: string) {
+  if (fileType.toLowerCase().startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName)
+}
+
+export function VideoReviewModal({ media, versionId, postId, projectId, onClose }: VideoReviewModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<AnnotationCanvasRef>(null)
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isAnnotating, setIsAnnotating] = useState(false)
-  const [activeTool, setActiveTool] = useState<AnnotationTool>('rectangle')
+  const [activeTool, setActiveTool] = useState<AnnotationCanvasTool>('freehand')
   const [activeColor, setActiveColor] = useState('#ef4444')
-  const [strokeWidth, setStrokeWidth] = useState(3)
+  const [strokeWidth, setStrokeWidth] = useState(5)
   const [currentFrame, setCurrentFrame] = useState(1)
   const [isPaused, setIsPaused] = useState(false)
-  const [pendingShapes, setPendingShapes] = useState<any[]>([])
-  const [frameAnnotations, setFrameAnnotations] = useState<any[]>([])
+  const [pendingShapes, setPendingShapes] = useState<AnnotationShape[]>([])
+  const [frameAnnotations, setFrameAnnotations] = useState<AnnotationShape[]>([])
   const [isSaving, setIsSaving] = useState(false)
-  const [annotationText, setAnnotationText] = useState('')
+  const [commentText, setCommentText] = useState('')
+  const [comments, setComments] = useState<PulseComment[]>([])
+  const [isLoadingComments, setIsLoadingComments] = useState(true)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  // Get signed URL
+  const fps = media.fps || 24
+
   useEffect(() => {
-    console.log('Fetching signed URL for:', media.storage_path)
-    const supabase = createClient()
-    supabase.storage
-      .from('post-media')
-      .createSignedUrl(media.storage_path, 3600)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Error getting signed URL:', error)
-        } else if (data?.signedUrl) {
-          console.log('Got signed URL:', data.signedUrl)
-          setVideoUrl(data.signedUrl)
-        } else {
-          console.error('No signed URL in response')
-        }
-      })
+    let cancelled = false
+
+    async function resolveVideoUrl() {
+      const supabase = createClient()
+      const { data, error } = await supabase.storage
+        .from('post-media')
+        .createSignedUrl(media.storage_path, 3600)
+
+      if (cancelled) return
+      if (error || !data?.signedUrl) {
+        setVideoUrl(null)
+        return
+      }
+      setVideoUrl(data.signedUrl)
+    }
+
+    void resolveVideoUrl()
+    return () => {
+      cancelled = true
+    }
   }, [media.storage_path])
 
-  // Load annotations for current frame
   const loadFrameAnnotations = useCallback(async (frame: number) => {
     const supabase = createClient()
     let query = supabase
@@ -76,49 +171,204 @@ export function VideoReviewModal({ media, versionId, postId, projectId, onClose 
       query = query.eq('post_media_id', media.id)
     }
 
-    const { data } = await query
-    setFrameAnnotations(data?.map(a => a.annotation_data) || [])
+    const { data, error } = await query
+    if (error) {
+      console.error('Failed to load frame annotations:', error)
+      setFrameAnnotations([])
+      return
+    }
+
+    setFrameAnnotations(
+      (data || []).map((row) => row.annotation_data as unknown as AnnotationShape)
+    )
   }, [media.id, versionId])
 
-  useEffect(() => {
-    loadFrameAnnotations(currentFrame)
-  }, [currentFrame, loadFrameAnnotations])
-
-  const handleFrameChange = (frame: number) => {
-    setCurrentFrame(frame)
-    setPendingShapes([])
-  }
-
-  const handleAnnotationCreated = (shape: any) => {
-    setPendingShapes(prev => [...prev, shape])
-  }
-
-  const handleSave = async () => {
-    // Allow saving if there are shapes OR annotation text
-    if (pendingShapes.length === 0 && !annotationText.trim()) return
-
-    setIsSaving(true)
+  const loadComments = useCallback(async () => {
+    setIsLoadingComments(true)
     try {
-      // Save annotations to database (only if there are shapes)
-      if (pendingShapes.length > 0) {
-        for (const shape of pendingShapes) {
-          await createAnnotation({
-            post_media_id: versionId ? undefined : media.id,
-            version_id: versionId,
-            frame_number: currentFrame,
-            annotation_data: shape,
-            annotation_text: annotationText || undefined,
+      const supabase = createClient()
+      let commentsQuery = supabase
+        .from('notes')
+        .select('id, content, created_at, author_id, attachments(id, file_name, file_type, storage_path)')
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (postId) {
+        commentsQuery = commentsQuery
+          .eq('entity_type', 'post')
+          .eq('entity_id', postId)
+      } else if (versionId) {
+        commentsQuery = commentsQuery
+          .eq('entity_type', 'version')
+          .eq('entity_id', versionId)
+      } else {
+        setComments([])
+        return
+      }
+
+      const { data: noteRows, error: noteError } = await commentsQuery
+      if (noteError) {
+        console.error('Failed to load video comments:', noteError)
+        setComments([])
+        return
+      }
+
+      const notes = (noteRows || []) as NoteRow[]
+      const noteIds = notes.map((note) => note.id)
+
+      let annotationQuery = supabase
+        .from('annotations')
+        .select('note_id, frame_number, timecode')
+        .in('note_id', noteIds)
+        .order('created_at', { ascending: false })
+
+      if (versionId) {
+        annotationQuery = annotationQuery.eq('version_id', versionId)
+      } else {
+        annotationQuery = annotationQuery.eq('post_media_id', media.id)
+      }
+
+      const { data: annotationRows, error: annotationError } = noteIds.length > 0
+        ? await annotationQuery
+        : { data: [], error: null }
+
+      if (annotationError) {
+        console.error('Failed to load annotation metadata for comments:', annotationError)
+      }
+
+      const frameMetaByNote = new Map<number, { frame_number: number | null; timecode: string | null }>()
+      for (const row of (annotationRows || []) as AnnotationMetaRow[]) {
+        if (!row.note_id || frameMetaByNote.has(row.note_id)) continue
+        frameMetaByNote.set(row.note_id, {
+          frame_number: row.frame_number,
+          timecode: row.timecode,
+        })
+      }
+
+      const authorIds = [
+        ...new Set(notes.map((note) => note.author_id).filter((value): value is string => Boolean(value))),
+      ]
+      const authorMap = new Map<string, string>()
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, full_name')
+          .in('id', authorIds)
+
+        for (const profile of profiles || []) {
+          authorMap.set(profile.id, profile.display_name || profile.full_name || 'Unknown')
+        }
+      }
+
+      const attachmentPaths = Array.from(
+        new Set(
+          notes.flatMap((note) =>
+            (note.attachments || [])
+              .map((attachment) => attachment.storage_path || '')
+              .filter(Boolean)
+          )
+        )
+      )
+      const signedUrlByPath = new Map<string, string>()
+      if (attachmentPaths.length > 0) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('note-attachments')
+          .createSignedUrls(attachmentPaths, 3600)
+
+        if (signedError) {
+          console.error('Failed to sign video comment attachments:', signedError)
+        } else {
+          signedData?.forEach((item, index) => {
+            if (item?.signedUrl) {
+              signedUrlByPath.set(attachmentPaths[index], item.signedUrl)
+            }
           })
         }
       }
 
-      // Create comment on post
-      if ((annotationText.trim() || pendingShapes.length > 0) && postId) {
-        const commentContent = annotationText.trim()
-          ? `[Frame ${currentFrame}] ${annotationText.trim()}`
-          : `[Frame ${currentFrame}] Annotation`
+      const normalizedComments: PulseComment[] = notes.map((note) => {
+        const meta = frameMetaByNote.get(note.id)
+        const attachments = (note.attachments || [])
+          .map((attachment) => {
+            const storagePath = attachment.storage_path || ''
+            const signedUrl = signedUrlByPath.get(storagePath) || ''
+            return {
+              id: String(attachment.id ?? ''),
+              file_name: attachment.file_name || 'Attachment',
+              file_type: attachment.file_type || '',
+              storage_path: storagePath,
+              signed_url: signedUrl,
+            }
+          })
+          .filter((attachment) => Boolean(attachment.storage_path && attachment.signed_url))
 
-        console.log('Creating comment on post:', postId, 'with content:', commentContent)
+        return {
+          id: note.id,
+          content: note.content || 'Annotation',
+          created_at: note.created_at,
+          author_name: note.author_id ? authorMap.get(note.author_id) || 'Unknown' : 'Unknown',
+          frame_number: meta?.frame_number ?? null,
+          timecode: meta?.timecode ?? null,
+          attachments,
+        }
+      })
+
+      setComments(normalizedComments)
+    } finally {
+      setIsLoadingComments(false)
+    }
+  }, [media.id, postId, versionId])
+
+  useEffect(() => {
+    void loadFrameAnnotations(currentFrame)
+  }, [currentFrame, loadFrameAnnotations])
+
+  useEffect(() => {
+    void loadComments()
+  }, [loadComments])
+
+  const handleFrameChange = useCallback((frame: number) => {
+    setCurrentFrame(frame)
+    setPendingShapes([])
+  }, [])
+
+  const handleSave = useCallback(async () => {
+    const hasShapes = pendingShapes.length > 0
+    const hasText = commentText.trim().length > 0
+
+    if (!hasShapes && !hasText) {
+      setSaveError('Add comment or mark an annotation first.')
+      return
+    }
+
+    setSaveError(null)
+    setIsSaving(true)
+
+    try {
+      const timecode = formatTimecode(currentFrame, fps)
+
+      if (hasShapes) {
+        for (const shape of pendingShapes) {
+          const annotationResult = await createAnnotation({
+            post_media_id: versionId ? undefined : media.id,
+            version_id: versionId,
+            frame_number: currentFrame,
+            timecode,
+            annotation_data: shape as unknown as Record<string, unknown>,
+            annotation_text: commentText.trim() || undefined,
+          })
+
+          if (annotationResult.error) {
+            throw new Error(annotationResult.error)
+          }
+        }
+      }
+
+      let noteId: number | null = null
+      if (postId) {
+        const commentContent = hasText
+          ? `[Frame ${currentFrame}] ${commentText.trim()}`
+          : `[Frame ${currentFrame}] Annotation`
 
         const commentResult = await createPostComment({
           post_id: postId,
@@ -126,175 +376,216 @@ export function VideoReviewModal({ media, versionId, postId, projectId, onClose 
           project_id: projectId,
         })
 
-        if (commentResult.error) {
-          console.error('Failed to create comment:', commentResult.error)
-        } else if (commentResult.data) {
-          console.log('✅ Comment created successfully:', commentResult.data.id)
+        if (commentResult.error || !commentResult.data?.id) {
+          throw new Error(commentResult.error || 'Failed to create comment')
+        }
+        noteId = Number(commentResult.data.id)
+      }
 
-          // Capture annotated frame as image if there are shapes
-          if (pendingShapes.length > 0 && videoRef.current && canvasRef.current) {
-            try {
-              console.log('🎬 Starting image capture for frame', currentFrame, 'with', pendingShapes.length, 'shapes')
-              const blob = await canvasRef.current.exportAnnotatedFrame(videoRef.current)
-              console.log('📸 Canvas export result:', blob ? `${blob.size} bytes` : 'null')
-
-              if (blob) {
-                const supabase = createClient()
-                const timestamp = Date.now()
-                const filename = `frame-${currentFrame}.png`
-                const filePath = `${commentResult.data.id}/${timestamp}_${filename}`
-
-                console.log('⬆️ Uploading directly to storage:', filePath)
-
-                // Upload directly from client to storage (bypasses 1MB server action limit)
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('note-attachments')
-                  .upload(filePath, blob, {
-                    cacheControl: '3600',
-                    upsert: false,
-                    contentType: 'image/png',
-                  })
-
-                if (uploadError) {
-                  console.error('❌ Failed to upload to storage:', uploadError)
-                } else {
-                  console.log('✅ Upload successful, creating attachment record')
-
-                  // Create attachment record with just the metadata (small payload)
-                  const attachmentResult = await uploadCommentAttachment({
-                    note_id: commentResult.data.id,
-                    storage_path: uploadData.path,
-                    file_name: filename,
-                    file_size: blob.size,
-                  })
-
-                  if (attachmentResult.error) {
-                    console.error('❌ Failed to create attachment record:', attachmentResult.error)
-                    // Clean up uploaded file
-                    await supabase.storage.from('note-attachments').remove([uploadData.path])
-                  } else {
-                    console.log('✅ Attachment record created:', attachmentResult.data)
-                  }
-                }
-              } else {
-                console.warn('⚠️ Blob is null - canvas export failed')
-              }
-            } catch (error) {
-              console.error('❌ Failed to capture/upload annotation image:', error)
-              // Continue - comment was created successfully
-            }
-          } else {
-            console.log('⏭️ Skipping image capture:', {
-              hasShapes: pendingShapes.length > 0,
-              hasVideoRef: !!videoRef.current,
-              hasCanvasRef: !!canvasRef.current
+      if (hasShapes && noteId && videoRef.current && canvasRef.current) {
+        const blob = await canvasRef.current.exportAnnotatedFrame(videoRef.current)
+        if (blob) {
+          const supabase = createClient()
+          const fileName = `frame-${currentFrame}.png`
+          const storagePath = `${noteId}/${Date.now()}_${fileName}`
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('note-attachments')
+            .upload(storagePath, blob, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: 'image/png',
             })
+
+          if (uploadError) {
+            console.error('Failed to upload annotation image:', uploadError)
+          } else if (uploadData?.path) {
+            const attachResult = await uploadCommentAttachment({
+              note_id: noteId,
+              storage_path: uploadData.path,
+              file_name: fileName,
+              file_size: blob.size,
+            })
+
+            if (attachResult.error) {
+              await supabase.storage.from('note-attachments').remove([uploadData.path])
+              throw new Error(attachResult.error)
+            }
           }
         }
       }
 
       setPendingShapes([])
-      setAnnotationText('')
-      loadFrameAnnotations(currentFrame)
+      setCommentText('')
+      setIsAnnotating(false)
+      await Promise.all([loadFrameAnnotations(currentFrame), loadComments()])
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save annotation')
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [
+    commentText,
+    currentFrame,
+    fps,
+    media.id,
+    pendingShapes,
+    postId,
+    projectId,
+    versionId,
+    loadComments,
+    loadFrameAnnotations,
+  ])
 
-  const handleClear = () => {
+  const handleUndo = useCallback(() => {
+    setPendingShapes((prev) => prev.slice(0, -1))
+  }, [])
+
+  const handleClear = useCallback(() => {
     setPendingShapes([])
-  }
+  }, [])
 
-  // Escape to close or exit fullscreen
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         if (isFullscreen) {
           setIsFullscreen(false)
         } else {
           onClose()
         }
       }
-      if (e.key === 'f' || e.key === 'F') {
-        setIsFullscreen(prev => !prev)
-      }
     }
+
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, isFullscreen])
+  }, [isFullscreen, onClose])
 
   if (!videoUrl) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
-        <div className="text-zinc-400">Loading video...</div>
+        <div className="text-muted-foreground">Loading video...</div>
       </div>
     )
   }
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/95">
-      {/* Main video area */}
-      <div className={`flex flex-col ${isFullscreen ? 'w-full' : 'flex-1'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-medium text-zinc-300">{media.file_name}</h3>
-            <button
-              onClick={() => setIsAnnotating(!isAnnotating)}
-              className={`
-                flex items-center gap-1.5 px-2 py-1 text-xs rounded transition
-                ${isAnnotating
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                  : 'text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-600'
-                }
-              `}
+      <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', isFullscreen ? 'w-full' : '')}>
+        <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <h3 className="truncate text-sm font-medium text-foreground">{media.file_name}</h3>
+            <Button
+              type="button"
+              size="sm"
+              variant={isAnnotating ? 'default' : 'outline'}
+              onClick={() => setIsAnnotating((prev) => !prev)}
+              className={
+                isAnnotating
+                  ? 'bg-primary text-primary-foreground hover:bg-primary'
+                  : 'border-border bg-background text-foreground hover:bg-accent'
+              }
             >
-              <Pencil className="h-3.5 w-3.5" />
-              {isAnnotating ? 'Drawing' : 'Annotate'}
-            </button>
+              <Pencil className="mr-1.5 h-4 w-4" />
+              {isAnnotating ? 'Marking Annotation' : 'Mark Annotation'}
+            </Button>
           </div>
           <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onClose()
-            }}
-            className="p-1 text-zinc-400 hover:text-white transition"
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Toolbar */}
-        {isAnnotating && !isFullscreen && (
-          <div className="flex items-center justify-center px-4 py-2 border-b border-zinc-800">
-            <AnnotationToolbar
-              activeTool={activeTool}
-              activeColor={activeColor}
-              strokeWidth={strokeWidth}
-              annotationText={annotationText}
-              onToolChange={setActiveTool}
-              onColorChange={setActiveColor}
-              onStrokeWidthChange={setStrokeWidth}
-              onAnnotationTextChange={setAnnotationText}
-              onClear={handleClear}
-              onSave={handleSave}
-              isSaving={isSaving}
-            />
-          </div>
-        )}
+        {isAnnotating && !isFullscreen ? (
+          <div className="border-b border-border bg-card px-4 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 rounded border border-border bg-background p-1">
+                {PULSE_ANNOTATION_TOOLS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setActiveTool(id)}
+                    title={label}
+                    className={cn(
+                      'rounded p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground',
+                      activeTool === id ? 'bg-primary text-primary-foreground hover:bg-primary' : ''
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
 
-        {/* Video + Canvas overlay */}
-        <div className="flex-1 relative flex items-center justify-center p-4">
-          <div className={`relative w-full aspect-video ${isFullscreen ? 'h-full' : 'max-w-[90vw] max-h-[calc(100vh-200px)]'}`}>
+              <div className="flex items-center gap-2 rounded border border-border bg-background px-2 py-1">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Thickness</span>
+                <select
+                  value={strokeWidth}
+                  onChange={(event) => setStrokeWidth(Number(event.target.value))}
+                  className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground outline-none"
+                >
+                  {PULSE_ANNOTATION_STROKES.map((value) => (
+                    <option key={value} value={value}>
+                      {value}px
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 rounded border border-border bg-background p-1">
+                {PULSE_ANNOTATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setActiveColor(color)}
+                    className={cn(
+                      'h-5 w-5 rounded border transition',
+                      activeColor === color
+                        ? 'scale-105 border-white'
+                        : 'border-border hover:border-foreground/40'
+                    )}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={pendingShapes.length === 0}
+                >
+                  <Undo2 className="mr-1.5 h-4 w-4" />
+                  Undo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClear}
+                  disabled={pendingShapes.length === 0}
+                >
+                  <Eraser className="mr-1.5 h-4 w-4" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="relative flex flex-1 min-h-0 items-end bg-black p-4">
+          <div className="relative mr-auto w-full max-w-full overflow-hidden rounded-md border border-border bg-black">
             <VideoPlayer
               ref={videoRef}
               url={videoUrl}
-              fps={media.fps || 24}
+              fps={fps}
               onFrameChange={handleFrameChange}
               onPause={() => setIsPaused(true)}
               onPlay={() => setIsPaused(false)}
-              onFullscreen={() => setIsFullscreen(prev => !prev)}
+              onFullscreen={() => setIsFullscreen((prev) => !prev)}
             />
             <AnnotationCanvas
               ref={canvasRef}
@@ -305,37 +596,106 @@ export function VideoReviewModal({ media, versionId, postId, projectId, onClose 
               activeColor={activeColor}
               strokeWidth={strokeWidth}
               existingAnnotations={[...frameAnnotations, ...pendingShapes]}
-              onAnnotationCreated={handleAnnotationCreated}
+              onAnnotationCreated={(shape) => setPendingShapes((prev) => [...prev, shape])}
             />
           </div>
         </div>
-
-        {/* Annotation text input */}
-        {isAnnotating && pendingShapes.length > 0 && !isFullscreen && (
-          <div className="px-4 py-2 border-t border-zinc-800">
-            <input
-              type="text"
-              value={annotationText}
-              onChange={(e) => setAnnotationText(e.target.value)}
-              placeholder="Add a note about this annotation..."
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none"
-            />
-          </div>
-        )}
       </div>
 
-      {/* Sidebar: annotation list */}
-      {!isFullscreen && (
-        <div className="w-72 border-l border-zinc-800 bg-zinc-900">
-          <AnnotationList
-            postMediaId={versionId ? undefined : media.id}
-            versionId={versionId}
-            currentFrame={currentFrame}
-            onFrameClick={(frame) => handleFrameChange(frame)}
-            onAnnotationsChange={() => loadFrameAnnotations(currentFrame)}
-          />
+      {!isFullscreen ? (
+        <div className="flex w-[360px] min-w-[320px] flex-col border-l border-border bg-card">
+          <div className="border-b border-border px-3 py-2">
+            <h3 className="text-sm font-semibold text-foreground">Comments</h3>
+            <p className="text-xs text-muted-foreground">
+              Saved comments create Notes automatically.
+            </p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {isAnnotating
+                ? `${formatTimecode(currentFrame, fps)} • Frame ${currentFrame}`
+                : 'Click Mark Annotation to draw on current frame.'}
+            </p>
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-y-auto p-3">
+            {isLoadingComments ? (
+              <p className="text-xs text-muted-foreground">Loading comments...</p>
+            ) : comments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No comments yet.</p>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="rounded-md border border-border bg-background/70 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-foreground">{comment.author_name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatRelativeTime(comment.created_at)}
+                    </span>
+                  </div>
+                  {(comment.timecode || comment.frame_number) ? (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {comment.timecode || 'No timecode'}
+                      {comment.frame_number ? ` • Frame ${comment.frame_number}` : ''}
+                    </div>
+                  ) : null}
+                  <p className="mt-1 text-sm text-foreground/90">{comment.content}</p>
+                  {comment.attachments.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {comment.attachments.map((attachment) => (
+                        <div key={attachment.id}>
+                          {isImageAttachment(attachment.file_type, attachment.file_name) ? (
+                            <img
+                              src={attachment.signed_url}
+                              alt={attachment.file_name}
+                              className="max-h-40 w-auto rounded border border-border object-contain"
+                            />
+                          ) : (
+                            <a
+                              href={attachment.signed_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary hover:underline"
+                            >
+                              {attachment.file_name}
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-2 border-t border-border p-3">
+            {saveError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                {saveError}
+              </div>
+            ) : null}
+            <Textarea
+              placeholder="Submit a new note or annotation..."
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              className="min-h-[96px]"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {isAnnotating
+                  ? `${formatTimecode(currentFrame, fps)} • Frame ${currentFrame}`
+                  : 'Add comment and save'}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving || (!commentText.trim() && pendingShapes.length === 0)}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

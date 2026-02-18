@@ -141,7 +141,7 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
     filters.userIds.length
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 mb-6">
+    <div className="bg-background border border-border rounded-lg p-3 mb-6">
       {/* Top Row: Scope Toggle + Filter Button */}
       <div className="flex items-center justify-between gap-3 mb-3">
         {/* Scope Toggle */}
@@ -152,8 +152,8 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
               px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5
               ${
                 filters.scope === 'global'
-                  ? 'bg-amber-500 text-zinc-900'
-                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-300 border border-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground/70 border border-border'
               }
             `}
           >
@@ -169,15 +169,15 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
               px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5
               ${
                 filters.scope === 'filtered'
-                  ? 'bg-amber-500 text-zinc-900'
-                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-300 border border-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground/70 border border-border'
               }
             `}
           >
             <Filter className="h-3.5 w-3.5" />
             Filtered
             {totalFilterCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded bg-zinc-950/50 text-[10px]">
+              <span className="ml-1 px-1.5 py-0.5 rounded bg-background/50 text-[10px]">
                 {totalFilterCount}
               </span>
             )}
@@ -191,7 +191,7 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="text-xs h-7 text-amber-400 hover:text-amber-300"
+              className="text-xs h-7 text-primary hover:text-primary/80"
             >
               <X className="h-3 w-3 mr-1" />
               Clear
@@ -212,7 +212,7 @@ export function PulseFilterBarCompact({ onFilterChange }: PulseFilterBarCompactP
 
       {/* Filter Row: Horizontal layout with search comboboxes */}
       {showFilters && filters.scope === 'filtered' && (
-        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-zinc-800">
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
           <EntitySearchCombobox
             label="Projects"
             placeholder="Search projects..."

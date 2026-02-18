@@ -54,12 +54,12 @@ export function DebugPostData() {
     })
   }
 
-  if (!postData) return <div className="p-4 text-zinc-500">Loading...</div>
+  if (!postData) return <div className="p-4 text-muted-foreground">Loading...</div>
 
   return (
-    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg mb-4">
-      <h3 className="text-sm font-semibold mb-2 text-zinc-300">🔍 Latest Post Debug Data</h3>
-      <pre className="text-xs text-zinc-400 overflow-auto max-h-96 whitespace-pre-wrap">
+    <div className="p-4 bg-card border border-border rounded-lg mb-4">
+      <h3 className="text-sm font-semibold mb-2 text-foreground/70">🔍 Latest Post Debug Data</h3>
+      <pre className="text-xs text-muted-foreground overflow-auto max-h-96 whitespace-pre-wrap">
         {JSON.stringify(postData, null, 2)}
       </pre>
     </div>

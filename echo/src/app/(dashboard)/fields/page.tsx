@@ -516,7 +516,7 @@ export default function FieldsPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading fields...</p>
+        <p className="text-muted-foreground">Loading fields...</p>
       </div>
     )
   }
@@ -567,12 +567,12 @@ export default function FieldsPage() {
       />
 
       <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
+        <div className="border-b border-border bg-background px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-zinc-400" />
-              <h2 className="text-lg font-semibold text-zinc-100">Fields</h2>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+              <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Fields</h2>
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
                 {fieldRows.length}
               </span>
             </div>
@@ -581,20 +581,20 @@ export default function FieldsPage() {
               <button
                 onClick={handleSyncExistingColumns}
                 disabled={isSyncing}
-                className="flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 Sync Existing Columns
               </button>
               <button
                 onClick={() => setShowCreateChoiceSetDialog(true)}
-                className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+                className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
               >
                 Add List
               </button>
               <button
                 onClick={() => setShowCreateDialog(true)}
-                className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
               >
                 <Plus className="h-4 w-4" />
                 Add Field
@@ -613,14 +613,14 @@ export default function FieldsPage() {
           {fieldRows.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
-                <FileSpreadsheet className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">No fields yet</h3>
-                <p className="mb-4 text-sm text-zinc-400">
+                <FileSpreadsheet className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">No fields yet</h3>
+                <p className="mb-4 text-sm text-muted-foreground">
                   Create your first custom field and attach it to one or more entities.
                 </p>
                 <button
                   onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
                 >
                   Create First Field
                 </button>
@@ -695,49 +695,49 @@ function CreateChoiceSetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Create List</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogTitle className="text-foreground">Create List</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Define reusable list choices for list/status fields.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 overflow-y-auto">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">List Name</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">List Name</label>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               placeholder="Task Type"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Description</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Description</label>
             <input
               type="text"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               placeholder="Optional"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">
               List Choices
             </label>
             <textarea
               rows={8}
               value={itemsText}
               onChange={(event) => setItemsText(event.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               placeholder={'In Progress\nDone\nBlocked|Blocked by Dependency'}
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               One option per line. Use `value|Label` for custom labels.
             </p>
           </div>
@@ -747,14 +747,14 @@ function CreateChoiceSetDialog({
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !name.trim()}
-              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
             >
               {isSaving ? 'Creating...' : 'Create List'}
             </button>
@@ -893,10 +893,10 @@ function CreateFieldDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Create Field</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogTitle className="text-foreground">Create Field</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Add a new field and attach it to one or more entities.
           </DialogDescription>
         </DialogHeader>
@@ -904,7 +904,7 @@ function CreateFieldDialog({
         <div className="space-y-4 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Field Name</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Field Name</label>
               <input
                 type="text"
                 value={name}
@@ -915,12 +915,12 @@ function CreateFieldDialog({
                     setCode(slugifyFieldCode(next))
                   }
                 }}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                 placeholder="Task Template"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Field Code</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Field Code</label>
               <input
                 type="text"
                 value={code}
@@ -928,7 +928,7 @@ function CreateFieldDialog({
                   setCodeTouched(true)
                   setCode(event.target.value.toLowerCase())
                 }}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                 placeholder="task_template"
               />
             </div>
@@ -936,11 +936,11 @@ function CreateFieldDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Data Type</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Data Type</label>
               <select
                 value={dataType}
                 onChange={(event) => setDataType(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 {DATA_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -948,18 +948,18 @@ function CreateFieldDialog({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 DB type mapping: checkbox to boolean, list/status list to text, multi-entity to text[].
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Field Type (metadata)
               </label>
               <select
                 value={fieldType}
                 onChange={(event) => setFieldType(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 {FIELD_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -971,60 +971,60 @@ function CreateFieldDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Description</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               placeholder="Optional field description"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <label className="flex items-center gap-2 text-sm text-zinc-200">
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={required}
                 onChange={(event) => setRequired(event.target.checked)}
-                className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                className="h-4 w-4 rounded border border-border bg-card"
               />
               Required by default
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-200">
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={visibleByDefault}
                 onChange={(event) => setVisibleByDefault(event.target.checked)}
-                className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                className="h-4 w-4 rounded border border-border bg-card"
               />
               Visible by default
             </label>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Display Order</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Display Order</label>
               <input
                 type="number"
                 value={displayOrder}
                 onChange={(event) => setDisplayOrder(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-foreground/70">
               Restrict to Entity Type(s)
             </label>
-            <div className="grid grid-cols-2 gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-card/40 p-3">
               {ENTITY_OPTIONS.map((entity) => (
-                <label key={entity.value} className="flex items-center gap-2 text-sm text-zinc-200">
+                <label key={entity.value} className="flex items-center gap-2 text-sm text-foreground/80">
                   <input
                     type="checkbox"
                     checked={selectedEntities.has(entity.value)}
                     onChange={() =>
                       toggleEntity(setSelectedEntities, selectedEntities, entity.value)
                     }
-                    className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                    className="h-4 w-4 rounded border border-border bg-card"
                   />
                   {entity.label}
                 </label>
@@ -1034,12 +1034,12 @@ function CreateFieldDialog({
 
           {isLinkType ? (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">
+              <label className="mb-2 block text-sm font-medium text-foreground/70">
                 Link Target Entity Type(s)
               </label>
-              <div className="grid grid-cols-2 gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-card/40 p-3">
                 {ENTITY_OPTIONS.map((entity) => (
-                  <label key={entity.value} className="flex items-center gap-2 text-sm text-zinc-200">
+                  <label key={entity.value} className="flex items-center gap-2 text-sm text-foreground/80">
                     <input
                       type="checkbox"
                       checked={linkTargetEntities.has(entity.value)}
@@ -1050,7 +1050,7 @@ function CreateFieldDialog({
                           entity.value
                         )
                       }
-                      className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                      className="h-4 w-4 rounded border border-border bg-card"
                     />
                     {entity.label}
                   </label>
@@ -1060,15 +1060,15 @@ function CreateFieldDialog({
           ) : null}
 
           {isChoiceType ? (
-            <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="space-y-3 rounded-md border border-border bg-card/40 p-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
+                <label className="mb-1 block text-sm font-medium text-foreground/70">
                   Existing List
                 </label>
                 <select
                   value={choiceSetId}
                   onChange={(event) => setChoiceSetId(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                  className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
                 >
                   <option value="">None</option>
                   {choiceSets
@@ -1081,8 +1081,8 @@ function CreateFieldDialog({
                 </select>
               </div>
 
-              <div className="border-t border-zinc-800 pt-3">
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <div className="border-t border-border pt-3">
+                <label className="mb-1 block text-sm font-medium text-foreground/70">
                   Or create a new list
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -1090,14 +1090,14 @@ function CreateFieldDialog({
                     type="text"
                     value={newChoiceSetName}
                     onChange={(event) => setNewChoiceSetName(event.target.value)}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                    className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                     placeholder="List name"
                   />
                   <input
                     type="text"
                     value={newChoiceSetDescription}
                     onChange={(event) => setNewChoiceSetDescription(event.target.value)}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                    className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                     placeholder="Description (optional)"
                   />
                 </div>
@@ -1105,7 +1105,7 @@ function CreateFieldDialog({
                   rows={5}
                   value={newChoiceSetItems}
                   onChange={(event) => setNewChoiceSetItems(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                  className="mt-2 w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                   placeholder={'In Progress\nDone\nBlocked|Blocked by Dependency'}
                 />
               </div>
@@ -1117,14 +1117,14 @@ function CreateFieldDialog({
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
             >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={isSaving}
-              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
             >
               {isSaving ? 'Creating...' : 'Create Field'}
             </button>
@@ -1268,10 +1268,10 @@ function EditFieldDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Edit Field</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogTitle className="text-foreground">Edit Field</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Update field metadata and attach it to additional entities.
           </DialogDescription>
         </DialogHeader>
@@ -1280,32 +1280,32 @@ function EditFieldDialog({
           <div className="space-y-4 overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">Field Name</label>
+                <label className="mb-1 block text-sm font-medium text-foreground/70">Field Name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                  className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">Field Code</label>
+                <label className="mb-1 block text-sm font-medium text-foreground/70">Field Code</label>
                 <input
                   type="text"
                   value={field.code}
                   readOnly
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-500"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">Data Type</label>
+                <label className="mb-1 block text-sm font-medium text-foreground/70">Data Type</label>
                 <select
                   value={dataType}
                   onChange={(event) => setDataType(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                  className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
                 >
                   {DATA_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1313,18 +1313,18 @@ function EditFieldDialog({
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   DB type mapping: checkbox to boolean, list/status list to text, multi-entity to text[].
                 </p>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
+                <label className="mb-1 block text-sm font-medium text-foreground/70">
                   Field Type (metadata)
                 </label>
                 <select
                   value={fieldType}
                   onChange={(event) => setFieldType(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                  className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
                 >
                   {FIELD_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1336,22 +1336,22 @@ function EditFieldDialog({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Description</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Description</label>
               <textarea
                 rows={3}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
 
             {isChoiceType ? (
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">List Name</label>
+                <label className="mb-1 block text-sm font-medium text-foreground/70">List Name</label>
                 <select
                   value={choiceSetId}
                   onChange={(event) => setChoiceSetId(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                  className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
                 >
                   <option value="">None</option>
                   {choiceSets
@@ -1366,57 +1366,57 @@ function EditFieldDialog({
             ) : null}
 
             <div className="grid grid-cols-3 gap-3">
-              <label className="flex items-center gap-2 text-sm text-zinc-200">
+              <label className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={isActive}
                   onChange={(event) => setIsActive(event.target.checked)}
-                  className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                  className="h-4 w-4 rounded border border-border bg-card"
                 />
                 Active
               </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-200">
+              <label className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={required}
                   onChange={(event) => setRequired(event.target.checked)}
-                  className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                  className="h-4 w-4 rounded border border-border bg-card"
                 />
                 Required (for new links)
               </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-200">
+              <label className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={visibleByDefault}
                   onChange={(event) => setVisibleByDefault(event.target.checked)}
-                  className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                  className="h-4 w-4 rounded border border-border bg-card"
                 />
                 Visible (for new links)
               </label>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Display Order (for new links)
               </label>
               <input
                 type="number"
                 value={displayOrder}
                 onChange={(event) => setDisplayOrder(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">
+              <label className="mb-2 block text-sm font-medium text-foreground/70">
                 Entity Type(s)
               </label>
-              <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="space-y-3 rounded-md border border-border bg-card/40 p-3">
                 <div className="flex items-center gap-2">
                   <select
                     value={entityToAdd}
                     onChange={(event) => setEntityToAdd(event.target.value)}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                    className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
                   >
                     <option value="">Select entity type</option>
                     {ENTITY_OPTIONS.map((entity) => (
@@ -1433,7 +1433,7 @@ function EditFieldDialog({
                     type="button"
                     onClick={addEntityFromDropdown}
                     disabled={!entityToAdd || selectedEntities.has(entityToAdd)}
-                    className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600 disabled:opacity-50"
+                    className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -1456,8 +1456,8 @@ function EditFieldDialog({
                           disabled={isOriginal}
                           className={`rounded-full border px-3 py-1 text-xs ${
                             isOriginal
-                              ? 'border-zinc-700 bg-zinc-800 text-zinc-200'
-                              : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:border-amber-400'
+                              ? 'border-border bg-accent text-foreground/80'
+                              : 'border-primary/40 bg-primary/10 text-primary hover:border-primary'
                           } disabled:cursor-not-allowed disabled:opacity-70`}
                         >
                           {label}
@@ -1466,11 +1466,11 @@ function EditFieldDialog({
                       )
                     })}
                   {selectedEntities.size === 0 ? (
-                    <span className="text-xs text-zinc-500">No entity types selected</span>
+                    <span className="text-xs text-muted-foreground">No entity types selected</span>
                   ) : null}
                 </div>
               </div>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Existing entity links cannot be removed in v1. Add new entity types from the dropdown.
               </p>
             </div>
@@ -1480,14 +1480,14 @@ function EditFieldDialog({
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => onOpenChange(false)}
-                className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+                className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
               >
                 {isSaving ? 'Saving...' : 'Save Field'}
               </button>

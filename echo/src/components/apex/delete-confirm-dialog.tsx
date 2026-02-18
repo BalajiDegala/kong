@@ -81,12 +81,12 @@ export function DeleteConfirmDialog({
             </div>
           )}
 
-          <div className="rounded-md bg-zinc-900 p-4">
-            <p className="text-sm text-zinc-400">You are about to delete:</p>
-            <p className="mt-1 font-semibold text-zinc-100">{itemName}</p>
+          <div className="rounded-md bg-card p-4">
+            <p className="text-sm text-muted-foreground">You are about to delete:</p>
+            <p className="mt-1 font-semibold text-foreground">{itemName}</p>
           </div>
 
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-4 text-sm text-muted-foreground">
             This action cannot be undone.
           </p>
         </div>

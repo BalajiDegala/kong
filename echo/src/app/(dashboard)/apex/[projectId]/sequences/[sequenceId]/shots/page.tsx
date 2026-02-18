@@ -248,16 +248,16 @@ export default function SequenceShotsPage({
 
       <div className="p-6">
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
+          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             Loading shots...
           </div>
         ) : shots.length === 0 ? (
-          <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-            <h3 className="text-sm font-semibold text-zinc-100">Shots</h3>
-            <p className="mt-2 text-sm text-zinc-400">No shots linked to this sequence yet.</p>
+          <div className="rounded-md border border-border bg-background/70 p-6">
+            <h3 className="text-sm font-semibold text-foreground">Shots</h3>
+            <p className="mt-2 text-sm text-muted-foreground">No shots linked to this sequence yet.</p>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="mt-4 rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               Add Shot
             </button>

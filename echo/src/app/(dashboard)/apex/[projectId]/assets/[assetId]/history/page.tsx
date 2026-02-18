@@ -19,7 +19,7 @@ export default async function AssetHistoryPage({
 
   return (
     <div className="p-6">
-      <h3 className="mb-4 text-sm font-semibold text-zinc-100">History</h3>
+      <h3 className="mb-4 text-sm font-semibold text-foreground">History</h3>
       <HistoryTable events={events} />
     </div>
   )

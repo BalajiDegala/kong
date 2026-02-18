@@ -1649,7 +1649,7 @@ export default function MyTasksPage() {
   function renderRightPaneContent() {
     if (!selectedTask) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
           Select a task from the left list to view details.
         </div>
       )
@@ -1675,7 +1675,7 @@ export default function MyTasksPage() {
       }
 
       return (
-        <div className="p-3">
+        <div className="h-full p-3">
           <EntityTable
             columns={columns}
             data={rightPaneTasks}
@@ -1702,7 +1702,7 @@ export default function MyTasksPage() {
       }
 
       return (
-        <div className="p-6 text-sm text-zinc-500">
+        <div className="flex h-full items-center p-6 text-sm text-muted-foreground">
           Notes are not available for this entity type.
         </div>
       )
@@ -1710,12 +1710,12 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'info') {
       return (
-        <div className="p-6">
+        <div className="h-full overflow-y-auto p-6">
           <div className="grid gap-3 sm:grid-cols-2">
             {infoRows.map((row) => (
-              <div key={row.label} className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">{row.label}</p>
-                <p className="mt-1 text-sm text-zinc-200">{row.value}</p>
+              <div key={row.label} className="rounded-md border border-border bg-background/70 p-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{row.label}</p>
+                <p className="mt-1 text-sm text-foreground/80">{row.value}</p>
               </div>
             ))}
           </div>
@@ -1725,7 +1725,7 @@ export default function MyTasksPage() {
 
     if (detailLoading) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
           Loading {activeDetailTab}...
         </div>
       )
@@ -1733,7 +1733,7 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'activity') {
       return (
-        <div className="p-6">
+        <div className="h-full overflow-y-auto p-6">
           <ActivityFeed events={activityRows} />
         </div>
       )
@@ -1741,7 +1741,7 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'history') {
       return (
-        <div className="p-6">
+        <div className="h-full overflow-y-auto p-6">
           <HistoryTable events={historyRows} />
         </div>
       )
@@ -1749,7 +1749,7 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'versions') {
       return (
-        <div className="p-3">
+        <div className="h-full p-3">
           <EntityTable
             columns={versionColumns}
             data={versionRows}
@@ -1763,7 +1763,7 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'publishes') {
       return (
-        <div className="p-3">
+        <div className="h-full p-3">
           <EntityTable
             columns={publishColumns}
             data={publishRows}
@@ -1777,7 +1777,7 @@ export default function MyTasksPage() {
 
     if (activeDetailTab === 'assets') {
       return (
-        <div className="p-3">
+        <div className="h-full p-3">
           <EntityTable
             columns={assetColumns}
             data={assetRows}
@@ -1795,7 +1795,7 @@ export default function MyTasksPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading My Tasks...</p>
+        <p className="text-muted-foreground">Loading My Tasks...</p>
       </div>
     )
   }
@@ -1808,7 +1808,7 @@ export default function MyTasksPage() {
         </div>
       ) : null}
       {savedFiltersError ? (
-        <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="mb-4 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
           {savedFiltersError}
         </div>
       ) : null}
@@ -1820,13 +1820,13 @@ export default function MyTasksPage() {
           description="Tasks assigned to you across projects will appear here."
         />
       ) : (
-        <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="mb-3 shrink-0 flex flex-wrap items-center justify-between gap-2">
             <div className="relative flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setSortMenuOpen((previous) => !previous)}
-                className="inline-flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-200 transition hover:border-zinc-500"
+                className="inline-flex items-center gap-1 rounded border border-border bg-card px-2.5 py-1.5 text-sm text-foreground/80 transition hover:border-border"
               >
                 Sort
                 <ChevronDown className="h-3.5 w-3.5" />
@@ -1840,8 +1840,8 @@ export default function MyTasksPage() {
                     onClick={() => setSortMenuOpen(false)}
                     aria-label="Close sort menu"
                   />
-                  <div className="absolute left-0 top-full z-40 mt-2 w-64 rounded-md border border-zinc-800 bg-zinc-950 p-2 shadow-2xl">
-                    <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  <div className="absolute left-0 top-full z-40 mt-2 w-64 rounded-md border border-border bg-background p-2 shadow-2xl">
+                    <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Sort
                     </p>
                     <div className="space-y-0.5">
@@ -1857,15 +1857,15 @@ export default function MyTasksPage() {
                               setActiveSavedFilterId(null)
                               setActivePresetId(null)
                             }}
-                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-zinc-900"
+                            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-foreground/80 hover:bg-card"
                           >
                             <span>{option.label}</span>
-                            {selected ? <Check className="h-3.5 w-3.5 text-amber-300" /> : null}
+                            {selected ? <Check className="h-3.5 w-3.5 text-primary/80" /> : null}
                           </button>
                         )
                       })}
                     </div>
-                    <div className="my-2 border-t border-zinc-800" />
+                    <div className="my-2 border-t border-border" />
                     <div className="space-y-0.5">
                       <button
                         type="button"
@@ -1875,10 +1875,10 @@ export default function MyTasksPage() {
                           setActiveSavedFilterId(null)
                           setActivePresetId(null)
                         }}
-                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-zinc-900"
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-foreground/80 hover:bg-card"
                       >
                         <span>Ascending</span>
-                        {sortDirection === 'asc' ? <Check className="h-3.5 w-3.5 text-amber-300" /> : null}
+                        {sortDirection === 'asc' ? <Check className="h-3.5 w-3.5 text-primary/80" /> : null}
                       </button>
                       <button
                         type="button"
@@ -1888,10 +1888,10 @@ export default function MyTasksPage() {
                           setActiveSavedFilterId(null)
                           setActivePresetId(null)
                         }}
-                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-zinc-900"
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-foreground/80 hover:bg-card"
                       >
                         <span>Descending</span>
-                        {sortDirection === 'desc' ? <Check className="h-3.5 w-3.5 text-amber-300" /> : null}
+                        {sortDirection === 'desc' ? <Check className="h-3.5 w-3.5 text-primary/80" /> : null}
                       </button>
                     </div>
                   </div>
@@ -1904,8 +1904,8 @@ export default function MyTasksPage() {
                   onClick={() => setFiltersOpen((previous) => !previous)}
                   className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-sm transition ${
                     filtersOpen
-                      ? 'border-amber-500 bg-amber-500/15 text-amber-200'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500'
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border bg-card text-foreground/80 hover:border-border'
                   }`}
                 >
                   <Filter className="h-3.5 w-3.5" />
@@ -1931,11 +1931,11 @@ export default function MyTasksPage() {
                 />
               </div>
 
-              <p className="hidden text-xs text-zinc-500 sm:block">{sortFieldLabel}</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">{sortFieldLabel}</p>
             </div>
 
             <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={searchQuery}
                 onChange={(event) => {
@@ -1944,7 +1944,7 @@ export default function MyTasksPage() {
                   setActivePresetId(null)
                 }}
                 placeholder="Search My Tasks..."
-                className="w-full rounded border border-zinc-700 bg-zinc-900 py-1.5 pl-8 pr-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded border border-border bg-card py-1.5 pl-8 pr-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
@@ -1956,8 +1956,8 @@ export default function MyTasksPage() {
               description="Try changing filters or search."
             />
           ) : (
-            <div className="grid min-h-[72vh] grid-cols-1 gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
-              <div className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+              <div className="h-full overflow-hidden rounded-md border border-border bg-background/70">
                 <MyTasksLeftQueue
                   tasks={visibleTasks}
                   selectedTaskId={selectedTask?.id || null}
@@ -1965,20 +1965,20 @@ export default function MyTasksPage() {
                 />
               </div>
 
-              <div className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border bg-background/70">
                 <MyTasksRightContext
                   task={selectedTask}
                   tabs={DETAIL_TABS}
                   activeTab={activeDetailTab}
                   onTabChange={(tabId) => setActiveDetailTab(tabId as MyTasksDetailTab)}
                 />
-                <div className="h-[calc(72vh-9.5rem)] overflow-y-auto">
+                <div className="min-h-0 flex-1">
                   {renderRightPaneContent()}
                 </div>
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </ApexPageShell>
   )

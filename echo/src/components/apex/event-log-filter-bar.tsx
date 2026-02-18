@@ -44,10 +44,10 @@ export function EventLogFilterBar({
   return (
     <div className="flex items-center gap-3">
       <Select value={entityType} onValueChange={onEntityTypeChange}>
-        <SelectTrigger className="w-[180px] border-zinc-700 bg-zinc-900 text-zinc-200">
+        <SelectTrigger className="w-[180px] border-border bg-card text-foreground/80">
           <SelectValue placeholder="All Entities" />
         </SelectTrigger>
-        <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        <SelectContent className="border-border bg-card text-foreground/80">
           {entityTypes.map((et) => (
             <SelectItem key={et.value} value={et.value || '_all'}>
               {et.label}
@@ -57,10 +57,10 @@ export function EventLogFilterBar({
       </Select>
 
       <Select value={eventType} onValueChange={onEventTypeChange}>
-        <SelectTrigger className="w-[180px] border-zinc-700 bg-zinc-900 text-zinc-200">
+        <SelectTrigger className="w-[180px] border-border bg-card text-foreground/80">
           <SelectValue placeholder="All Events" />
         </SelectTrigger>
-        <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        <SelectContent className="border-border bg-card text-foreground/80">
           {eventTypes.map((et) => (
             <SelectItem key={et.value} value={et.value || '_all'}>
               {et.label}

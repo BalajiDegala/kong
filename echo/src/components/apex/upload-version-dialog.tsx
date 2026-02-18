@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Paperclip, Upload, X } from 'lucide-react'
-import { createVersion, uploadVersionFile } from '@/actions/versions'
+import { createVersion } from '@/actions/versions'
 import { createClient } from '@/lib/supabase/client'
 import { listStatusNames } from '@/lib/status/options'
 import { listTagNames } from '@/lib/tags/options'
@@ -42,6 +42,25 @@ type MultiSelectOption = {
   label: string
 }
 
+type EntityOption = {
+  id: number
+  name: string
+  code?: string | null
+}
+
+type TaskOption = {
+  id: number
+  name: string
+  entity_type: string | null
+  entity_id: number | null
+}
+
+type UserOption = {
+  id: string
+  full_name: string | null
+  email: string | null
+}
+
 const ENTITY_TYPES = [
   { value: 'asset', label: 'Asset' },
   { value: 'shot', label: 'Shot' },
@@ -49,12 +68,14 @@ const ENTITY_TYPES = [
 ]
 
 const STATUS_FALLBACK_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
+const ALLOWED_MOVIE_MIME_TYPES = new Set(['video/mp4', 'video/quicktime'])
+const ALLOWED_MOVIE_EXTENSIONS = new Set(['mp4', 'mov'])
 
-const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
+const labelClass = 'pt-2 text-sm font-semibold text-foreground/80'
 const inputClass =
-  'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
+  'border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-sky-500 focus:ring-sky-500/30'
 const selectClass =
-  'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+  'w-full border-border bg-card text-foreground focus:border-sky-500 focus:ring-sky-500/30'
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(
@@ -97,6 +118,31 @@ async function optimizeThumbnailDataUrl(file: File) {
   return canvas.toDataURL('image/jpeg', 0.84)
 }
 
+async function uploadVersionFileFromClient(file: File, projectId: string) {
+  const supabase = createClient()
+  const timestamp = Date.now()
+  const sanitizedFileName = file.name.replace(/\s+/g, '_')
+  const filePath = `${projectId}/${timestamp}_${sanitizedFileName}`
+
+  const { data, error } = await supabase.storage
+    .from('versions')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return {
+    data: {
+      path: data.path,
+      fullPath: data.fullPath,
+    },
+  }
+}
+
 function MultiSelectDropdown({
   id,
   values,
@@ -121,20 +167,20 @@ function MultiSelectDropdown({
           disabled={disabled}
           className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
             disabled
-              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
-              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+              ? 'cursor-not-allowed border-border bg-card/50 text-muted-foreground'
+              : 'border-border bg-card text-foreground hover:border-border'
           }`}
         >
           <span className="truncate text-left">{values.length > 0 ? values.join(', ') : placeholder}</span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-border bg-card text-foreground"
       >
         {options.length === 0 ? (
-          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+          <p className="px-2 py-1.5 text-xs text-muted-foreground">No options available</p>
         ) : (
           options.map((option) => (
             <DropdownMenuCheckboxItem
@@ -150,7 +196,7 @@ function MultiSelectDropdown({
                 }
                 onChange(values.filter((item) => item !== option.value))
               }}
-              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+              className="text-foreground focus:bg-accent focus:text-foreground"
             >
               {option.label}
             </DropdownMenuCheckboxItem>
@@ -177,17 +223,17 @@ export function UploadVersionDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [projectLabel, setProjectLabel] = useState(projectId)
   const [showMoreFields, setShowMoreFields] = useState(false)
-  const [extraFields, setExtraFields] = useState<Record<string, any>>({})
+  const [extraFields, setExtraFields] = useState<Record<string, unknown>>({})
   const [statusNames, setStatusNames] = useState<string[]>([])
   const [tagNames, setTagNames] = useState<string[]>([])
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
   const [thumbnailFileName, setThumbnailFileName] = useState('')
 
-  const [assets, setAssets] = useState<any[]>([])
-  const [shots, setShots] = useState<any[]>([])
-  const [sequences, setSequences] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
+  const [assets, setAssets] = useState<EntityOption[]>([])
+  const [shots, setShots] = useState<EntityOption[]>([])
+  const [sequences, setSequences] = useState<EntityOption[]>([])
+  const [tasks, setTasks] = useState<TaskOption[]>([])
+  const [users, setUsers] = useState<UserOption[]>([])
 
   const [formData, setFormData] = useState({
     code: '',
@@ -321,6 +367,18 @@ export function UploadVersionDialog({
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return
+
+    const extension = file.name.split('.').pop()?.toLowerCase() || ''
+    const mimeAllowed = ALLOWED_MOVIE_MIME_TYPES.has(file.type.toLowerCase())
+    const extensionAllowed = ALLOWED_MOVIE_EXTENSIONS.has(extension)
+
+    if (!mimeAllowed && !extensionAllowed) {
+      setSelectedFile(null)
+      setError('Only MP4 and MOV files are supported for version uploads')
+      return
+    }
+
+    setError(null)
     setSelectedFile(file)
     if (!formData.code) {
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, '')
@@ -355,9 +413,19 @@ export function UploadVersionDialog({
     setUploadProgress(0)
 
     if (!selectedFile) {
-      setError('Please upload a movie file')
+      setError('Please upload an MP4 or MOV file')
       setIsLoading(false)
       return
+    }
+    {
+      const extension = selectedFile.name.split('.').pop()?.toLowerCase() || ''
+      const mimeAllowed = ALLOWED_MOVIE_MIME_TYPES.has(selectedFile.type.toLowerCase())
+      const extensionAllowed = ALLOWED_MOVIE_EXTENSIONS.has(extension)
+      if (!mimeAllowed && !extensionAllowed) {
+        setError('Only MP4 and MOV files are supported for version uploads')
+        setIsLoading(false)
+        return
+      }
     }
     if (!formData.code.trim()) {
       setError('Version Name is required')
@@ -372,7 +440,7 @@ export function UploadVersionDialog({
 
     try {
       setUploadProgress(25)
-      const uploadResult = await uploadVersionFile(selectedFile, projectId)
+      const uploadResult = await uploadVersionFileFromClient(selectedFile, projectId)
       if (uploadResult.error) throw new Error(uploadResult.error)
 
       setUploadProgress(75)
@@ -384,7 +452,7 @@ export function UploadVersionDialog({
         code: formData.code.trim(),
         version_number: formData.version_number,
         description: formData.description || undefined,
-        movie_url: uploadResult.data?.publicUrl,
+        movie_url: uploadResult.data?.path,
         file_path: uploadResult.data?.path,
         artist_id: formData.artist_id || null,
         link: formData.link || null,
@@ -392,7 +460,7 @@ export function UploadVersionDialog({
         tags: formData.tags,
         thumbnail_url: thumbnailDataUrl || undefined,
         thumbnail_blur_hash: formData.thumbnail_blur_hash.trim() || undefined,
-        uploaded_movie: uploadResult.data?.publicUrl || null,
+        uploaded_movie: uploadResult.data?.path || null,
         ...extraFields,
       })
 
@@ -431,11 +499,11 @@ export function UploadVersionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-border bg-background p-0 text-foreground"
       >
         <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
-          <div className="border-b border-zinc-800 px-6 py-4">
-            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-zinc-100">
+          <div className="border-b border-border px-6 py-4">
+            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-foreground">
               Create Versions
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -457,9 +525,9 @@ export function UploadVersionDialog({
               <div>
                 <label
                   htmlFor="file"
-                  className="flex min-h-24 cursor-pointer items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-900 px-4 py-6 text-center transition hover:border-zinc-500"
+                  className="flex min-h-24 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-card px-4 py-6 text-center transition hover:border-border"
                 >
-                  <div className="flex items-center gap-2 text-zinc-300">
+                  <div className="flex items-center gap-2 text-foreground/70">
                     <Paperclip className="h-4 w-4" />
                     <span>
                       {selectedFile
@@ -472,7 +540,7 @@ export function UploadVersionDialog({
                   id="file"
                   type="file"
                   onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
-                  accept="image/*,video/*,.pdf,.zip"
+                  accept=".mp4,.mov,video/mp4,video/quicktime"
                   disabled={isLoading}
                   className="sr-only"
                 />
@@ -581,7 +649,7 @@ export function UploadVersionDialog({
               <button
                 type="button"
                 onClick={() => setShowMoreFields((prev) => !prev)}
-                className="inline-flex items-center gap-1 text-sm text-zinc-300 transition hover:text-zinc-100"
+                className="inline-flex items-center gap-1 text-sm text-foreground/70 transition hover:text-foreground"
               >
                 More fields
                 <ChevronDown
@@ -591,15 +659,16 @@ export function UploadVersionDialog({
             </div>
 
             {showMoreFields && (
-              <div className="space-y-4 rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="space-y-4 rounded-md border border-border bg-card/30 p-4">
                 <div className="grid grid-cols-[120px_1fr] items-start gap-3">
                   <Label htmlFor="entity_type" className={labelClass}>
                     Entity Type:
                   </Label>
                   <Select
                     value={formData.entity_type || 'none'}
-                    onValueChange={(value: any) => {
-                      const nextType = value === 'none' ? '' : value
+                    onValueChange={(value: string) => {
+                      const nextType: '' | 'asset' | 'shot' | 'sequence' =
+                        value === 'none' ? '' : (value as 'asset' | 'shot' | 'sequence')
                       setFormData({ ...formData, entity_type: nextType, entity_id: '', task_id: '' })
                     }}
                     disabled={isLoading || lockEntity}
@@ -645,7 +714,7 @@ export function UploadVersionDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="status" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="status" className="text-sm font-medium text-foreground/70">
                       Status
                     </Label>
                     <Select
@@ -666,7 +735,7 @@ export function UploadVersionDialog({
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="tags" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="tags" className="text-sm font-medium text-foreground/70">
                       Tags
                     </Label>
                     <MultiSelectDropdown
@@ -707,9 +776,9 @@ export function UploadVersionDialog({
                   <div className="space-y-3">
                     <label
                       htmlFor="thumbnail_file"
-                      className="flex min-h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-900 px-4 py-4 text-center transition hover:border-zinc-500"
+                      className="flex min-h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-card px-4 py-4 text-center transition hover:border-border"
                     >
-                      <div className="flex items-center gap-2 text-sm text-zinc-300">
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
                         <Upload className="h-4 w-4" />
                         <span>{thumbnailFileName || 'Upload thumbnail image'}</span>
                       </div>
@@ -728,7 +797,7 @@ export function UploadVersionDialog({
                         <img
                           src={thumbnailDataUrl}
                           alt="Thumbnail preview"
-                          className="h-24 w-24 rounded-md border border-zinc-700 object-cover"
+                          className="h-24 w-24 rounded-md border border-border object-cover"
                         />
                         <button
                           type="button"
@@ -736,7 +805,7 @@ export function UploadVersionDialog({
                             setThumbnailDataUrl(null)
                             setThumbnailFileName('')
                           }}
-                          className="inline-flex items-center gap-1 text-xs text-zinc-300 transition hover:text-zinc-100"
+                          className="inline-flex items-center gap-1 text-xs text-foreground/70 transition hover:text-foreground"
                         >
                           <X className="h-3 w-3" />
                           Clear thumbnail
@@ -787,27 +856,27 @@ export function UploadVersionDialog({
 
             {uploadProgress > 0 ? (
               <div className="grid gap-2">
-                <div className="h-2 w-full rounded-full bg-zinc-800">
+                <div className="h-2 w-full rounded-full bg-accent">
                   <div
                     className="h-2 rounded-full bg-sky-600 transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-center text-xs text-zinc-400">
+                <p className="text-center text-xs text-muted-foreground">
                   Uploading... {uploadProgress}%
                 </p>
               </div>
             ) : null}
           </div>
 
-          <div className="flex items-center justify-end border-t border-zinc-800 px-6 py-3">
+          <div className="flex items-center justify-end border-t border-border px-6 py-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
-                className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-900/30"
+                className="border-border bg-card text-foreground/80 hover:bg-card/30"
               >
                 Cancel
               </Button>

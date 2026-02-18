@@ -404,7 +404,7 @@ export default function DepartmentsPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading departments...</p>
+        <p className="text-muted-foreground">Loading departments...</p>
       </div>
     )
   }
@@ -451,18 +451,18 @@ export default function DepartmentsPage() {
       />
 
       <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
+        <div className="border-b border-border bg-background px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-zinc-400" />
-              <h2 className="text-lg font-semibold text-zinc-100">Departments</h2>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Departments</h2>
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
                 {departments.length}
               </span>
             </div>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               <Plus className="h-4 w-4" />
               Add Department
@@ -474,16 +474,16 @@ export default function DepartmentsPage() {
           {departments.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
-                <Building2 className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">
+                <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   No departments yet
                 </h3>
-                <p className="mb-4 text-sm text-zinc-400">
+                <p className="mb-4 text-sm text-muted-foreground">
                   Create departments to organize people and pipeline access.
                 </p>
                 <button
                   onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
                 >
                   Create First Department
                 </button>
@@ -513,13 +513,13 @@ export default function DepartmentsPage() {
           }}
         >
           <div
-            className="absolute min-w-[180px] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-2xl"
+            className="absolute min-w-[180px] rounded-md border border-border bg-card p-1 shadow-2xl"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-100 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition hover:bg-accent"
               onClick={() => {
                 openEditDialog(contextMenu.row)
                 setContextMenu(null)
@@ -530,7 +530,7 @@ export default function DepartmentsPage() {
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-accent"
               onClick={() => {
                 openDeleteDialog(contextMenu.row)
                 setContextMenu(null)
@@ -678,18 +678,18 @@ function DepartmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Building2 className="h-5 w-5" />
             {title}
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">{description}</DialogDescription>
+          <DialogDescription className="text-muted-foreground">{description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 overflow-y-auto pr-1">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">
               Department Name
             </label>
             <input
@@ -697,13 +697,13 @@ function DepartmentDialog({
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Animation"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Department Short Name
               </label>
               <input
@@ -711,11 +711,11 @@ function DepartmentDialog({
                 value={shortName}
                 onChange={(event) => setShortName(event.target.value)}
                 placeholder="anim"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Department Type
               </label>
               <input
@@ -723,18 +723,18 @@ function DepartmentDialog({
                 value={departmentType}
                 onChange={(event) => setDepartmentType(event.target.value)}
                 placeholder="production"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Status</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Status</label>
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -742,45 +742,45 @@ function DepartmentDialog({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Order</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Order</label>
               <input
                 type="number"
                 value={orderValue}
                 onChange={(event) => setOrderValue(event.target.value)}
                 placeholder="10"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Color</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Color</label>
               <input
                 type="color"
                 value={color}
                 onChange={(event) => setColor(event.target.value)}
-                className="h-[38px] w-full rounded-md border border-zinc-700 bg-zinc-800 px-1.5 py-1"
+                className="h-[38px] w-full rounded-md border border-border bg-accent px-1.5 py-1"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Tags</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Tags</label>
             <input
               type="text"
               value={tagsText}
               onChange={(event) => setTagsText(event.target.value)}
               placeholder="character, animation, keying"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Thumbnail</label>
-            <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-zinc-800">
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Thumbnail</label>
+            <div className="flex items-center gap-3 rounded-md border border-border bg-card/40 p-3">
+              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-accent">
                 {thumbnailDataUrl ? (
                   <img src={thumbnailDataUrl} alt="" className="h-14 w-14 object-cover" />
                 ) : (
-                  <ImagePlus className="h-4 w-4 text-zinc-500" />
+                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
               <div className="flex-1">
@@ -790,9 +790,9 @@ function DepartmentDialog({
                   onChange={(event) =>
                     void handleThumbnailSelect(event.target.files?.[0] || null)
                   }
-                  className="w-full text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200 hover:file:bg-zinc-700"
+                  className="w-full text-xs text-foreground/70 file:mr-3 file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:text-foreground/80 hover:file:bg-secondary"
                 />
-                <p className="mt-1 truncate text-xs text-zinc-500">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {thumbnailFileName || 'Upload from local'}
                 </p>
               </div>
@@ -803,7 +803,7 @@ function DepartmentDialog({
                     setThumbnailDataUrl(null)
                     setThumbnailFileName('')
                   }}
-                  className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-600"
+                  className="rounded-md border border-border px-2 py-1 text-xs text-foreground/70 transition hover:border-border"
                 >
                   Remove
                 </button>
@@ -816,14 +816,14 @@ function DepartmentDialog({
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !name.trim()}
-              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
             >
               {isSaving
                 ? mode === 'create'

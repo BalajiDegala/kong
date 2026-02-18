@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Space_Grotesk } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppThemeProvider } from "@/components/theme-provider";
 
-const displayFont = Bebas_Neue({
+const displayFont = Geist_Mono({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400"],
 });
 
-const bodyFont = Space_Grotesk({
+const bodyFont = Geist({
   variable: "--font-body",
   subsets: ["latin"],
 });

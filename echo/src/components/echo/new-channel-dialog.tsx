@@ -78,20 +78,20 @@ export function NewChannelDialog({ open, onOpenChange, currentUserId }: NewChann
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-zinc-800 bg-zinc-900 sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Hash className="h-5 w-5" />
             New Channel
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription className="text-muted-foreground">
             Create a channel for team discussion.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-zinc-300">
+            <label className="mb-1.5 block text-sm font-medium text-foreground/70">
               Channel Name
             </label>
             <input
@@ -99,18 +99,18 @@ export function NewChannelDialog({ open, onOpenChange, currentUserId }: NewChann
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. general, dailies, review"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-zinc-300">
+            <label className="mb-1.5 block text-sm font-medium text-foreground/70">
               Project (optional)
             </label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2.5 text-sm text-foreground focus:border-primary/50 focus:outline-none"
             >
               <option value="">No project</option>
               {projects.map((proj) => (
@@ -126,7 +126,7 @@ export function NewChannelDialog({ open, onOpenChange, currentUserId }: NewChann
           <button
             onClick={handleCreate}
             disabled={isCreating || !name.trim()}
-            className="w-full rounded-md bg-amber-500 px-4 py-2.5 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
           >
             {isCreating ? 'Creating...' : 'Create Channel'}
           </button>

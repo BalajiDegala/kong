@@ -99,7 +99,7 @@ export async function updateNote(
     .eq('id', noteId)
     .maybeSingle()
 
-  const updateData: any = await pickEntityColumnsForWrite(supabase, 'note', formData, {
+  const updateData: Record<string, unknown> = await pickEntityColumnsForWrite(supabase, 'note', formData, {
     deny: new Set([
       'id',
       'project_id',
@@ -126,7 +126,7 @@ export async function updateNote(
     return { error: error.message }
   }
 
-  let data: any = null
+  let data: Record<string, unknown> | null = null
   const updatedRow = await supabase
     .from('notes')
     .select('*')
@@ -178,4 +178,64 @@ export async function deleteNote(noteId: string, projectId: string) {
 
   revalidatePath(`/apex/${projectId}/notes`)
   return { success: true }
+}
+
+export async function uploadNoteAttachment(formData: {
+  note_id: number
+  storage_path: string
+  file_name: string
+  file_size: number
+  file_type?: string
+}) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { data: note, error: noteError } = await supabase
+    .from('notes')
+    .select('id, project_id, entity_type, entity_id, created_by')
+    .eq('id', formData.note_id)
+    .maybeSingle()
+
+  if (noteError || !note) {
+    return { error: noteError?.message || 'Note not found' }
+  }
+
+  if (note.created_by !== user.id) {
+    return { error: 'Not authorized to attach files to this note' }
+  }
+
+  const { data, error } = await supabase
+    .from('attachments')
+    .insert({
+      note_id: formData.note_id,
+      file_name: formData.file_name,
+      file_size: formData.file_size,
+      file_type: formData.file_type || 'application/octet-stream',
+      storage_path: formData.storage_path,
+      created_by: user.id,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  if (note.project_id) {
+    revalidatePath(`/apex/${note.project_id}/notes`)
+    if (note.entity_type === 'version' && note.entity_id) {
+      revalidatePath(`/apex/${note.project_id}/versions/${note.entity_id}/review`)
+      revalidatePath(`/apex/${note.project_id}/versions/${note.entity_id}/activity`)
+    }
+  }
+
+  revalidatePath('/pulse')
+  return { data }
 }

@@ -220,14 +220,14 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
     : shots
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 mb-6">
+    <div className="bg-background border border-border rounded-lg p-4 mb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-medium text-zinc-300">Filter Posts</h3>
+          <Filter className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium text-foreground/70">Filter Posts</h3>
           {hasActiveFilters && (
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               ({filters.projectIds.length + filters.sequenceIds.length + filters.shotIds.length + filters.taskIds.length + filters.userIds.length} active)
             </span>
           )}
@@ -238,7 +238,7 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="text-xs text-amber-400 hover:text-amber-300"
+              className="text-xs text-primary hover:text-primary/80"
             >
               <X className="h-3 w-3 mr-1" />
               Clear all
@@ -264,8 +264,8 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
               flex-1 px-4 py-2 rounded-md text-sm font-medium transition flex items-center justify-center gap-2
               ${
                 filters.scope === 'global'
-                  ? 'bg-amber-500 text-zinc-900'
-                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-300 border border-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground/70 border border-border'
               }
             `}
           >
@@ -278,8 +278,8 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
               flex-1 px-4 py-2 rounded-md text-sm font-medium transition flex items-center justify-center gap-2
               ${
                 filters.scope === 'filtered'
-                  ? 'bg-amber-500 text-zinc-900'
-                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-300 border border-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground/70 border border-border'
               }
             `}
           >

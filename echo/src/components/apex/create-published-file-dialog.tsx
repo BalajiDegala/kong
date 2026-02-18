@@ -39,10 +39,10 @@ interface CreatePublishedFileDialogProps {
 
 const DEFAULT_STATUS_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
 
-const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
+const labelClass = 'pt-2 text-sm font-semibold text-foreground/80'
 const inputClass =
-  'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
-const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+  'border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-sky-500 focus:ring-sky-500/30'
+const selectClass = 'w-full border-border bg-card text-foreground focus:border-sky-500 focus:ring-sky-500/30'
 
 type MultiSelectOption = {
   value: string
@@ -83,20 +83,20 @@ function MultiSelectDropdown({
           disabled={disabled}
           className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
             disabled
-              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
-              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+              ? 'cursor-not-allowed border-border bg-card/50 text-muted-foreground'
+              : 'border-border bg-card text-foreground hover:border-border'
           }`}
         >
           <span className="truncate text-left">{values.length > 0 ? values.join(', ') : placeholder}</span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-border bg-card text-foreground"
       >
         {options.length === 0 ? (
-          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+          <p className="px-2 py-1.5 text-xs text-muted-foreground">No options available</p>
         ) : (
           options.map((option) => (
             <DropdownMenuCheckboxItem
@@ -112,7 +112,7 @@ function MultiSelectDropdown({
                 }
                 onChange(values.filter((item) => item !== option.value))
               }}
-              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+              className="text-foreground focus:bg-accent focus:text-foreground"
             >
               {option.label}
             </DropdownMenuCheckboxItem>
@@ -380,11 +380,11 @@ export function CreatePublishedFileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-border bg-background p-0 text-foreground"
       >
         <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
-          <div className="border-b border-zinc-800 px-6 py-4">
-            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-zinc-100">
+          <div className="border-b border-border px-6 py-4">
+            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-foreground">
               Create a new Published File
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -438,7 +438,7 @@ export function CreatePublishedFileDialog({
               <button
                 type="button"
                 onClick={() => setShowMoreFields((prev) => !prev)}
-                className="inline-flex items-center gap-1 text-sm text-zinc-300 transition hover:text-zinc-100"
+                className="inline-flex items-center gap-1 text-sm text-foreground/70 transition hover:text-foreground"
               >
                 More fields
                 <ChevronDown
@@ -448,7 +448,7 @@ export function CreatePublishedFileDialog({
             </div>
 
             {showMoreFields && (
-              <div className="space-y-4 rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="space-y-4 rounded-md border border-border bg-card/30 p-4">
                 <div className="grid grid-cols-[130px_1fr] items-start gap-3">
                   <Label htmlFor="published-name" className={labelClass}>
                     Display Name:
@@ -464,7 +464,7 @@ export function CreatePublishedFileDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="published-status" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="published-status" className="text-sm font-medium text-foreground/70">
                       Status
                     </Label>
                     <Select
@@ -485,7 +485,7 @@ export function CreatePublishedFileDialog({
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="published-file-type" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="published-file-type" className="text-sm font-medium text-foreground/70">
                       File Type
                     </Label>
                     <Input
@@ -612,7 +612,7 @@ export function CreatePublishedFileDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="published-task-id" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="published-task-id" className="text-sm font-medium text-foreground/70">
                       Task
                     </Label>
                     <Select
@@ -636,7 +636,7 @@ export function CreatePublishedFileDialog({
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="published-version-id" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="published-version-id" className="text-sm font-medium text-foreground/70">
                       Version
                     </Label>
                     <Select
@@ -688,14 +688,14 @@ export function CreatePublishedFileDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-end border-t border-zinc-800 px-6 py-3">
+          <div className="flex items-center justify-end border-t border-border px-6 py-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
-                className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-900/30"
+                className="border-border bg-card text-foreground/80 hover:bg-card/30"
               >
                 Cancel
               </Button>

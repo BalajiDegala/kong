@@ -151,8 +151,8 @@ export default function EchoLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex h-full overflow-hidden">
       {isLoading ? (
-        <div className="flex w-80 shrink-0 items-center justify-center border-r border-zinc-800 bg-zinc-950">
-          <p className="text-xs text-zinc-500">Loading...</p>
+        <div className="flex w-80 shrink-0 items-center justify-center border-r border-border bg-background">
+          <p className="text-xs text-muted-foreground">Loading...</p>
         </div>
       ) : (
         <EchoSidebar

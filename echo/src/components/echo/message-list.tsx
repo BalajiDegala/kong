@@ -75,7 +75,7 @@ function linkifyText(text: string): ReactNode[] {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-amber-400 hover:text-amber-300 underline break-all"
+        className="text-primary hover:text-primary/80 underline break-all"
         onClick={(e) => e.stopPropagation()}
       >
         {url}
@@ -172,7 +172,7 @@ export function MessageList({
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
-          <p className="text-sm text-zinc-500">No messages yet. Start the conversation!</p>
+          <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
         </div>
       </div>
     )
@@ -206,7 +206,7 @@ export function MessageList({
 
           const initial = authorLabel.trim().charAt(0).toUpperCase() || '?'
           const avatarSeed = msg.author_id || authorLabel
-          const avatarColor = isOwn ? 'bg-amber-500 text-black' : `${getAvatarColor(avatarSeed)} text-white`
+          const avatarColor = isOwn ? 'bg-primary text-black' : `${getAvatarColor(avatarSeed)} text-white`
 
           const createdAtLabel = format(msgDate, 'h:mm a')
           const createdAtTitle = format(msgDate, 'PPpp')
@@ -224,11 +224,11 @@ export function MessageList({
             <div key={msg.id}>
               {showDateSeparator && (
                 <div className="flex items-center gap-3 py-2">
-                  <div className="h-px flex-1 bg-zinc-800" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <div className="h-px flex-1 bg-accent" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {formatDayLabel(msgDate)}
                   </span>
-                  <div className="h-px flex-1 bg-zinc-800" />
+                  <div className="h-px flex-1 bg-accent" />
                 </div>
               )}
 
@@ -251,7 +251,7 @@ export function MessageList({
                     </div>
                   ) : (
                     <time
-                      className="mt-1 block text-right text-[10px] text-zinc-600 opacity-0 transition group-hover:opacity-100"
+                      className="mt-1 block text-right text-[10px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
                       dateTime={msg.created_at}
                       title={createdAtTitle}
                     >
@@ -261,11 +261,11 @@ export function MessageList({
                 </div>
 
                 <div className="relative min-w-0 flex-1 pr-16">
-                  <div className="absolute right-0 top-0 flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/80 p-1 opacity-0 backdrop-blur transition group-hover:opacity-100">
+                  <div className="absolute right-0 top-0 flex items-center gap-1 rounded-md border border-border bg-background/80 p-1 opacity-0 backdrop-blur transition group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={() => copyMessage(msg.content)}
-                      className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                      className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground/80"
                       title="Copy message"
                     >
                       <Copy className="h-3.5 w-3.5" />
@@ -274,7 +274,7 @@ export function MessageList({
                       <button
                         type="button"
                         onClick={() => startEdit(msg)}
-                        className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground/80"
                         title="Edit message"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -287,7 +287,7 @@ export function MessageList({
                           if (!confirm('Delete this message?')) return
                           await onDeleteMessage?.(msg.id)
                         }}
-                        className="rounded p-1 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-300"
+                        className="rounded p-1 text-muted-foreground transition hover:bg-red-500/20 hover:text-red-300"
                         title="Delete message"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -297,18 +297,18 @@ export function MessageList({
 
                   {showAuthor && (
                     <div className="flex items-baseline gap-2">
-                      <span className={isOwn ? 'text-sm font-medium text-amber-200' : 'text-sm font-medium text-zinc-100'}>
+                      <span className={isOwn ? 'text-sm font-medium text-primary' : 'text-sm font-medium text-foreground'}>
                         {authorLabel}
                       </span>
                       <time
-                        className="text-xs text-zinc-600"
+                        className="text-xs text-muted-foreground"
                         dateTime={msg.created_at}
                         title={createdAtTitle}
                       >
                         {createdAtLabel}
                       </time>
                       {isEdited && (
-                        <span className="text-[11px] text-zinc-600">(edited)</span>
+                        <span className="text-[11px] text-muted-foreground">(edited)</span>
                       )}
                     </div>
                   )}
@@ -340,7 +340,7 @@ export function MessageList({
                         }}
                         placeholder="Edit message..."
                         rows={2}
-                        className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                        className="w-full resize-none rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
                         style={{ maxHeight: '180px' }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement
@@ -352,7 +352,7 @@ export function MessageList({
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-800"
+                          className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition hover:bg-accent"
                         >
                           <X className="h-3.5 w-3.5" />
                           Cancel
@@ -371,18 +371,18 @@ export function MessageList({
                               setIsSavingEdit(false)
                             }
                           }}
-                          className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-primary disabled:opacity-50"
                         >
                           <Check className="h-3.5 w-3.5" />
                           {isSavingEdit ? 'Saving...' : 'Save'}
                         </button>
                       </div>
-                      <p className="mt-2 text-[11px] text-zinc-600">
+                      <p className="mt-2 text-[11px] text-muted-foreground">
                         Tip: Ctrl+Enter to save, Esc to cancel.
                       </p>
                     </div>
                   ) : (
-                    <p className={`${showAuthor ? 'mt-0.5' : ''} whitespace-pre-wrap text-sm text-zinc-300`}>
+                    <p className={`${showAuthor ? 'mt-0.5' : ''} whitespace-pre-wrap text-sm text-foreground/70`}>
                       {linkifyText(msg.content)}
                     </p>
                   )}
@@ -400,7 +400,7 @@ export function MessageList({
           <button
             type="button"
             onClick={() => scrollToBottom('smooth')}
-            className="rounded-full border border-zinc-700 bg-zinc-900/90 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-sm backdrop-blur hover:bg-zinc-800"
+            className="rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur hover:bg-accent"
           >
             {unseenCount} new {unseenCount === 1 ? 'message' : 'messages'} · Jump to latest
           </button>

@@ -187,7 +187,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 required
                 disabled={isLoading}
               />
-              <p className="text-xs text-zinc-500">Short code (for example: MAP, PROJ01). Will be converted to uppercase.</p>
+              <p className="text-xs text-muted-foreground">Short code (for example: MAP, PROJ01). Will be converted to uppercase.</p>
             </div>
 
             <div className="grid gap-2">
@@ -225,26 +225,26 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             <div className="grid gap-2">
               <Label>Tags</Label>
               {isLoadingTags ? (
-                <p className="text-xs text-zinc-500">Loading tags...</p>
+                <p className="text-xs text-muted-foreground">Loading tags...</p>
               ) : availableTags.length === 0 ? (
-                <p className="text-xs text-zinc-500">No tags found. Create tags on the Tags page first.</p>
+                <p className="text-xs text-muted-foreground">No tags found. Create tags on the Tags page first.</p>
               ) : (
-                <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-zinc-800 p-2">
+                <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-border p-2">
                   {availableTags.map((tag) => (
-                    <label key={tag} className="flex items-center gap-2 text-sm text-zinc-200">
+                    <label key={tag} className="flex items-center gap-2 text-sm text-foreground/80">
                       <input
                         type="checkbox"
                         checked={formData.tags.includes(tag)}
                         onChange={() => toggleTag(tag)}
                         disabled={isLoading}
-                        className="h-4 w-4 rounded border border-zinc-600 bg-zinc-900"
+                        className="h-4 w-4 rounded border border-border bg-card"
                       />
                       <span>{tag}</span>
                     </label>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-zinc-500">Select one or more tags from the Tags page.</p>
+              <p className="text-xs text-muted-foreground">Select one or more tags from the Tags page.</p>
             </div>
           </div>
 

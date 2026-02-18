@@ -17,7 +17,7 @@ export function ApexEmptyState(props: ApexEmptyStateProps) {
   if (props.variant === 'simple') {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-zinc-400">{props.title}</p>
+        <p className="text-sm text-muted-foreground">{props.title}</p>
       </div>
     )
   }
@@ -27,10 +27,10 @@ export function ApexEmptyState(props: ApexEmptyStateProps) {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="text-center">
-        {icon ? <div className="mx-auto mb-4 text-zinc-700">{icon}</div> : null}
-        <h3 className="mb-2 text-lg font-semibold text-zinc-100">{title}</h3>
+        {icon ? <div className="mx-auto mb-4 text-muted-foreground/70">{icon}</div> : null}
+        <h3 className="mb-2 text-lg font-semibold text-foreground">{title}</h3>
         {description ? (
-          <p className="mb-4 max-w-md text-sm text-zinc-400">{description}</p>
+          <p className="mb-4 max-w-md text-sm text-muted-foreground">{description}</p>
         ) : null}
         {action ? <div className="flex justify-center">{action}</div> : null}
       </div>

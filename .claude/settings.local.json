@@ -31,7 +31,12 @@
       "WebFetch(domain:www.autodesk.com)",
       "WebFetch(domain:developers.shotgridsoftware.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:community.shotgridsoftware.com)"
+      "WebFetch(domain:community.shotgridsoftware.com)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(git stash:*)",
+      "Bash(done)",
+      "Bash(python3:*)"
     ]
   }
 }

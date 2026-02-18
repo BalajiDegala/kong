@@ -566,35 +566,37 @@ export function EntityTasksPanel({
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="p-6">
+      <div className="flex h-full min-h-0 flex-col p-6">
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
+          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             Loading tasks...
           </div>
         ) : tasks.length === 0 ? (
-          <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-6">
-            <h3 className="text-sm font-semibold text-zinc-100">Tasks</h3>
-            <p className="mt-2 text-sm text-zinc-400">
+          <div className="rounded-md border border-border bg-background/70 p-6">
+            <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
               No tasks linked to this {entityType} yet.
             </p>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="mt-4 rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               Add Task
             </button>
           </div>
         ) : (
-          <EntityTable
-            columns={columns}
-            data={tasks}
-            entityType={`tasks_${entityType}`}
-            groupBy="department_label"
-            onAdd={() => setShowCreateDialog(true)}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onCellUpdate={handleCellUpdate}
-          />
+          <div className="min-h-0 flex-1">
+            <EntityTable
+              columns={columns}
+              data={tasks}
+              entityType={`tasks_${entityType}`}
+              groupBy="department_label"
+              onAdd={() => setShowCreateDialog(true)}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onCellUpdate={handleCellUpdate}
+            />
+          </div>
         )}
       </div>
     </>

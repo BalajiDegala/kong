@@ -400,7 +400,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -408,7 +408,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
   if (posts.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-zinc-500 text-sm">No posts yet. Be the first to share something!</p>
+        <p className="text-muted-foreground text-sm">No posts yet. Be the first to share something!</p>
       </div>
     )
   }
@@ -429,7 +429,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
         <div className="flex justify-center py-4">
           <button
             onClick={handleLoadMore}
-            className="text-sm text-zinc-400 hover:text-zinc-200 transition"
+            className="text-sm text-muted-foreground hover:text-foreground/80 transition"
           >
             Load more
           </button>

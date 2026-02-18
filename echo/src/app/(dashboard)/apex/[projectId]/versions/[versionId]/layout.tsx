@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
+import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
+import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
 import { VersionTabs } from '@/components/layout/version-tabs'
 
 export default async function VersionLayout({
@@ -37,61 +40,87 @@ export default async function VersionLayout({
     redirect(`/apex/${projectId}/versions`)
   }
 
+  const { data: versionOptions } = await supabase
+    .from('versions')
+    .select('id, code, version_number')
+    .eq('project_id', projectId)
+    .order('id', { ascending: true })
+
   const artistName =
     version.artist?.display_name ||
     version.artist?.full_name ||
     '-'
+  const switchOptions = (versionOptions || []).map((option) => ({
+    id: String(option.id),
+    label: option.code || `v${option.version_number || option.id}`,
+  }))
+  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'version')
+  const fields = applyFieldOptionMap(
+    appendAutoHeaderFields(
+      'version',
+      version as Record<string, unknown>,
+      [
+      {
+        id: 'status',
+        label: 'Status',
+        type: 'text',
+        value: version.status || null,
+        editable: true,
+        column: 'status',
+      },
+      {
+        id: 'artist',
+        label: 'Artist',
+        type: 'readonly',
+        value: artistName,
+      },
+      {
+        id: 'task',
+        label: 'Task',
+        type: 'readonly',
+        value: version.task?.name || '-',
+      },
+      {
+        id: 'version_number',
+        label: 'Version',
+        type: 'readonly',
+        value: version.version_number ?? null,
+      },
+      {
+        id: 'client_approved',
+        label: 'Client Approved',
+        type: 'boolean',
+        value: Boolean(version.client_approved),
+        editable: true,
+        column: 'client_approved',
+      },
+    ],
+      {
+        excludeColumns: ['artist', 'task'],
+      }
+    ),
+    fieldOptionMap
+  )
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-4">
-        <div className="flex gap-6">
-          <div className="h-24 w-36 rounded-md border border-zinc-800 bg-zinc-900">
-            {version.thumbnail_url ? (
-              <img
-                src={version.thumbnail_url}
-                alt=""
-                className="h-full w-full rounded-md object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                No Thumbnail
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-xl font-semibold text-zinc-100">{version.code}</h3>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200">
-                {version.status || 'pending'}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-zinc-400">
-              {version.description || 'No description'}
-            </p>
-
-            <div className="mt-4 grid gap-4 text-xs sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Artist</p>
-                <p className="mt-1 text-zinc-100">{artistName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Task</p>
-                <p className="mt-1 text-zinc-100">{version.task?.name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Version</p>
-                <p className="mt-1 text-zinc-100">v{version.version_number}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Client Approved</p>
-                <p className="mt-1 text-zinc-100">{version.client_approved ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <EntityDetailHeader
+        entityType="version"
+        entityPlural="versions"
+        entityId={versionId}
+        projectId={projectId}
+        title={version.code || `v${version.version_number}`}
+        badge={version.status || 'pending'}
+        description={version.description}
+        descriptionColumn="description"
+        thumbnailUrl={version.thumbnail_url}
+        thumbnailColumn="thumbnail_url"
+        thumbnailPlaceholder="No Thumbnail"
+        switchOptions={switchOptions}
+        tabPaths={['activity', 'info', 'history']}
+        fields={fields}
+        defaultVisibleFieldIds={['artist', 'task', 'version_number', 'client_approved']}
+      />
 
       <VersionTabs projectId={projectId} versionId={versionId} />
 

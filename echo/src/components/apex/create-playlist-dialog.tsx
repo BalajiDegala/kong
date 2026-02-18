@@ -16,9 +16,9 @@ interface CreatePlaylistDialogProps {
   projectId: string
 }
 
-const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
+const labelClass = 'pt-2 text-sm font-semibold text-foreground/80'
 const inputClass =
-  'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
+  'border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-sky-500 focus:ring-sky-500/30'
 
 export function CreatePlaylistDialog({
   open,
@@ -104,11 +104,11 @@ export function CreatePlaylistDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-border bg-background p-0 text-foreground"
       >
         <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
-          <div className="border-b border-zinc-800 px-6 py-4">
-            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-zinc-100">
+          <div className="border-b border-border px-6 py-4">
+            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-foreground">
               Create a new Playlist
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -178,7 +178,7 @@ export function CreatePlaylistDialog({
               <button
                 type="button"
                 onClick={() => setShowMoreFields((prev) => !prev)}
-                className="inline-flex items-center gap-1 text-sm text-zinc-300 transition hover:text-zinc-100"
+                className="inline-flex items-center gap-1 text-sm text-foreground/70 transition hover:text-foreground"
               >
                 More fields
                 <ChevronDown
@@ -188,7 +188,7 @@ export function CreatePlaylistDialog({
             </div>
 
             {showMoreFields && (
-              <div className="space-y-4 rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="space-y-4 rounded-md border border-border bg-card/30 p-4">
                 <div className="grid grid-cols-[120px_1fr] items-start gap-3">
                   <Label htmlFor="playlist-code" className={labelClass}>
                     Playlist Code:
@@ -201,18 +201,18 @@ export function CreatePlaylistDialog({
                       disabled={isLoading}
                       className={inputClass}
                     />
-                    <p className="mt-1 text-xs text-zinc-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       If blank, code is generated from name and date.
                     </p>
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                <label className="flex items-center gap-2 text-sm text-foreground/70">
                   <input
                     type="checkbox"
                     checked={formData.locked}
                     onChange={(e) => setFormData({ ...formData, locked: e.target.checked })}
-                    className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                    className="h-4 w-4 rounded border border-border bg-card"
                     disabled={isLoading}
                   />
                   Locked
@@ -221,14 +221,14 @@ export function CreatePlaylistDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-end border-t border-zinc-800 px-6 py-3">
+          <div className="flex items-center justify-end border-t border-border px-6 py-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
-                className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-900/30"
+                className="border-border bg-card text-foreground/80 hover:bg-card/30"
               >
                 Cancel
               </Button>

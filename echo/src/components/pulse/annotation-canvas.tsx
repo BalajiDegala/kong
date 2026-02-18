@@ -1,9 +1,11 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react'
-import type { AnnotationTool } from './annotation-toolbar'
+import type { AnnotationTool as BaseAnnotationTool } from './annotation-toolbar'
 
-interface AnnotationShape {
+export type AnnotationCanvasTool = BaseAnnotationTool | 'ellipse'
+
+export interface AnnotationShape {
   type: string
   x?: number
   y?: number
@@ -20,7 +22,7 @@ interface AnnotationCanvasProps {
   width: number
   height: number
   isDrawing: boolean
-  activeTool: AnnotationTool
+  activeTool: AnnotationCanvasTool
   activeColor: string
   strokeWidth: number
   existingAnnotations?: AnnotationShape[]
@@ -128,6 +130,16 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasRef, AnnotationCanvas
           color: activeColor,
           strokeWidth,
         })
+      } else if (activeTool === 'ellipse') {
+        drawShape(ctx, {
+          type: 'ellipse',
+          x: Math.min(startPoint.x, currentPoint.x),
+          y: Math.min(startPoint.y, currentPoint.y),
+          width: Math.abs(currentPoint.x - startPoint.x),
+          height: Math.abs(currentPoint.y - startPoint.y),
+          color: activeColor,
+          strokeWidth,
+        })
       } else if (activeTool === 'freehand' && freehandPoints.length > 0) {
         drawShape(ctx, {
           type: 'freehand',
@@ -196,6 +208,20 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasRef, AnnotationCanvas
           strokeWidth,
         }
       }
+    } else if (activeTool === 'ellipse') {
+      const w = Math.abs(currentPoint.x - startPoint.x)
+      const h = Math.abs(currentPoint.y - startPoint.y)
+      if (w > 5 && h > 5) {
+        newShape = {
+          type: 'ellipse',
+          x: Math.min(startPoint.x, currentPoint.x),
+          y: Math.min(startPoint.y, currentPoint.y),
+          width: w,
+          height: h,
+          color: activeColor,
+          strokeWidth,
+        }
+      }
     } else if (activeTool === 'freehand' && freehandPoints.length > 2) {
       newShape = {
         type: 'freehand',
@@ -258,6 +284,23 @@ function drawShape(ctx: CanvasRenderingContext2D, shape: AnnotationShape) {
       ctx.fillStyle = shape.color + '15'
       ctx.fillRect(shape.x!, shape.y!, shape.width!, shape.height!)
       break
+
+    case 'ellipse': {
+      const x = shape.x || 0
+      const y = shape.y || 0
+      const width = shape.width || 0
+      const height = shape.height || 0
+      const centerX = x + width / 2
+      const centerY = y + height / 2
+      const radiusX = width / 2
+      const radiusY = height / 2
+      ctx.beginPath()
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI)
+      ctx.stroke()
+      ctx.fillStyle = shape.color + '15'
+      ctx.fill()
+      break
+    }
 
     case 'arrow': {
       const pts = shape.points as number[]

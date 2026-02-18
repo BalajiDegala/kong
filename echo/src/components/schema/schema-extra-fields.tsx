@@ -262,7 +262,7 @@ export function SchemaExtraFields(props: {
             <button
               type="button"
               disabled={props.disabled}
-              className="flex items-center gap-2 text-sm font-medium text-zinc-200 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-2 text-sm font-medium text-foreground/80 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {props.title ?? 'More fields'}
               <ChevronDown className="h-4 w-4" />
@@ -291,9 +291,9 @@ export function SchemaExtraFields(props: {
         </DropdownMenu>
 
         {selectedColumns.size > 0 ? (
-          <span className="text-xs text-zinc-500">{selectedColumns.size} selected</span>
+          <span className="text-xs text-muted-foreground">{selectedColumns.size} selected</span>
         ) : (
-          <span className="text-xs text-zinc-600">Select optional fields</span>
+          <span className="text-xs text-muted-foreground">Select optional fields</span>
         )}
       </div>
 
@@ -322,13 +322,13 @@ export function SchemaExtraFields(props: {
 
           if (pgType === 'boolean') {
             return (
-              <label key={column} className="flex items-center gap-2 text-sm text-zinc-200">
+              <label key={column} className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={Boolean(value)}
                   onChange={(e) => setValue(column, e.target.checked)}
                   disabled={disabled}
-                  className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                  className="h-4 w-4 rounded border border-border bg-card"
                 />
                 {field.name}
               </label>

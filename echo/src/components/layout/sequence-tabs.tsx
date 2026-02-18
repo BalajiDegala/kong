@@ -24,7 +24,7 @@ export function SequenceTabs({ projectId, sequenceId }: SequenceTabsProps) {
   const basePath = `/apex/${projectId}/sequences/${sequenceId}`
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-950">
+    <div className="border-b border-border bg-background">
       <div className="flex items-center gap-1 px-6">
         {tabs.map((tab) => {
           const href = `${basePath}${tab.href}`
@@ -38,8 +38,8 @@ export function SequenceTabs({ projectId, sequenceId }: SequenceTabsProps) {
                 px-3 py-2 text-sm font-medium transition border-b-2
                 ${
                   isActive
-                    ? 'text-amber-400 border-amber-400'
-                    : 'text-zinc-400 border-transparent hover:text-zinc-200 hover:border-zinc-700'
+                    ? 'text-primary border-primary'
+                    : 'text-muted-foreground border-transparent hover:text-foreground/80 hover:border-border'
                 }
               `}
             >

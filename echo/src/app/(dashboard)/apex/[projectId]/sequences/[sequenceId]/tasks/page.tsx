@@ -21,7 +21,7 @@ export default function SequenceTasksPage({
   if (!projectId || !sequenceId) {
     return (
       <div className="p-6">
-        <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
+        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
           Loading tasks...
         </div>
       </div>

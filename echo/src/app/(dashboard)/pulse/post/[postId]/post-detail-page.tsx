@@ -40,7 +40,7 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
         <div className="flex items-center gap-2 text-sm">
           <Link
             href="/pulse"
-            className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition"
+            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground/80 transition"
           >
             <ArrowLeft className="h-4 w-4" />
             Pulse
@@ -49,10 +49,10 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
           {/* Breadcrumbs showing post context */}
           {primaryProject && (
             <>
-              <span className="text-zinc-600">/</span>
+              <span className="text-muted-foreground">/</span>
               <Link
                 href={`/pulse/project/${primaryProject.id}/posts`}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-muted-foreground hover:text-foreground/80 transition"
               >
                 {primaryProject.code || primaryProject.name}
               </Link>
@@ -61,10 +61,10 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
 
           {primarySequence && (
             <>
-              <span className="text-zinc-600">/</span>
+              <span className="text-muted-foreground">/</span>
               <Link
                 href={`/pulse/project/${primaryProject?.id}/sequence/${primarySequence.id}/posts`}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-muted-foreground hover:text-foreground/80 transition"
               >
                 {primarySequence.name}
               </Link>
@@ -73,10 +73,10 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
 
           {primaryShot && (
             <>
-              <span className="text-zinc-600">/</span>
+              <span className="text-muted-foreground">/</span>
               <Link
                 href={`/pulse/project/${primaryProject?.id}/shot/${primaryShot.id}/posts`}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-muted-foreground hover:text-foreground/80 transition"
               >
                 {primaryShot.name}
               </Link>
@@ -85,8 +85,8 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
 
           {primaryTask && (
             <>
-              <span className="text-zinc-600">/</span>
-              <span className="text-zinc-300">{primaryTask.name}</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-foreground/70">{primaryTask.name}</span>
             </>
           )}
         </div>
@@ -94,7 +94,7 @@ export function PostDetailPage({ post, entities, currentUserId }: PostDetailPage
         {/* Copy Link Button */}
         <button
           onClick={handleCopyLink}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 transition border border-zinc-700"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-accent hover:bg-secondary text-foreground/70 hover:text-foreground transition border border-border"
         >
           {copied ? (
             <>

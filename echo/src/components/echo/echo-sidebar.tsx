@@ -111,21 +111,21 @@ export function EchoSidebar({
         currentUserId={currentUserId}
       />
 
-      <aside className="flex w-80 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950">
+      <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-background">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-100">Messages</h2>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Messages</h2>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowNewChannel(true)}
-              className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground/80"
               title="New Channel"
             >
               <Hash className="h-4 w-4" />
             </button>
             <button
               onClick={() => setShowNewDm(true)}
-              className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground/80"
               title="New DM"
             >
               <Plus className="h-4 w-4" />
@@ -136,13 +136,13 @@ export function EchoSidebar({
         {/* Search */}
         <div className="px-3 py-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full rounded-md border border-zinc-800 bg-zinc-900 py-2 pl-8 pr-3 text-xs text-zinc-100 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
+              className="w-full rounded-md border border-border bg-card py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-none"
             />
           </div>
         </div>
@@ -151,11 +151,11 @@ export function EchoSidebar({
         <div className="flex-1 overflow-y-auto px-2">
           {/* Channels */}
           <div className="mb-3">
-            <h3 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <h3 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Channels
             </h3>
             {filteredChannels.length === 0 ? (
-              <p className="px-2 text-xs text-zinc-600">No channels</p>
+              <p className="px-2 text-xs text-muted-foreground">No channels</p>
             ) : (
               <div className="space-y-0.5">
                 {filteredChannels.map((conv) => {
@@ -174,31 +174,31 @@ export function EchoSidebar({
                       href={`/echo/${conv.id}`}
                       className={`rounded-md px-2 py-2 text-sm transition ${
                         isActive
-                          ? 'border-l-2 border-amber-400 bg-zinc-800 pl-1.5 text-zinc-100'
-                          : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+                          ? 'border-l-2 border-primary bg-accent pl-1.5 text-foreground'
+                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground/80'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Hash className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1 truncate font-medium">{conv.name}</span>
                         {conv.project && (
-                          <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                          <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground">
                             {conv.project.code}
                           </span>
                         )}
                         {timeLabel && (
-                          <span className="shrink-0 text-[10px] font-medium text-zinc-600">
+                          <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
                             {timeLabel}
                           </span>
                         )}
                         {unread && (
                           <span
-                            className="h-2 w-2 shrink-0 rounded-full bg-amber-400"
+                            className="h-2 w-2 shrink-0 rounded-full bg-primary"
                             aria-label="Unread"
                           />
                         )}
                       </div>
-                      <p className="mt-0.5 line-clamp-1 pl-[22px] text-[11px] text-zinc-600">
+                      <p className="mt-0.5 line-clamp-1 pl-[22px] text-[11px] text-muted-foreground">
                         {preview}
                       </p>
                     </Link>
@@ -210,11 +210,11 @@ export function EchoSidebar({
 
           {/* Direct Messages */}
           <div>
-            <h3 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <h3 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Direct Messages
             </h3>
             {filteredDms.length === 0 ? (
-              <p className="px-2 text-xs text-zinc-600">No messages</p>
+              <p className="px-2 text-xs text-muted-foreground">No messages</p>
             ) : (
               <div className="space-y-0.5">
                 {filteredDms.map((conv) => {
@@ -238,8 +238,8 @@ export function EchoSidebar({
                       href={`/echo/${conv.id}`}
                       className={`rounded-md px-2 py-2 text-sm transition ${
                         isActive
-                          ? 'border-l-2 border-amber-400 bg-zinc-800 pl-1.5 text-zinc-100'
-                          : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+                          ? 'border-l-2 border-primary bg-accent pl-1.5 text-foreground'
+                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground/80'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -252,18 +252,18 @@ export function EchoSidebar({
                           {displayName}
                         </span>
                         {timeLabel && (
-                          <span className="shrink-0 text-[10px] font-medium text-zinc-600">
+                          <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
                             {timeLabel}
                           </span>
                         )}
                         {unread && (
                           <span
-                            className="h-2 w-2 shrink-0 rounded-full bg-amber-400"
+                            className="h-2 w-2 shrink-0 rounded-full bg-primary"
                             aria-label="Unread"
                           />
                         )}
                       </div>
-                      <p className="mt-0.5 line-clamp-1 pl-[32px] text-[11px] text-zinc-600">
+                      <p className="mt-0.5 line-clamp-1 pl-[32px] text-[11px] text-muted-foreground">
                         {preview}
                       </p>
                     </Link>

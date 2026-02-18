@@ -547,7 +547,7 @@ export default function StatusPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading statuses...</p>
+        <p className="text-muted-foreground">Loading statuses...</p>
       </div>
     )
   }
@@ -604,18 +604,18 @@ export default function StatusPage() {
       />
 
       <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-3">
+        <div className="border-b border-border bg-background px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Flag className="h-5 w-5 text-zinc-400" />
-              <h2 className="text-lg font-semibold text-zinc-100">Status</h2>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+              <Flag className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Status</h2>
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
                 {statusRows.length}
               </span>
             </div>
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary"
             >
               <Plus className="h-4 w-4" />
               Add Status
@@ -632,14 +632,14 @@ export default function StatusPage() {
           ) : statusRows.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
-                <Flag className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">No statuses yet</h3>
-                <p className="mb-4 text-sm text-zinc-400">
+                <Flag className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">No statuses yet</h3>
+                <p className="mb-4 text-sm text-muted-foreground">
                   Create status rows to define pipeline state options.
                 </p>
                 <button
                   onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-amber-400"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
                 >
                   Create First Status
                 </button>
@@ -669,13 +669,13 @@ export default function StatusPage() {
           }}
         >
           <div
-            className="absolute min-w-[180px] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-2xl"
+            className="absolute min-w-[180px] rounded-md border border-border bg-card p-1 shadow-2xl"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-100 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition hover:bg-accent"
               onClick={() => {
                 openEditDialog(contextMenu.row)
                 setContextMenu(null)
@@ -686,7 +686,7 @@ export default function StatusPage() {
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-zinc-800"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-400 transition hover:bg-accent"
               onClick={() => {
                 openDeleteDialog(contextMenu.row)
                 setContextMenu(null)
@@ -839,73 +839,73 @@ function StatusDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-zinc-800 bg-zinc-900 sm:max-w-xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-border bg-card sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Flag className="h-5 w-5" />
             {title}
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">{description}</DialogDescription>
+          <DialogDescription className="text-muted-foreground">{description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 overflow-y-auto pr-1">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Status Name</label>
+            <label className="mb-1 block text-sm font-medium text-foreground/70">Status Name</label>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="In Progress"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Short Code</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Short Code</label>
               <input
                 type="text"
                 value={shortCode}
                 onChange={(event) => setShortCode(event.target.value)}
                 placeholder="ip"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Background Color
               </label>
               <input
                 type="color"
                 value={backgroundColor}
                 onChange={(event) => setBackgroundColor(event.target.value)}
-                className="h-[38px] w-full rounded-md border border-zinc-700 bg-zinc-800 px-1.5 py-1"
+                className="h-[38px] w-full rounded-md border border-border bg-accent px-1.5 py-1"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Icon</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Icon</label>
               <input
                 type="text"
                 value={icon}
                 onChange={(event) => setIcon(event.target.value)}
                 placeholder="icon_hourglass"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">
+              <label className="mb-1 block text-sm font-medium text-foreground/70">
                 Entity Types (multi-select)
               </label>
-              <div className="space-y-2 rounded-md border border-zinc-700 bg-zinc-800 p-2">
-                <label className="flex items-center gap-2 text-xs text-zinc-200">
+              <div className="space-y-2 rounded-md border border-border bg-accent p-2">
+                <label className="flex items-center gap-2 text-xs text-foreground/80">
                   <input
                     type="checkbox"
                     checked={entityTypes.includes('all')}
                     onChange={(event) => toggleEntityType('all', event.target.checked)}
-                    className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                    className="h-3.5 w-3.5 rounded border border-border bg-card"
                   />
                   All entities
                 </label>
@@ -914,7 +914,7 @@ function StatusDialog({
                   {ENTITY_TYPE_MULTI_OPTIONS.map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-center gap-2 text-xs text-zinc-300"
+                      className="flex items-center gap-2 text-xs text-foreground/70"
                     >
                       <input
                         type="checkbox"
@@ -923,7 +923,7 @@ function StatusDialog({
                         onChange={(event) =>
                           toggleEntityType(option.value, event.target.checked)
                         }
-                        className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                        className="h-3.5 w-3.5 rounded border border-border bg-card disabled:opacity-40"
                       />
                       {option.label}
                     </label>
@@ -931,7 +931,7 @@ function StatusDialog({
                 </div>
               </div>
               {!hasEntityTypeMapping ? (
-                <p className="mt-1 text-[11px] text-amber-300">
+                <p className="mt-1 text-[11px] text-primary/80">
                   Multi-entity persistence requires the `status_entity_types` table from the SQL migration.
                 </p>
               ) : null}
@@ -940,21 +940,21 @@ function StatusDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300">Sort Order</label>
+              <label className="mb-1 block text-sm font-medium text-foreground/70">Sort Order</label>
               <input
                 type="number"
                 value={sortOrder}
                 onChange={(event) => setSortOrder(event.target.value)}
                 placeholder="10"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none"
+                className="w-full rounded-md border border-border bg-accent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
-            <label className="flex items-center gap-2 pt-7 text-sm text-zinc-300">
+            <label className="flex items-center gap-2 pt-7 text-sm text-foreground/70">
               <input
                 type="checkbox"
                 checked={lockedBySystem}
                 onChange={(event) => setLockedBySystem(event.target.checked)}
-                className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                className="h-4 w-4 rounded border border-border bg-card"
               />
               Locked by System
             </label>
@@ -965,14 +965,14 @@ function StatusDialog({
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-600"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground/80 transition hover:border-border"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !name.trim()}
-              className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-black transition hover:bg-amber-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-black transition hover:bg-primary disabled:opacity-50"
             >
               {isSaving
                 ? mode === 'create'

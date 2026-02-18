@@ -291,7 +291,7 @@ export default function ConversationPage({
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Loading conversation...</p>
+        <p className="text-muted-foreground">Loading conversation...</p>
       </div>
     )
   }
@@ -307,7 +307,7 @@ export default function ConversationPage({
   if (!conversation) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-zinc-400">Conversation not found</p>
+        <p className="text-muted-foreground">Conversation not found</p>
       </div>
     )
   }
@@ -315,21 +315,21 @@ export default function ConversationPage({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-6 py-3">
+      <div className="flex items-center justify-between border-b border-border bg-background px-6 py-3">
         <div className="flex items-center gap-2">
           {conversation.type === 'channel' ? (
-            <Hash className="h-5 w-5 text-zinc-400" />
+            <Hash className="h-5 w-5 text-muted-foreground" />
           ) : (
-            <MessageCircle className="h-5 w-5 text-zinc-400" />
+            <MessageCircle className="h-5 w-5 text-muted-foreground" />
           )}
-          <h2 className="text-lg font-semibold text-zinc-100">{getTitle()}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{getTitle()}</h2>
           {conversation.project && (
-            <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+            <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
               {conversation.project.code}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1 text-sm text-zinc-500">
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
           <span>{members.length}</span>
         </div>
@@ -345,7 +345,7 @@ export default function ConversationPage({
       />
 
       {/* Inline Message Input */}
-      <div className="border-t border-zinc-800 bg-zinc-950 p-4">
+      <div className="border-t border-border bg-background p-4">
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -354,7 +354,7 @@ export default function ConversationPage({
             onKeyDown={handleKeyDown}
             placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
             rows={1}
-            className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+            className="flex-1 resize-none rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
             style={{ maxHeight: '150px' }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement
@@ -365,7 +365,7 @@ export default function ConversationPage({
           <button
             onClick={handleSend}
             disabled={!content.trim() || isSending}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-black transition hover:bg-amber-400 disabled:opacity-50 disabled:hover:bg-amber-500"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-black transition hover:bg-primary disabled:opacity-50 disabled:hover:bg-primary"
           >
             <Send className="h-4 w-4" />
           </button>

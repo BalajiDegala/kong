@@ -67,10 +67,10 @@ const ASSET_TYPES = [
 
 const FALLBACK_STATUS_VALUES = ['pending', 'ip', 'review', 'approved', 'on_hold']
 
-const labelClass = 'pt-2 text-sm font-semibold text-zinc-200'
+const labelClass = 'pt-2 text-sm font-semibold text-foreground/80'
 const inputClass =
-  'border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-400 focus:border-sky-500 focus:ring-sky-500/30'
-const selectClass = 'w-full border-zinc-700 bg-zinc-900 text-zinc-100 focus:border-sky-500 focus:ring-sky-500/30'
+  'border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-sky-500 focus:ring-sky-500/30'
+const selectClass = 'w-full border-border bg-card text-foreground focus:border-sky-500 focus:ring-sky-500/30'
 
 function parseList(value: string) {
   return value
@@ -159,22 +159,22 @@ function MultiSelectDropdown({
           disabled={disabled}
           className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
             disabled
-              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500'
-              : 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-600'
+              ? 'cursor-not-allowed border-border bg-card/50 text-muted-foreground'
+              : 'border-border bg-card text-foreground hover:border-border'
           }`}
         >
           <span className="truncate text-left">
             {values.length > 0 ? listToString(values) : placeholder}
           </span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-zinc-400" />
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-border bg-card text-foreground"
       >
         {options.length === 0 ? (
-          <p className="px-2 py-1.5 text-xs text-zinc-500">No options available</p>
+          <p className="px-2 py-1.5 text-xs text-muted-foreground">No options available</p>
         ) : (
           options.map((option) => (
             <DropdownMenuCheckboxItem
@@ -190,7 +190,7 @@ function MultiSelectDropdown({
                 }
                 onChange(values.filter((item) => item !== option.value))
               }}
-              className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+              className="text-foreground focus:bg-accent focus:text-foreground"
             >
               {option.label}
             </DropdownMenuCheckboxItem>
@@ -496,11 +496,11 @@ export function CreateAssetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+        className="max-h-[90vh] w-full max-w-3xl overflow-hidden border-border bg-background p-0 text-foreground"
       >
         <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
-          <div className="border-b border-zinc-800 px-6 py-4">
-            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-zinc-100">
+          <div className="border-b border-border px-6 py-4">
+            <DialogTitle className="whitespace-nowrap text-2xl font-semibold leading-tight text-foreground">
               Create a new Asset
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -600,7 +600,7 @@ export function CreateAssetDialog({
                   disabled={isLoading}
                   className={inputClass}
                 />
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Choose a task template to automatically add tasks to this asset.
                 </p>
               </div>
@@ -622,7 +622,7 @@ export function CreateAssetDialog({
               <button
                 type="button"
                 onClick={() => setShowMoreFields((prev) => !prev)}
-                className="inline-flex items-center gap-1 text-sm text-zinc-300 transition hover:text-zinc-100"
+                className="inline-flex items-center gap-1 text-sm text-foreground/70 transition hover:text-foreground"
               >
                 More fields
                 <ChevronDown
@@ -632,7 +632,7 @@ export function CreateAssetDialog({
             </div>
 
             {showMoreFields && (
-              <div className="space-y-4 rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="space-y-4 rounded-md border border-border bg-card/30 p-4">
                 <div className="grid grid-cols-[110px_1fr] items-start gap-3">
                   <Label htmlFor="code" className={labelClass}>
                     Asset Code:
@@ -646,7 +646,7 @@ export function CreateAssetDialog({
                       disabled={isLoading}
                       className={inputClass}
                     />
-                    <p className="mt-1 text-xs text-zinc-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       If blank, code is generated from asset name.
                     </p>
                   </div>
@@ -654,13 +654,13 @@ export function CreateAssetDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label className="text-sm font-medium text-zinc-300">Thumbnail</Label>
-                    <div className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
-                      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-zinc-800">
+                    <Label className="text-sm font-medium text-foreground/70">Thumbnail</Label>
+                    <div className="flex items-center gap-3 rounded-md border border-border bg-card/40 p-2">
+                      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-accent">
                         {thumbnailDataUrl ? (
                           <img src={thumbnailDataUrl} alt="" className="h-12 w-12 object-cover" />
                         ) : (
-                          <span className="text-xs text-zinc-500">No Img</span>
+                          <span className="text-xs text-muted-foreground">No Img</span>
                         )}
                       </div>
                       <div className="flex-1">
@@ -668,10 +668,10 @@ export function CreateAssetDialog({
                           type="file"
                           accept="image/*"
                           onChange={(e) => void handleThumbnailSelect(e.target.files?.[0] || null)}
-                          className="w-full text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200 hover:file:bg-zinc-700"
+                          className="w-full text-xs text-foreground/70 file:mr-3 file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:text-foreground/80 hover:file:bg-secondary"
                           disabled={isLoading}
                         />
-                        <p className="mt-1 truncate text-xs text-zinc-500">
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
                           {thumbnailFileName || 'Optional'}
                         </p>
                       </div>
@@ -682,7 +682,7 @@ export function CreateAssetDialog({
                             setThumbnailDataUrl(null)
                             setThumbnailFileName('')
                           }}
-                          className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-zinc-600"
+                          className="rounded-md border border-border px-2 py-1 text-xs text-foreground/70 hover:border-border"
                           disabled={isLoading}
                         >
                           Remove
@@ -691,7 +691,7 @@ export function CreateAssetDialog({
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="thumbnail_blur_hash" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="thumbnail_blur_hash" className="text-sm font-medium text-foreground/70">
                       Thumbnail Hash
                     </Label>
                     <Input
@@ -774,7 +774,7 @@ export function CreateAssetDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="client_name" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="client_name" className="text-sm font-medium text-foreground/70">
                       Client Name
                     </Label>
                     <Input
@@ -786,7 +786,7 @@ export function CreateAssetDialog({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="dd_client_name" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="dd_client_name" className="text-sm font-medium text-foreground/70">
                       DD Client Name
                     </Label>
                     <Input
@@ -800,23 +800,23 @@ export function CreateAssetDialog({
                 </div>
 
                 <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2 text-sm text-zinc-300">
+                  <label className="flex items-center gap-2 text-sm text-foreground/70">
                     <input
                       type="checkbox"
                       checked={formData.keep}
                       onChange={(e) => setFormData({ ...formData, keep: e.target.checked })}
                       disabled={isLoading}
-                      className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                      className="h-4 w-4 rounded border border-border bg-card"
                     />
                     Keep
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-zinc-300">
+                  <label className="flex items-center gap-2 text-sm text-foreground/70">
                     <input
                       type="checkbox"
                       checked={formData.outsource}
                       onChange={(e) => setFormData({ ...formData, outsource: e.target.checked })}
                       disabled={isLoading}
-                      className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+                      className="h-4 w-4 rounded border border-border bg-card"
                     />
                     Outsource
                   </label>
@@ -824,7 +824,7 @@ export function CreateAssetDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="shots" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="shots" className="text-sm font-medium text-foreground/70">
                       Shots
                     </Label>
                     <MultiSelectDropdown
@@ -837,7 +837,7 @@ export function CreateAssetDialog({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="vendor_groups" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="vendor_groups" className="text-sm font-medium text-foreground/70">
                       Vendor Groups
                     </Label>
                     <Input
@@ -853,7 +853,7 @@ export function CreateAssetDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="sub_assets" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="sub_assets" className="text-sm font-medium text-foreground/70">
                       Sub Assets
                     </Label>
                     <Input
@@ -866,7 +866,7 @@ export function CreateAssetDialog({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="tags" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="tags" className="text-sm font-medium text-foreground/70">
                       Tags
                     </Label>
                     <MultiSelectDropdown
@@ -882,7 +882,7 @@ export function CreateAssetDialog({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="parent_assets" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="parent_assets" className="text-sm font-medium text-foreground/70">
                       Parent Assets
                     </Label>
                     <Input
@@ -895,7 +895,7 @@ export function CreateAssetDialog({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="sequences" className="text-sm font-medium text-zinc-300">
+                    <Label htmlFor="sequences" className="text-sm font-medium text-foreground/70">
                       Sequences
                     </Label>
                     <MultiSelectDropdown
@@ -941,14 +941,14 @@ export function CreateAssetDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-end border-t border-zinc-800 px-6 py-3">
+          <div className="flex items-center justify-end border-t border-border px-6 py-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
-                className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-900/30"
+                className="border-border bg-card text-foreground/80 hover:bg-card/30"
               >
                 Cancel
               </Button>

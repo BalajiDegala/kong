@@ -309,8 +309,8 @@ export function EntitySearchCombobox({
             border transition
             ${
               selectedItems.length > 0
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-card border-border text-muted-foreground hover:border-border'
             }
           `}
         >
@@ -326,7 +326,7 @@ export function EntitySearchCombobox({
               {selectedItems.length > 0 && (
                 <span
                   onClick={clearAll}
-                  className="hover:text-amber-300 ml-1 cursor-pointer"
+                  className="hover:text-primary/80 ml-1 cursor-pointer"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -347,12 +347,12 @@ export function EntitySearchCombobox({
           <Badge
             key={item.id}
             variant="secondary"
-            className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs hidden md:flex"
+            className="bg-primary/10 text-primary border-primary/20 text-xs hidden md:flex"
           >
             {item.label}
             <button
               onClick={(e) => removeItem(item.id, e)}
-              className="ml-1 hover:text-amber-300"
+              className="ml-1 hover:text-primary/80"
             >
               <X className="h-3 w-3" />
             </button>
@@ -360,7 +360,7 @@ export function EntitySearchCombobox({
         ))}
 
         {selectedItems.length > 2 && (
-          <span className="text-xs text-zinc-500 hidden md:inline">
+          <span className="text-xs text-muted-foreground hidden md:inline">
             +{selectedItems.length - 2} more
           </span>
         )}
@@ -368,22 +368,22 @@ export function EntitySearchCombobox({
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-md shadow-lg">
+        <div className="absolute z-50 mt-2 w-80 bg-card border border-border rounded-md shadow-lg">
           {/* Search Input */}
-          <div className="p-3 border-b border-zinc-800">
+          <div className="p-3 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 ref={inputRef}
                 type="text"
                 placeholder={placeholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 bg-zinc-950 border-zinc-800 text-sm"
+                className="pl-9 h-9 bg-background border-border text-sm"
                 autoFocus
               />
               {isSearching && (
-                <Loader2 className="absolute right-3 top-2.5 h-4 w-4 text-zinc-500 animate-spin" />
+                <Loader2 className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground animate-spin" />
               )}
             </div>
           </div>
@@ -391,7 +391,7 @@ export function EntitySearchCombobox({
           {/* Results List */}
           <div className="max-h-[300px] overflow-y-auto">
             {searchResults.length === 0 ? (
-              <div className="px-3 py-8 text-sm text-zinc-500 text-center">
+              <div className="px-3 py-8 text-sm text-muted-foreground text-center">
                 {searchQuery ? 'No results found' : 'Type to search...'}
               </div>
             ) : (
@@ -404,8 +404,8 @@ export function EntitySearchCombobox({
                     onClick={() => toggleItem(item)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2 text-sm
-                      hover:bg-zinc-800 transition text-left
-                      ${isSelected ? 'bg-zinc-800/50' : ''}
+                      hover:bg-accent transition text-left
+                      ${isSelected ? 'bg-accent/50' : ''}
                     `}
                   >
                     <div
@@ -413,19 +413,19 @@ export function EntitySearchCombobox({
                         flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center
                         ${
                           isSelected
-                            ? 'bg-amber-500 border-amber-500'
-                            : 'border-zinc-700'
+                            ? 'bg-primary border-primary'
+                            : 'border-border'
                         }
                       `}
                     >
-                      {isSelected && <Check className="h-3 w-3 text-zinc-900" />}
+                      {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-zinc-300 truncate font-medium">
+                      <div className="text-foreground/70 truncate font-medium">
                         {item.label}
                       </div>
                       {item.subLabel && (
-                        <div className="text-xs text-zinc-500 truncate">
+                        <div className="text-xs text-muted-foreground truncate">
                           {item.subLabel}
                         </div>
                       )}
@@ -438,11 +438,11 @@ export function EntitySearchCombobox({
 
           {/* Footer */}
           {selectedIds.length > 0 && (
-            <div className="p-2 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+            <div className="p-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{selectedIds.length} selected</span>
               <button
                 onClick={clearAll}
-                className="text-amber-400 hover:text-amber-300 font-medium"
+                className="text-primary hover:text-primary/80 font-medium"
               >
                 Clear all
               </button>

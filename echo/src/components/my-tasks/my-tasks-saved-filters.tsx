@@ -32,9 +32,9 @@ export function MyTasksSavedFilters(props: {
   }
 
   return (
-    <div className="space-y-3 border-b border-zinc-800 pb-3">
+    <div className="space-y-3 border-b border-border pb-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           My Task Filters
         </p>
       </div>
@@ -49,8 +49,8 @@ export function MyTasksSavedFilters(props: {
               onClick={() => props.onApplyPreset(preset.id)}
               className={`w-full rounded border px-2 py-1.5 text-left text-sm transition ${
                 active
-                  ? 'border-amber-500/70 bg-amber-500/10 text-amber-200'
-                  : 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
+                  ? 'border-primary/70 bg-primary/10 text-primary'
+                  : 'border-border bg-card/60 text-foreground/70 hover:border-border hover:bg-card'
               }`}
             >
               {preset.label}
@@ -72,7 +72,7 @@ export function MyTasksSavedFilters(props: {
                 }
               }}
               placeholder="Save current filter as..."
-              className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <button
               type="button"
@@ -80,8 +80,8 @@ export function MyTasksSavedFilters(props: {
               disabled={!canSave}
               className={`rounded px-2.5 py-1.5 text-sm font-medium transition ${
                 canSave
-                  ? 'bg-amber-500 text-black hover:bg-amber-400'
-                  : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
+                  ? 'bg-primary text-black hover:bg-primary'
+                  : 'cursor-not-allowed bg-accent text-muted-foreground'
               }`}
             >
               Save
@@ -97,21 +97,21 @@ export function MyTasksSavedFilters(props: {
                     key={filter.id}
                     className={`flex items-center gap-2 rounded border px-2 py-1.5 ${
                       active
-                        ? 'border-amber-500/70 bg-amber-500/10'
-                        : 'border-zinc-800 bg-zinc-900/60'
+                        ? 'border-primary/70 bg-primary/10'
+                        : 'border-border bg-card/60'
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => props.onApplySavedFilter(filter)}
-                      className="min-w-0 flex-1 truncate text-left text-sm text-zinc-200 hover:text-amber-300"
+                      className="min-w-0 flex-1 truncate text-left text-sm text-foreground/80 hover:text-primary/80"
                     >
                       {filter.name}
                     </button>
                     <button
                       type="button"
                       onClick={() => props.onDeleteSavedFilter(filter)}
-                      className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-red-300"
+                      className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-red-300"
                       aria-label={`Delete saved filter ${filter.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -121,11 +121,11 @@ export function MyTasksSavedFilters(props: {
               })}
             </div>
           ) : (
-            <p className="text-xs text-zinc-500">No saved filters yet.</p>
+            <p className="text-xs text-muted-foreground">No saved filters yet.</p>
           )}
         </div>
       ) : (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Saved filters table not found yet. Run the new migration first.
         </p>
       )}

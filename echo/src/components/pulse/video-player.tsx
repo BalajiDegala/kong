@@ -25,7 +25,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     onPause,
     onPlay,
     width = '100%',
-    height = '100%',
+    height = 'auto',
     onFullscreen,
   }, ref) {
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -58,7 +58,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   }, [fps])
 
   // Sync time/frame during playback using requestAnimationFrame
-  const updateProgress = useCallback(() => {
+  const updateProgress = useCallback(function tick() {
     const video = videoRef.current
     if (!video) return
     const t = video.currentTime
@@ -73,7 +73,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       return prev
     })
     if (!video.paused) {
-      animFrameRef.current = requestAnimationFrame(updateProgress)
+      animFrameRef.current = requestAnimationFrame(tick)
     }
   }, [timeToFrame, onFrameChange])
 
@@ -190,9 +190,9 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   }, [handlePlayPause, stepFrame, seekToFrame, totalFrames])
 
     return (
-      <div className="flex flex-col bg-black rounded-lg overflow-hidden h-full">
-        {/* Video */}
-        <div className="relative flex-1 min-h-0">
+      <div className="flex w-full flex-col overflow-hidden rounded-lg bg-black" style={{ width, height }}>
+        {/* Keep the frame area ratio stable so the player doesn't leave a large empty strip below. */}
+        <div className="relative w-full bg-black aspect-video">
           <video
             ref={videoRef}
             src={url}
@@ -208,7 +208,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         </div>
 
       {/* Controls */}
-      <div className="bg-zinc-900 border-t border-zinc-800 px-3 py-2">
+      <div className="bg-card border-t border-border px-3 py-2">
         {/* Scrubber */}
         <input
           type="range"
@@ -217,7 +217,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           step={frameDuration}
           value={currentTime}
           onChange={handleScrub}
-          className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-amber-400"
+          className="w-full h-1 bg-secondary rounded-full appearance-none cursor-pointer accent-primary"
         />
 
         <div className="flex items-center justify-between mt-1.5">
@@ -225,34 +225,34 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           <div className="flex items-center gap-1">
             <button
               onClick={() => seekToFrame(1)}
-              className="p-1 text-zinc-400 hover:text-white transition"
+              className="p-1 text-muted-foreground hover:text-white transition"
               title="Go to start"
             >
               <SkipBack className="h-4 w-4" />
             </button>
             <button
               onClick={() => stepFrame(-1)}
-              className="p-1 text-zinc-400 hover:text-white transition"
+              className="p-1 text-muted-foreground hover:text-white transition"
               title="Previous frame"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               onClick={handlePlayPause}
-              className="p-1.5 text-white bg-zinc-700 hover:bg-zinc-600 rounded transition"
+              className="p-1.5 text-white bg-secondary hover:bg-muted-foreground/40 rounded transition"
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
             <button
               onClick={() => stepFrame(1)}
-              className="p-1 text-zinc-400 hover:text-white transition"
+              className="p-1 text-muted-foreground hover:text-white transition"
               title="Next frame"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
             <button
               onClick={() => seekToFrame(totalFrames)}
-              className="p-1 text-zinc-400 hover:text-white transition"
+              className="p-1 text-muted-foreground hover:text-white transition"
               title="Go to end"
             >
               <SkipForward className="h-4 w-4" />
@@ -260,21 +260,21 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           </div>
 
           {/* Center: timecode + frame */}
-          <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
             <span>{formatTimecode(currentTime)}</span>
-            <span className="text-zinc-600">|</span>
+            <span className="text-muted-foreground">|</span>
             <span>Frame {currentFrame} / {totalFrames || '—'}</span>
           </div>
 
           {/* Right: fps + fullscreen */}
           <div className="flex items-center gap-2">
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-muted-foreground">
               {fps} fps
             </div>
             {onFullscreen && (
               <button
                 onClick={onFullscreen}
-                className="p-1 text-zinc-400 hover:text-white transition"
+                className="p-1 text-muted-foreground hover:text-white transition"
                 title="Fullscreen"
               >
                 <Maximize2 className="h-4 w-4" />

@@ -61,12 +61,12 @@ export function CommentInput({
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none"
+        className="flex-1 rounded-md border border-border bg-accent px-3 py-1.5 text-sm text-foreground/80 placeholder:text-muted-foreground focus:border-primary focus:outline-none"
       />
       <button
         onClick={handleSubmit}
         disabled={!content.trim() || isSubmitting}
-        className="rounded-md p-1.5 text-zinc-400 hover:text-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        className="rounded-md p-1.5 text-muted-foreground hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition"
       >
         {isSubmitting ? (
           <Loader2 className="h-4 w-4 animate-spin" />

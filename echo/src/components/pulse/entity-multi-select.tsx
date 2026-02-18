@@ -80,7 +80,7 @@ export function EntityMultiSelect({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Label */}
-      <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
         {label}
       </label>
 
@@ -89,28 +89,28 @@ export function EntityMultiSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
           w-full flex items-center justify-between gap-2 px-3 py-2
-          bg-zinc-900 border border-zinc-800 rounded-md
-          text-sm text-zinc-300
-          hover:border-zinc-700 transition
+          bg-card border border-border rounded-md
+          text-sm text-foreground/70
+          hover:border-border transition
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          ${isOpen ? 'border-amber-500/50' : ''}
+          ${isOpen ? 'border-primary/50' : ''}
         `}
       >
         <div className="flex-1 flex flex-wrap gap-1 items-center min-h-[20px]">
           {selectedOptions.length === 0 ? (
-            <span className="text-zinc-500">{placeholder}</span>
+            <span className="text-muted-foreground">{placeholder}</span>
           ) : (
             selectedOptions.map((opt) => (
               <Badge
                 key={opt.id}
                 variant="secondary"
-                className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs flex items-center gap-1"
+                className="bg-primary/10 text-primary border-primary/20 text-xs flex items-center gap-1"
               >
                 {opt.label}
                 <button
                   type="button"
                   onClick={(e) => removeOption(opt.id, e)}
-                  className="hover:text-amber-300"
+                  className="hover:text-primary/80"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -123,13 +123,13 @@ export function EntityMultiSelect({
             <button
               type="button"
               onClick={clearAll}
-              className="text-zinc-500 hover:text-zinc-300 p-0.5"
+              className="text-muted-foreground hover:text-foreground/70 p-0.5"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
           <ChevronDown
-            className={`h-4 w-4 text-zinc-500 transition ${
+            className={`h-4 w-4 text-muted-foreground transition ${
               isOpen ? 'rotate-180' : ''
             }`}
           />
@@ -138,18 +138,18 @@ export function EntityMultiSelect({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-zinc-900 border border-zinc-800 rounded-md shadow-lg max-h-[300px] overflow-hidden flex flex-col">
+        <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-md shadow-lg max-h-[300px] overflow-hidden flex flex-col">
           {/* Search Input */}
           {searchable && options.length > 5 && (
-            <div className="p-2 border-b border-zinc-800">
+            <div className="p-2 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-9 bg-zinc-950 border-zinc-800 text-sm"
+                  className="pl-8 h-9 bg-background border-border text-sm"
                   autoFocus
                 />
               </div>
@@ -159,7 +159,7 @@ export function EntityMultiSelect({
           {/* Options List */}
           <div className="overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-zinc-500 text-center">
+              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
                 No results found
               </div>
             ) : (
@@ -172,8 +172,8 @@ export function EntityMultiSelect({
                     onClick={() => toggleOption(option.id)}
                     className={`
                       w-full flex items-center gap-2 px-3 py-2 text-sm
-                      hover:bg-zinc-800 transition text-left
-                      ${isSelected ? 'bg-zinc-800/50' : ''}
+                      hover:bg-accent transition text-left
+                      ${isSelected ? 'bg-accent/50' : ''}
                     `}
                   >
                     <div
@@ -181,17 +181,17 @@ export function EntityMultiSelect({
                         flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center
                         ${
                           isSelected
-                            ? 'bg-amber-500 border-amber-500'
-                            : 'border-zinc-700'
+                            ? 'bg-primary border-primary'
+                            : 'border-border'
                         }
                       `}
                     >
-                      {isSelected && <Check className="h-3 w-3 text-zinc-900" />}
+                      {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-zinc-300 truncate">{option.label}</div>
+                      <div className="text-foreground/70 truncate">{option.label}</div>
                       {option.subLabel && (
-                        <div className="text-xs text-zinc-500 truncate">
+                        <div className="text-xs text-muted-foreground truncate">
                           {option.subLabel}
                         </div>
                       )}
@@ -204,11 +204,11 @@ export function EntityMultiSelect({
 
           {/* Footer */}
           {selectedOptions.length > 0 && (
-            <div className="p-2 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+            <div className="p-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{selectedOptions.length} selected</span>
               <button
                 onClick={clearAll}
-                className="text-amber-400 hover:text-amber-300 font-medium"
+                className="text-primary hover:text-primary/80 font-medium"
               >
                 Clear all
               </button>

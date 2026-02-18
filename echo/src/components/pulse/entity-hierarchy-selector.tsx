@@ -430,7 +430,7 @@ export function EntityHierarchySelector({
         <Badge
           key={`task-${t.id}`}
           variant="secondary"
-          className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs max-w-xs"
+          className="bg-primary/10 text-primary border-primary/20 text-xs max-w-xs"
           title={fullPath}
         >
           <CheckSquare className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -440,7 +440,7 @@ export function EntityHierarchySelector({
               e.stopPropagation()
               handleCheckboxToggle(t)
             }}
-            className="ml-1 hover:text-amber-300 flex-shrink-0"
+            className="ml-1 hover:text-primary/80 flex-shrink-0"
           >
             <X className="h-3 w-3" />
           </button>
@@ -478,8 +478,8 @@ export function EntityHierarchySelector({
           flex items-center gap-2 px-3 py-1.5 rounded-md text-sm border transition
           ${
             getTotalSelections() > 0
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'bg-card border-border text-muted-foreground hover:border-border'
           }
         `}
       >
@@ -499,16 +499,16 @@ export function EntityHierarchySelector({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-96 bg-zinc-900 border border-zinc-800 rounded-md shadow-lg">
+        <div className="absolute z-50 mt-2 w-96 bg-card border border-border rounded-md shadow-lg">
           {/* Breadcrumb Navigation */}
-          <div className="p-2 border-b border-zinc-800 flex items-center gap-1 text-xs overflow-x-auto">
+          <div className="p-2 border-b border-border flex items-center gap-1 text-xs overflow-x-auto">
             {/* Start/Home button */}
             <button
               onClick={() => handleBreadcrumbClick(-1)}
               className={`flex items-center gap-1 px-2 py-1 rounded ${
                 breadcrumb.length === 0
-                  ? 'text-amber-400 bg-amber-500/10'
-                  : 'text-zinc-500 hover:text-amber-400'
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground hover:text-primary'
               }`}
               title="Start over"
             >
@@ -518,17 +518,17 @@ export function EntityHierarchySelector({
 
             {breadcrumb.length > 0 && (
               <>
-                <ChevronRight className="h-3 w-3 text-zinc-600" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 {breadcrumb.map((crumb, index) => (
                   <div key={`${crumb.type}-${crumb.id}`} className="flex items-center gap-1">
                     <button
                       onClick={() => handleBreadcrumbClick(index)}
-                      className="text-amber-400 hover:text-amber-300 whitespace-nowrap px-2 py-1 rounded hover:bg-amber-500/10"
+                      className="text-primary hover:text-primary/80 whitespace-nowrap px-2 py-1 rounded hover:bg-primary/10"
                     >
                       {crumb.name}
                     </button>
                     {index < breadcrumb.length - 1 && (
-                      <ChevronRight className="h-3 w-3 text-zinc-600" />
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     )}
                   </div>
                 ))}
@@ -537,18 +537,18 @@ export function EntityHierarchySelector({
           </div>
 
           {/* Header */}
-          <div className="p-3 border-b border-zinc-800">
+          <div className="p-3 border-b border-border">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {breadcrumb.length > 0 && (
                   <button
                     onClick={handleBackButton}
-                    className="text-xs text-zinc-400 hover:text-amber-400 flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
                   >
                     ← Back
                   </button>
                 )}
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground/70">
                   {getLevelIcon(currentLevel)}
                   <span>Select {getLevelLabel(currentLevel)}</span>
                 </div>
@@ -556,7 +556,7 @@ export function EntityHierarchySelector({
               {getTotalSelections() > 0 && (
                 <button
                   onClick={handleReset}
-                  className="text-xs text-amber-400 hover:text-amber-300"
+                  className="text-xs text-primary hover:text-primary/80"
                 >
                   Clear All
                 </button>
@@ -565,13 +565,13 @@ export function EntityHierarchySelector({
 
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder={`Search ${currentLevel}s...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 bg-zinc-950 border-zinc-800 text-sm"
+                className="pl-8 h-9 bg-background border-border text-sm"
                 autoFocus
               />
             </div>
@@ -580,9 +580,9 @@ export function EntityHierarchySelector({
           {/* Items List */}
           <div className="max-h-[300px] overflow-y-auto">
             {isLoading ? (
-              <div className="p-8 text-center text-sm text-zinc-500">Loading...</div>
+              <div className="p-8 text-center text-sm text-muted-foreground">Loading...</div>
             ) : items.length === 0 ? (
-              <div className="p-8 text-center text-sm text-zinc-500">
+              <div className="p-8 text-center text-sm text-muted-foreground">
                 {searchQuery ? 'No results found' : `No ${currentLevel}s available`}
               </div>
             ) : (
@@ -593,7 +593,7 @@ export function EntityHierarchySelector({
                 return (
                   <div
                     key={key}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-800 transition"
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-accent transition"
                   >
                     {/* Checkbox */}
                     <button
@@ -603,26 +603,26 @@ export function EntityHierarchySelector({
                         flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center
                         ${
                           isChecked
-                            ? 'bg-amber-500 border-amber-500'
-                            : 'border-zinc-700 hover:border-zinc-600'
+                            ? 'bg-primary border-primary'
+                            : 'border-border hover:border-border'
                         }
                       `}
                     >
-                      {isChecked && <Check className="h-3 w-3 text-zinc-900" />}
+                      {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
                     </button>
 
                     {/* Item name - click to drill down */}
                     <button
                       type="button"
                       onClick={() => handleItemClick(item)}
-                      className="flex-1 text-left text-sm text-zinc-300 hover:text-zinc-100"
+                      className="flex-1 text-left text-sm text-foreground/70 hover:text-foreground"
                     >
                       {item.name}
                     </button>
 
                     {/* Drill down indicator */}
                     {currentLevel !== 'task' && (
-                      <ChevronRight className="h-4 w-4 text-zinc-600" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     )}
                   </div>
                 )

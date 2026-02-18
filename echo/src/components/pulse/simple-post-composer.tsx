@@ -168,13 +168,13 @@ export function SimplePostComposer({
     entitySelections.tasks.length > 0
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900">
+    <div className="rounded-lg border border-border bg-card">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-3">
-        <div className="h-8 w-8 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-medium text-zinc-300">
+        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-medium text-foreground/70">
           {authorProfile?.display_name?.[0]?.toUpperCase() || '?'}
         </div>
-        <span className="text-sm font-medium text-zinc-300">
+        <span className="text-sm font-medium text-foreground/70">
           {authorProfile?.display_name || 'You'}
         </span>
       </div>
@@ -194,7 +194,7 @@ export function SimplePostComposer({
           placeholder="What's on your mind?"
           disabled={isSubmitting}
           rows={3}
-          className="w-full px-4 py-3 bg-transparent text-zinc-200 text-sm placeholder:text-zinc-600 focus:outline-none resize-none"
+          className="w-full px-4 py-3 bg-transparent text-foreground/80 text-sm placeholder:text-muted-foreground focus:outline-none resize-none"
         />
 
         {/* Entity Selector (Hierarchy) */}
@@ -213,13 +213,13 @@ export function SimplePostComposer({
                 {mediaFiles[index]?.type.startsWith('video/') ? (
                   <video
                     src={url}
-                    className="h-20 w-20 rounded object-cover bg-zinc-800"
+                    className="h-20 w-20 rounded object-cover bg-accent"
                   />
                 ) : (
                   <img
                     src={url}
                     alt={`Upload ${index + 1}`}
-                    className="h-20 w-20 rounded object-cover bg-zinc-800"
+                    className="h-20 w-20 rounded object-cover bg-accent"
                   />
                 )}
                 <button
@@ -235,9 +235,9 @@ export function SimplePostComposer({
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-2">
+        <div className="flex items-center justify-between border-t border-border px-4 py-2">
           <div className="flex items-center gap-1">
-            <label className="cursor-pointer p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition">
+            <label className="cursor-pointer p-2 text-muted-foreground hover:text-foreground/80 hover:bg-accent rounded transition">
               <ImagePlus className="h-4 w-4" />
               <input
                 type="file"
@@ -248,7 +248,7 @@ export function SimplePostComposer({
                 disabled={isSubmitting}
               />
             </label>
-            <label className="cursor-pointer p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition">
+            <label className="cursor-pointer p-2 text-muted-foreground hover:text-foreground/80 hover:bg-accent rounded transition">
               <Video className="h-4 w-4" />
               <input
                 type="file"
@@ -264,7 +264,7 @@ export function SimplePostComposer({
           <button
             type="submit"
             disabled={isSubmitting || (!content.trim() && mediaFiles.length === 0)}
-            className="flex items-center gap-2 rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-zinc-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

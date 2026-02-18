@@ -64,31 +64,31 @@ export default async function ProjectOverviewPage({
     active: 'bg-green-500',
     on_hold: 'bg-yellow-500',
     completed: 'bg-blue-500',
-    archived: 'bg-zinc-600',
+    archived: 'bg-muted-foreground/40',
   }
 
   return (
     <div className="p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Project Info Widget */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-          <h3 className="mb-4 text-lg font-semibold text-zinc-100">Project Information</h3>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h3 className="mb-4 text-lg font-semibold text-foreground">Project Information</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-sm text-zinc-400">Project Code</p>
-              <p className="font-mono text-zinc-100">{project.code}</p>
+              <p className="text-sm text-muted-foreground">Project Code</p>
+              <p className="font-mono text-foreground">{project.code}</p>
             </div>
             <div>
-              <p className="text-sm text-zinc-400">Status</p>
+              <p className="text-sm text-muted-foreground">Status</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${statusColors[project.status] || 'bg-zinc-500'}`} />
-                <span className="capitalize text-zinc-100">{project.status.replace('_', ' ')}</span>
+                <span className={`h-2 w-2 rounded-full ${statusColors[project.status] || 'bg-muted-foreground/30'}`} />
+                <span className="capitalize text-foreground">{project.status.replace('_', ' ')}</span>
               </div>
             </div>
             {project.description && (
               <div className="sm:col-span-2">
-                <p className="text-sm text-zinc-400">Description</p>
-                <p className="text-zinc-100">{project.description}</p>
+                <p className="text-sm text-muted-foreground">Description</p>
+                <p className="text-foreground">{project.description}</p>
               </div>
             )}
           </div>
@@ -96,43 +96,43 @@ export default async function ProjectOverviewPage({
 
         {/* Stats Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-400">Assets</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{assetCount || 0}</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Assets</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{assetCount || 0}</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-400">Sequences</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{sequenceCount || 0}</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Sequences</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{sequenceCount || 0}</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-400">Shots</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{shotCount || 0}</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Shots</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{shotCount || 0}</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-400">Tasks</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{taskCount || 0}</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Tasks</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{taskCount || 0}</p>
           </div>
         </div>
 
         {/* Task Progress */}
         {taskCount && taskCount > 0 && (
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Task Progress</h3>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Task Progress</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-sm text-zinc-400">Pending</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-100">{tasksByStatus.pending || 0}</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{tasksByStatus.pending || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-zinc-400">In Progress</p>
+                <p className="text-sm text-muted-foreground">In Progress</p>
                 <p className="mt-1 text-2xl font-bold text-green-500">{tasksByStatus.ip || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-zinc-400">Review</p>
+                <p className="text-sm text-muted-foreground">Review</p>
                 <p className="mt-1 text-2xl font-bold text-yellow-500">{tasksByStatus.review || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-zinc-400">Approved</p>
+                <p className="text-sm text-muted-foreground">Approved</p>
                 <p className="mt-1 text-2xl font-bold text-blue-500">{tasksByStatus.approved || 0}</p>
               </div>
             </div>
@@ -141,13 +141,13 @@ export default async function ProjectOverviewPage({
 
         {/* Placeholder Widgets */}
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Recent Activity</h3>
-            <p className="text-sm text-zinc-400">No recent activity</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Recent Activity</h3>
+            <p className="text-sm text-muted-foreground">No recent activity</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Project Team</h3>
-            <p className="text-sm text-zinc-400">No team members yet</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Project Team</h3>
+            <p className="text-sm text-muted-foreground">No team members yet</p>
           </div>
         </div>
       </div>

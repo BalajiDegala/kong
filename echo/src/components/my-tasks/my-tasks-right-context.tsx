@@ -42,8 +42,8 @@ export function MyTasksRightContext(props: {
 
   if (!task) {
     return (
-      <div className="border-b border-zinc-800 bg-zinc-950 px-4 py-4">
-        <p className="text-sm text-zinc-500">Select a task from the left queue.</p>
+      <div className="border-b border-border bg-background px-4 py-4">
+        <p className="text-sm text-muted-foreground">Select a task from the left queue.</p>
       </div>
     )
   }
@@ -56,13 +56,13 @@ export function MyTasksRightContext(props: {
   const description = asText(task.entity_description).trim() || `Task: ${asText(task.name).trim() || '-'}`
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-950">
+    <div className="border-b border-border bg-background">
       <div className="px-4 py-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           {asText(task.project_label).trim()} • {asText(task.entity_type_display).trim()}
         </p>
         <div className="mt-2 flex gap-4">
-          <div className="h-24 w-36 flex-shrink-0 rounded-md border border-zinc-800 bg-zinc-900">
+          <div className="h-24 w-36 flex-shrink-0 rounded-md border border-border bg-card">
             {asText(task.entity_thumbnail_url).trim() ? (
               <img
                 src={asText(task.entity_thumbnail_url).trim()}
@@ -70,7 +70,7 @@ export function MyTasksRightContext(props: {
                 className="h-full w-full rounded-md object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                 No Thumbnail
               </div>
             )}
@@ -78,47 +78,47 @@ export function MyTasksRightContext(props: {
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-xl font-semibold text-zinc-100">
+              <p className="truncate text-xl font-semibold text-foreground">
                 {entityTitle(task)}
               </p>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200">
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-foreground/80">
                 {statusLabel}
               </span>
             </div>
 
-            <p className="mt-1 truncate text-sm text-zinc-400">{description}</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{description}</p>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-300 xl:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-foreground/70 xl:grid-cols-4">
               <p>
-                <span className="text-zinc-500">Task: </span>
-                <span className="text-zinc-200">{asText(task.name).trim() || `Task ${task.id}`}</span>
+                <span className="text-muted-foreground">Task: </span>
+                <span className="text-foreground/80">{asText(task.name).trim() || `Task ${task.id}`}</span>
               </p>
               <p>
-                <span className="text-zinc-500">Pipeline: </span>
+                <span className="text-muted-foreground">Pipeline: </span>
                 {asText(task.department_label).trim() || '-'}
               </p>
               <p>
-                <span className="text-zinc-500">Assigned: </span>
+                <span className="text-muted-foreground">Assigned: </span>
                 {asText(task.assignee_name).trim() || '-'}
               </p>
               <p>
-                <span className="text-zinc-500">Due: </span>
+                <span className="text-muted-foreground">Due: </span>
                 {dueLabel}
               </p>
               <p>
-                <span className="text-zinc-500">Start: </span>
+                <span className="text-muted-foreground">Start: </span>
                 {startLabel}
               </p>
               <p>
-                <span className="text-zinc-500">End: </span>
+                <span className="text-muted-foreground">End: </span>
                 {endLabel}
               </p>
               <p className="xl:col-span-2">
-                <span className="text-zinc-500">Sequence: </span>
+                <span className="text-muted-foreground">Sequence: </span>
                 {asText(task.entity_sequence_label).trim() || '-'}
               </p>
               <p className="xl:col-span-2">
-                <span className="text-zinc-500">Updated: </span>
+                <span className="text-muted-foreground">Updated: </span>
                 {updatedLabel}
               </p>
             </div>
@@ -126,7 +126,7 @@ export function MyTasksRightContext(props: {
         </div>
       </div>
 
-      <div className="border-t border-zinc-800 px-4">
+      <div className="border-t border-border px-4">
         <div className="flex overflow-auto">
           {props.tabs.map((tab) => {
             const isActive = props.activeTab === tab.id
@@ -138,8 +138,8 @@ export function MyTasksRightContext(props: {
                 onClick={() => props.onTabChange(tab.id)}
                 className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm transition ${
                   isActive
-                    ? 'border-amber-500 text-amber-300'
-                    : 'border-transparent text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'border-primary text-primary/80'
+                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground/80'
                 }`}
               >
                 {label}

@@ -26,7 +26,7 @@ export default async function DashboardLayout({
     .single()
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-zinc-950">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Global Navigation */}
       <GlobalNav user={user} profile={profile} />
 

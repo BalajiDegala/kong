@@ -114,15 +114,15 @@ export function DebugPosts() {
   }
 
   return (
-    <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-lg">
-      <h2 className="text-lg font-semibold text-zinc-100 mb-4">🔧 Posts Debug Tool</h2>
+    <div className="p-6 bg-card border border-border rounded-lg">
+      <h2 className="text-lg font-semibold text-foreground mb-4">🔧 Posts Debug Tool</h2>
 
       <Button onClick={runTests} disabled={isRunning} className="mb-4">
         {isRunning ? 'Running tests...' : 'Run Diagnostic Tests'}
       </Button>
 
       {logs.length > 0 && (
-        <pre className="bg-zinc-950 p-4 rounded text-xs text-zinc-300 overflow-auto max-h-[500px] font-mono whitespace-pre-wrap">
+        <pre className="bg-background p-4 rounded text-xs text-foreground/70 overflow-auto max-h-[500px] font-mono whitespace-pre-wrap">
           {logs.join('\n')}
         </pre>
       )}

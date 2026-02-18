@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, ChevronRight, Download, Pencil, Trash2, Upload } from 'lucide-react'
@@ -30,9 +30,10 @@ let userTablePreferencesHasExtendedColumns: boolean | null = null
 
 function isMissingUserTablePreferencesTable(error: unknown): boolean {
   if (!error) return false
-  const code = String(error.code || '')
-  const message = String(error.message || '').toLowerCase()
-  const details = String(error.details || '').toLowerCase()
+  const errorRecord = typeof error === 'object' && error ? (error as Record<string, unknown>) : {}
+  const code = String(errorRecord.code || '')
+  const message = String(errorRecord.message || '').toLowerCase()
+  const details = String(errorRecord.details || '').toLowerCase()
   return (
     code === 'PGRST205' ||
     message.includes('user_table_preferences') ||
@@ -43,9 +44,10 @@ function isMissingUserTablePreferencesTable(error: unknown): boolean {
 
 function isMissingUserTablePreferenceColumn(error: unknown): boolean {
   if (!error) return false
-  const code = String(error.code || '').toUpperCase()
-  const message = String(error.message || '').toLowerCase()
-  const details = String(error.details || '').toLowerCase()
+  const errorRecord = typeof error === 'object' && error ? (error as Record<string, unknown>) : {}
+  const code = String(errorRecord.code || '').toUpperCase()
+  const message = String(errorRecord.message || '').toLowerCase()
+  const details = String(errorRecord.details || '').toLowerCase()
   return (
     code === 'PGRST204' ||
     (message.includes('column') && message.includes('does not exist')) ||
@@ -2044,6 +2046,90 @@ export function EntityTable({
     return profileNamesById[trimmed.toLowerCase()] || value
   }
 
+  const getGroupLabel = useCallback(
+    (column: TableColumn | undefined, rawValue: unknown, row: any): string => {
+      if (rawValue === null || rawValue === undefined || rawValue === '') return 'Ungrouped'
+
+      let formatted: unknown = rawValue
+      const hasCustomFormatter = Boolean(column && typeof column.formatValue === 'function')
+      if (column?.formatValue) {
+        formatted = column.formatValue(rawValue, row)
+      } else if (column?.options?.length) {
+        const rawValues = unknownToStringList(rawValue)
+        if (rawValues.length > 1 || Array.isArray(rawValue)) {
+          const labeled = optionValuesToLabels(rawValues, column.options)
+          if (labeled.trim()) {
+            formatted = labeled
+          }
+        } else {
+          const optionLabel = resolveColumnOptionLabel(column, String(rawValue).trim())
+          if (optionLabel) {
+            formatted = optionLabel
+          }
+        }
+      }
+
+      if (!hasCustomFormatter && column && isPeopleReferenceColumnId(column.id)) {
+        const rawValues = unknownToStringList(formatted)
+        if (rawValues.length > 1 || Array.isArray(formatted)) {
+          const labels = rawValues.map((rawItem) => {
+            const normalized = rawItem.trim()
+            if (!normalized) return ''
+            if (!isLikelyUuid(normalized)) return normalized
+            return profileNamesById[normalized.toLowerCase()] || normalized
+          })
+          const joined = labels.filter(Boolean).join(', ')
+          if (joined) {
+            formatted = joined
+          }
+        } else if (typeof formatted === 'string') {
+          const normalized = formatted.trim()
+          if (isLikelyUuid(normalized)) {
+            formatted = profileNamesById[normalized.toLowerCase()] || normalized
+          }
+        }
+      }
+
+      if (column) {
+        const temporal = inferTemporalKind(column)
+        if (temporal) {
+          const display = formatTemporalDisplay(formatted, temporal)
+          if (display) return display
+        }
+      }
+
+      if (Array.isArray(formatted)) {
+        const joined = formatted.map((item) => String(item ?? '').trim()).filter(Boolean).join(', ')
+        return joined || 'Ungrouped'
+      }
+
+      const text = String(formatted ?? '').trim()
+      return text || 'Ungrouped'
+    },
+    [profileNamesById]
+  )
+
+  const getGroupKey = useCallback((rawValue: unknown): string => {
+    if (rawValue === null || rawValue === undefined || rawValue === '') return '__ungrouped__'
+
+    if (Array.isArray(rawValue)) {
+      const normalized = unknownToStringList(rawValue)
+        .map((item) => item.trim())
+        .filter(Boolean)
+      return normalized.length > 0 ? `arr:${normalized.join('|')}` : '__ungrouped__'
+    }
+
+    if (typeof rawValue === 'object') {
+      try {
+        return `obj:${JSON.stringify(rawValue)}`
+      } catch {
+        return `obj:${String(rawValue)}`
+      }
+    }
+
+    return `val:${String(rawValue).trim() || '__ungrouped__'}`
+  }, [])
+
   const sortedData = useMemo(() => {
     if (!sort) return filteredData
 
@@ -2218,20 +2304,46 @@ export function EntityTable({
     selectableFilteredRowIds.length > 0 &&
     selectedRowCount === selectableFilteredRowIds.length
 
-  const groupedData = useMemo<Record<string, any[]>>(() => {
+  const groupedData = useMemo<
+    Record<
+      string,
+      {
+        label: string
+        rows: any[]
+      }
+    >
+  >(() => {
     if (!groupById) {
-      return { All: paginatedData }
+      return {
+        __all__: {
+          label: 'All',
+          rows: paginatedData,
+        },
+      }
     }
 
-    return paginatedData.reduce<Record<string, any[]>>((acc, item) => {
-      const groupKey = item[groupById] || 'Ungrouped'
+    const groupColumn = resolvedColumnById.get(groupById)
+    return paginatedData.reduce<
+      Record<
+        string,
+        {
+          label: string
+          rows: any[]
+        }
+      >
+    >((acc, item) => {
+      const rawGroupValue = item[groupById]
+      const groupKey = getGroupKey(rawGroupValue)
       if (!acc[groupKey]) {
-        acc[groupKey] = []
+        acc[groupKey] = {
+          label: getGroupLabel(groupColumn, rawGroupValue, item),
+          rows: [],
+        }
       }
-      acc[groupKey].push(item)
+      acc[groupKey].rows.push(item)
       return acc
     }, {})
-  }, [groupById, paginatedData])
+  }, [getGroupKey, getGroupLabel, groupById, paginatedData, resolvedColumnById])
 
   const groupKeys = useMemo(() => Object.keys(groupedData), [groupedData])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -2860,7 +2972,7 @@ export function EntityTable({
     ) {
       const profileName = profileNamesById[value.trim().toLowerCase()]
       if (profileName) {
-        return <span className="text-zinc-100">{profileName}</span>
+        return <span className="text-foreground">{profileName}</span>
       }
     }
 
@@ -2881,9 +2993,9 @@ export function EntityTable({
                 reportCellUpdateError(error)
               }
             }}
-            className="h-4 w-4 rounded border border-zinc-700 bg-zinc-900"
+            className="h-4 w-4 rounded border border-border bg-card"
           />
-          <span className="text-xs text-zinc-100">{value ? 'Yes' : 'No'}</span>
+          <span className="text-xs text-foreground">{value ? 'Yes' : 'No'}</span>
         </label>
       )
     }
@@ -2891,28 +3003,28 @@ export function EntityTable({
     switch (column.type) {
       case 'date': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
         const display = formatDateDisplay(value)
         if (!display) {
-          return <span className="text-zinc-100">{String(value)}</span>
+          return <span className="text-foreground">{String(value)}</span>
         }
         return (
-          <span className="text-zinc-100" title={display}>
+          <span className="text-foreground" title={display}>
             {display}
           </span>
         )
       }
       case 'datetime': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
         const display = formatDateTimeDisplay(value)
         if (!display) {
-          return <span className="text-zinc-100">{String(value)}</span>
+          return <span className="text-foreground">{String(value)}</span>
         }
         return (
-          <span className="text-zinc-100" title={display}>
+          <span className="text-foreground" title={display}>
             {display}
           </span>
         )
@@ -2957,9 +3069,9 @@ export function EntityTable({
               />
               <ThumbnailPreview
                 source={thumbnailSource}
-                className="h-10 w-10 rounded object-cover ring-1 ring-zinc-700 transition hover:ring-amber-400"
+                className="h-10 w-10 rounded object-cover ring-1 ring-ring transition hover:ring-primary"
                 fallback={
-                  <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-800 text-[10px] text-zinc-500 transition hover:text-zinc-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded bg-accent text-[10px] text-muted-foreground transition hover:text-foreground/80">
                     Upload
                   </div>
                 }
@@ -2973,7 +3085,7 @@ export function EntityTable({
               source={thumbnailSource}
               className="h-10 w-10 rounded object-cover"
               fallback={
-                <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-500">
+                <div className="flex h-10 w-10 items-center justify-center rounded bg-accent text-xs text-muted-foreground">
                   Upload
                 </div>
               }
@@ -2986,14 +3098,14 @@ export function EntityTable({
           const href = column.linkHref(row)
           if (!href) {
             if (value === null || value === undefined || value === '') {
-              return <span className="text-zinc-500">-</span>
+              return <span className="text-muted-foreground">-</span>
             }
-            return <span className="text-zinc-100">{String(value)}</span>
+            return <span className="text-foreground">{String(value)}</span>
           }
           return (
             <Link
               href={href}
-              className="text-amber-400 transition hover:text-amber-300"
+              className="text-primary transition hover:text-primary/80"
               onClick={(e) => {
                 e.stopPropagation()
               }}
@@ -3005,7 +3117,7 @@ export function EntityTable({
         return (
           <a
             href="#"
-            className="text-amber-400 transition hover:text-amber-300"
+            className="text-primary transition hover:text-primary/80"
             onClick={(e) => {
               e.stopPropagation()
             }}
@@ -3018,7 +3130,7 @@ export function EntityTable({
           <div className="flex items-center gap-2">
             <div
               className={`h-2 w-2 rounded-full ${
-                value === 'Active' ? 'bg-green-500' : 'bg-zinc-500'
+                value === 'Active' ? 'bg-green-500' : 'bg-muted-foreground/30'
               }`}
             />
             <span>{value}</span>
@@ -3039,7 +3151,7 @@ export function EntityTable({
         )
       case 'url': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
         const href = String(value)
         return (
@@ -3047,7 +3159,7 @@ export function EntityTable({
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="text-amber-400 transition hover:text-amber-300"
+            className="text-primary transition hover:text-primary/80"
             onClick={(e) => e.stopPropagation()}
           >
             {href}
@@ -3056,40 +3168,40 @@ export function EntityTable({
       }
       case 'color': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
         const display = String(value)
         return (
           <div className="flex items-center gap-2">
             <span
-              className="h-3 w-3 rounded-sm border border-zinc-700"
+              className="h-3 w-3 rounded-sm border border-border"
               style={{ backgroundColor: display }}
               title={display}
             />
-            <span className="text-zinc-100">{display}</span>
+            <span className="text-foreground">{display}</span>
           </div>
         )
       }
       case 'boolean': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
-        return <span className="text-zinc-100">{Boolean(value) ? 'Yes' : 'No'}</span>
+        return <span className="text-foreground">{Boolean(value) ? 'Yes' : 'No'}</span>
       }
       case 'json': {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
         const display = typeof value === 'string' ? value : JSON.stringify(value)
         return (
-          <span className="max-w-[240px] truncate text-zinc-100" title={display}>
+          <span className="max-w-[240px] truncate text-foreground" title={display}>
             {display}
           </span>
         )
       }
       default: {
         if (value === null || value === undefined || value === '') {
-          return <span className="text-zinc-500">-</span>
+          return <span className="text-muted-foreground">-</span>
         }
 
         const hasCustomFormatter = typeof column.formatValue === 'function'
@@ -3142,7 +3254,7 @@ export function EntityTable({
           const display = formatTemporalDisplay(formatted, temporal)
           if (display) {
             return (
-              <span className="text-zinc-100" title={display}>
+              <span className="text-foreground" title={display}>
                 {display}
               </span>
             )
@@ -3152,20 +3264,20 @@ export function EntityTable({
         if (Array.isArray(formatted)) {
           const display = formatted.join(', ')
           return (
-            <span className="max-w-[240px] truncate text-zinc-100" title={display}>
+            <span className="max-w-[240px] truncate text-foreground" title={display}>
               {display || '-'}
             </span>
           )
         }
 
         if (typeof formatted === 'boolean') {
-          return <span className="text-zinc-100">{formatted ? 'Yes' : 'No'}</span>
+          return <span className="text-foreground">{formatted ? 'Yes' : 'No'}</span>
         }
 
         if (typeof formatted === 'object') {
           const display = JSON.stringify(formatted)
           return (
-            <span className="max-w-[240px] truncate text-zinc-100" title={display}>
+            <span className="max-w-[240px] truncate text-foreground" title={display}>
               {display}
             </span>
           )
@@ -3173,7 +3285,7 @@ export function EntityTable({
 
         const display = String(formatted)
         return (
-          <span className="max-w-[240px] truncate text-zinc-100" title={display}>
+          <span className="max-w-[240px] truncate text-foreground" title={display}>
             {display}
           </span>
         )
@@ -3336,7 +3448,7 @@ export function EntityTable({
           <button
             type="button"
             disabled={displayColumns.length === 0 || totalRows === 0}
-            className="flex items-center gap-1 rounded-sm border border-zinc-700 px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1 rounded-sm border border-border px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
             CSV
@@ -3345,29 +3457,29 @@ export function EntityTable({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="border-zinc-700 bg-zinc-900 text-zinc-100"
+          className="border-border bg-card text-foreground"
         >
-          <DropdownMenuLabel className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">
+          <DropdownMenuLabel className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             Export CSV
           </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-zinc-700" />
+          <DropdownMenuSeparator className="bg-secondary" />
           <DropdownMenuItem
             onSelect={() => exportRowsAsCsv(paginatedData, 'page')}
-            className="focus:bg-zinc-800 focus:text-zinc-100"
+            className="focus:bg-accent focus:text-foreground"
             disabled={paginatedData.length === 0}
           >
             Export Current Page ({paginatedData.length})
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => exportRowsAsCsv(sortedData, 'filtered')}
-            className="focus:bg-zinc-800 focus:text-zinc-100"
+            className="focus:bg-accent focus:text-foreground"
             disabled={sortedData.length === 0}
           >
             Export Filtered ({sortedData.length})
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => exportRowsAsCsv(selectedRows, 'selected')}
-            className="focus:bg-zinc-800 focus:text-zinc-100"
+            className="focus:bg-accent focus:text-foreground"
             disabled={selectedRows.length === 0}
           >
             Export Selected ({selectedRows.length})
@@ -3379,7 +3491,7 @@ export function EntityTable({
         <button
           type="button"
           onClick={() => handleCsvImportDialogToggle(true)}
-          className="flex items-center gap-1 rounded-sm border border-zinc-700 px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+          className="flex items-center gap-1 rounded-sm border border-border px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70 transition hover:border-border hover:text-foreground"
         >
           <Upload className="h-3.5 w-3.5" />
           Import CSV
@@ -3419,12 +3531,12 @@ export function EntityTable({
           filtersPanel={
             showFiltersPanel && filterableColumns.length > 0 ? (
               <div className="absolute left-0 top-full z-30 mt-2 hidden w-[22rem] lg:block">
-                <div className="rounded-md border border-zinc-800 bg-zinc-950/95 p-3 text-sm text-zinc-200 shadow-lg">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
+                <div className="rounded-md border border-border bg-background/95 p-3 text-sm text-foreground/80 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-border pb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     <span>Filters</span>
                     <button
                       onClick={clearFilters}
-                      className="text-[10px] uppercase tracking-[0.2em] text-amber-400 hover:text-amber-300"
+                      className="text-[10px] uppercase tracking-[0.2em] text-primary hover:text-primary/80"
                     >
                       Clear values
                     </button>
@@ -3435,7 +3547,7 @@ export function EntityTable({
                       value={pendingFilterColumnId}
                       onChange={(event) => setPendingFilterColumnId(event.target.value)}
                       disabled={addableFilterColumns.length === 0}
-                      className="flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:text-zinc-500"
+                      className="flex-1 rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:text-muted-foreground"
                     >
                       {addableFilterColumns.length === 0 ? (
                         <option value="">All available filters added</option>
@@ -3451,14 +3563,14 @@ export function EntityTable({
                       type="button"
                       onClick={() => addFilterColumn(pendingFilterColumnId)}
                       disabled={!pendingFilterColumnId}
-                      className="rounded border border-zinc-700 px-2 py-1.5 text-[10px] uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded border border-border px-2 py-1.5 text-[10px] uppercase tracking-[0.2em] text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Add Filter
                     </button>
                   </div>
 
                   {activeFilterableColumns.length === 0 ? (
-                    <div className="mt-3 rounded border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+                    <div className="mt-3 rounded border border-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
                       No active filters. Add a field to filter this page.
                     </div>
                   ) : (
@@ -3466,16 +3578,16 @@ export function EntityTable({
                       {activeFilterableColumns.map((column) => (
                         <div
                           key={column.id}
-                          className="rounded border border-zinc-800 bg-zinc-900/50 p-2"
+                          className="rounded border border-border bg-card/50 p-2"
                         >
                           <div className="flex items-center justify-between">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               {column.label}
                             </p>
                             <button
                               type="button"
                               onClick={() => removeFilterColumn(column.id)}
-                              className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition hover:text-zinc-200"
+                              className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground/80"
                             >
                               Remove
                             </button>
@@ -3490,13 +3602,13 @@ export function EntityTable({
                               .map((value) => (
                                 <label
                                   key={value}
-                                  className="flex items-center gap-2 text-xs text-zinc-300"
+                                  className="flex items-center gap-2 text-xs text-foreground/70"
                                 >
                                   <input
                                     type="checkbox"
                                     checked={activeFilters[column.id]?.has(value) ?? false}
                                     onChange={() => toggleFilterValue(column.id, value)}
-                                    className="h-3 w-3 rounded border border-zinc-700 bg-zinc-900"
+                                    className="h-3 w-3 rounded border border-border bg-card"
                                   />
                                   <span>{formatFilterOptionLabel(column, value)}</span>
                                 </label>
@@ -3505,7 +3617,7 @@ export function EntityTable({
                               <button
                                 type="button"
                                 onClick={() => toggleFilterExpand(column.id)}
-                                className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-200"
+                                className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground/80"
                               >
                                 {expandedFilterColumns.has(column.id)
                                   ? 'Show less'
@@ -3525,14 +3637,14 @@ export function EntityTable({
       )}
 
       {enableRowSelection && selectedRowCount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300">
-          <span className="font-medium uppercase tracking-[0.16em] text-zinc-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground/70">
+          <span className="font-medium uppercase tracking-[0.16em] text-foreground/80">
             {selectedRowCount} selected
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {onCellUpdate && bulkEditableColumns.length > 0 && bulkFieldColumn ? (
               <>
-                <span className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                   Bulk update
                 </span>
                 <select
@@ -3542,7 +3654,7 @@ export function EntityTable({
                     setBulkValue('')
                   }}
                   disabled={bulkApplying}
-                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {bulkEditableColumns.map((column) => (
                     <option key={column.id} value={column.id}>
@@ -3557,7 +3669,7 @@ export function EntityTable({
                     value={bulkValue}
                     onChange={(event) => setBulkValue(event.target.value)}
                     disabled={bulkApplying}
-                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {bulkFieldColumn.options.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -3575,7 +3687,7 @@ export function EntityTable({
                       )
                     }
                     disabled={bulkApplying}
-                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="true">True</option>
                     <option value="false">False</option>
@@ -3591,14 +3703,14 @@ export function EntityTable({
                         ? 'Comma-separated values'
                         : 'Value'
                     }
-                    className="min-w-[170px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-w-[170px] rounded border border-border bg-card px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 )}
                 <button
                   type="button"
                   onClick={handleBulkFieldUpdate}
                   disabled={bulkApplying}
-                  className="rounded border border-amber-400/70 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-amber-200 transition hover:border-amber-300 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-primary/70 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-primary transition hover:border-primary/70 hover:text-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {bulkApplying ? 'Applying...' : 'Apply'}
                 </button>
@@ -3607,7 +3719,7 @@ export function EntityTable({
             <button
               type="button"
               onClick={toggleCurrentPageSelection}
-              className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+              className="rounded border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition hover:border-border hover:text-foreground"
             >
               {allPageRowsSelected ? 'Unselect page' : 'Select page'}
             </button>
@@ -3615,7 +3727,7 @@ export function EntityTable({
               <button
                 type="button"
                 onClick={selectAllFilteredRows}
-                className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+                className="rounded border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition hover:border-border hover:text-foreground"
               >
                 Select filtered ({sortedData.length})
               </button>
@@ -3623,7 +3735,7 @@ export function EntityTable({
             <button
               type="button"
               onClick={clearSelectedRows}
-              className="rounded border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+              className="rounded border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition hover:border-border hover:text-foreground"
             >
               Clear
             </button>
@@ -3644,13 +3756,13 @@ export function EntityTable({
 
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative flex min-h-0 min-w-0 flex-1">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70 shadow-sm">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-background/70 shadow-sm">
             <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
               {allowGridView && view === 'grid' ? (
                 <div
                   className={`grid gap-4 p-3 ${
                     entityType === 'projects'
-                      ? 'bg-zinc-950'
+                      ? 'bg-background'
                       : 'sm:grid-cols-2 xl:grid-cols-3'
                   }`}
                   style={
@@ -3664,7 +3776,7 @@ export function EntityTable({
                   }
                 >
                   {paginatedData.length === 0 && emptyState ? (
-                    <div className="col-span-full rounded-md border border-zinc-800 bg-zinc-950/40 p-8">
+                    <div className="col-span-full rounded-md border border-border bg-background/40 p-8">
                       {emptyState}
                     </div>
                   ) : null}
@@ -3691,27 +3803,27 @@ export function EntityTable({
                       return (
                         <div
                           key={row.id || index}
-                          className={`relative overflow-hidden rounded-md border bg-zinc-950 text-left shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition ${
+                          className={`relative overflow-hidden rounded-md border bg-background text-left shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition ${
                             isRowSelected
-                              ? 'border-amber-400/80'
-                              : 'border-zinc-800 hover:border-zinc-700'
+                              ? 'border-primary/80'
+                              : 'border-border hover:border-border'
                           }`}
                           onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                         >
                           {enableRowSelection && rowSelectionId ? (
                             <label
-                              className="absolute left-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-zinc-700 bg-zinc-900/90"
+                              className="absolute left-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-border bg-card/90"
                               onClick={(event) => event.stopPropagation()}
                             >
                               <input
                                 type="checkbox"
                                 checked={isRowSelected}
                                 onChange={() => toggleRowSelection(row)}
-                                className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                                className="h-3.5 w-3.5 rounded border border-border bg-card"
                               />
                             </label>
                           ) : null}
-                          <div className="relative aspect-square w-full bg-zinc-900">
+                          <div className="relative aspect-square w-full bg-card">
                             {canEditProjectThumbnail ? (
                               <label
                                 className="group/thumb block h-full w-full cursor-pointer"
@@ -3753,12 +3865,12 @@ export function EntityTable({
                                   source={projectThumbnail}
                                   className="absolute inset-0 block h-full w-full object-cover"
                                   fallback={
-                                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                                       Upload Thumbnail
                                     </div>
                                   }
                                 />
-                                <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-zinc-900/80 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-zinc-300 opacity-0 transition group-hover/thumb:opacity-100">
+                                <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-card/80 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-foreground/70 opacity-0 transition group-hover/thumb:opacity-100">
                                   Change
                                 </span>
                               </label>
@@ -3767,18 +3879,18 @@ export function EntityTable({
                                 source={projectThumbnail}
                                 className="absolute inset-0 block h-full w-full object-cover"
                                 fallback={
-                                  <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                                  <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                                     No Thumbnail
                                   </div>
                                 }
                               />
                             )}
                           </div>
-                          <div className="border-t border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-zinc-300">
+                          <div className="border-t border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-foreground/70">
                             {row?.id ? (
                               <Link
                                 href={`/apex/${row.id}`}
-                                className="underline transition hover:text-amber-300"
+                                className="underline transition hover:text-primary/80"
                                 onClick={(event) => event.stopPropagation()}
                               >
                                 {name}
@@ -3794,33 +3906,33 @@ export function EntityTable({
                     return (
                       <button
                         key={row.id || index}
-                        className={`relative flex flex-col gap-2 rounded-md border bg-zinc-950/60 p-3 text-left transition hover:bg-zinc-900 ${
+                        className={`relative flex flex-col gap-2 rounded-md border bg-background/60 p-3 text-left transition hover:bg-card ${
                           isRowSelected
-                            ? 'border-amber-400/80'
-                            : 'border-zinc-800 hover:border-zinc-700'
+                            ? 'border-primary/80'
+                            : 'border-border hover:border-border'
                         }`}
                         onClick={() => onRowClick?.(row)}
                         onContextMenu={(event) => handleGridCardContextMenu(row, event)}
                       >
                         {enableRowSelection && rowSelectionId ? (
                           <label
-                            className="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-zinc-700 bg-zinc-900/90"
+                            className="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-border bg-card/90"
                             onClick={(event) => event.stopPropagation()}
                           >
                             <input
                               type="checkbox"
                               checked={isRowSelected}
                               onChange={() => toggleRowSelection(row)}
-                              className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                              className="h-3.5 w-3.5 rounded border border-border bg-card"
                             />
                           </label>
                         ) : null}
                         {displayColumns.slice(0, 3).map((column) => (
                           <div key={column.id}>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               {column.label}
                             </p>
-                            <div className="mt-1 text-sm text-zinc-100">
+                            <div className="mt-1 text-sm text-foreground">
                               {renderCell(column, row[column.id], row)}
                             </div>
                           </div>
@@ -3831,11 +3943,11 @@ export function EntityTable({
                 </div>
               ) : (
                 <table className="w-max min-w-full table-auto">
-                  <thead className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950">
+                  <thead className="sticky top-0 z-20 border-b border-border bg-background">
                     <tr>
                       {enableRowSelection ? (
                         <th
-                          className={`${densityClasses.header} sticky left-0 z-40 w-10 bg-zinc-950 text-center`}
+                          className={`${densityClasses.header} sticky left-0 z-40 w-10 bg-background text-center`}
                           style={{ width: SELECTION_COLUMN_WIDTH, minWidth: SELECTION_COLUMN_WIDTH }}
                         >
                           <input
@@ -3844,7 +3956,7 @@ export function EntityTable({
                             onChange={toggleCurrentPageSelection}
                             aria-label="Select rows on current page"
                             aria-checked={somePageRowsSelected ? 'mixed' : allPageRowsSelected}
-                            className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                            className="h-3.5 w-3.5 rounded border border-border bg-card"
                           />
                         </th>
                       ) : null}
@@ -3852,7 +3964,7 @@ export function EntityTable({
                         <th
                           className={`w-8 ${
                             hasPinnedDisplayColumns || enableRowSelection
-                              ? 'sticky z-40 bg-zinc-950'
+                              ? 'sticky z-40 bg-background'
                               : ''
                           }`}
                           style={{
@@ -3873,8 +3985,8 @@ export function EntityTable({
                               onDragEnd={() => setDraggedColumnId(null)}
                               onDragOver={(event) => event.preventDefault()}
                               onDrop={() => handleDrop(column.id)}
-                              className={`${densityClasses.header} cursor-grab select-none text-left font-semibold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-200 ${
-                                isPinned ? 'sticky z-30 bg-zinc-950' : ''
+                              className={`${densityClasses.header} cursor-grab select-none text-left font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground/80 ${
+                                isPinned ? 'sticky z-30 bg-background' : ''
                               } ${isPinned && isLastPinned ? 'shadow-[1px_0_0_rgba(63,63,70,0.9)]' : ''}`}
                               style={{
                                 width: columnWidths[column.id] ?? column.width,
@@ -3898,7 +4010,7 @@ export function EntityTable({
                   </thead>
                   <tbody>
                     {paginatedData.length === 0 && emptyState ? (
-                      <tr className="border-b border-zinc-800">
+                      <tr className="border-b border-border">
                         <td
                           colSpan={
                             displayColumns.length +
@@ -3917,29 +4029,29 @@ export function EntityTable({
                       return (
                         <React.Fragment key={groupKey}>
                           {groupById && (
-                            <tr className="border-b border-zinc-800 bg-zinc-950">
+                            <tr className="border-b border-border bg-background">
                               <td
                                 colSpan={
                                   displayColumns.length +
                                   1 +
                                   (enableRowSelection ? 1 : 0)
                                 }
-                                className="px-2.5 py-2 text-sm cursor-pointer hover:bg-zinc-900"
+                                className="px-2.5 py-2 text-sm cursor-pointer hover:bg-card"
                                 onClick={() => toggleGroup(groupKey)}
                               >
-                                <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
+                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                   {isExpanded ? (
                                     <ChevronDown className="h-4 w-4" />
                                   ) : (
                                     <ChevronRight className="h-4 w-4" />
                                   )}
-                                  {groupKey} ({groupedData[groupKey].length})
+                                  {groupedData[groupKey].label} ({groupedData[groupKey].rows.length})
                                 </div>
                               </td>
                             </tr>
                           )}
                           {isExpanded &&
-                            groupedData[groupKey].map((row, rowIndex) => {
+                            groupedData[groupKey].rows.map((row, rowIndex) => {
                               const rowSelectionId = getRowSelectionId(row)
                               const isRowSelected = rowSelectionId
                                 ? selectedRowIds.has(rowSelectionId)
@@ -3948,15 +4060,15 @@ export function EntityTable({
                               return (
                                 <tr
                                   key={row.id || rowIndex}
-                                  className={`group cursor-pointer border-b border-zinc-800 transition hover:bg-zinc-900 ${
-                                    isRowSelected ? 'bg-zinc-900/70' : ''
+                                  className={`group cursor-pointer border-b border-border transition hover:bg-card ${
+                                    isRowSelected ? 'bg-card/70' : ''
                                   }`}
                                   onClick={() => onRowClick?.(row)}
                                   onContextMenu={(event) => handleListRowContextMenu(row, event)}
                                 >
                                   {enableRowSelection ? (
                                     <td
-                                      className={`${densityClasses.cell} sticky left-0 z-30 bg-zinc-950 text-center group-hover:bg-zinc-900`}
+                                      className={`${densityClasses.cell} sticky left-0 z-30 bg-background text-center group-hover:bg-card`}
                                       style={{
                                         width: SELECTION_COLUMN_WIDTH,
                                         minWidth: SELECTION_COLUMN_WIDTH,
@@ -3968,7 +4080,7 @@ export function EntityTable({
                                           type="checkbox"
                                           checked={isRowSelected}
                                           onChange={() => toggleRowSelection(row)}
-                                          className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900"
+                                          className="h-3.5 w-3.5 rounded border border-border bg-card"
                                         />
                                       ) : null}
                                     </td>
@@ -3977,7 +4089,7 @@ export function EntityTable({
                                     <td
                                       className={`w-8 ${
                                         hasPinnedDisplayColumns || enableRowSelection
-                                          ? 'sticky z-20 bg-zinc-950 group-hover:bg-zinc-900'
+                                          ? 'sticky z-20 bg-background group-hover:bg-card'
                                           : ''
                                       }`}
                                       style={{
@@ -3996,7 +4108,7 @@ export function EntityTable({
                                     <td
                                       key={column.id}
                                       className={`${densityClasses.cell} ${
-                                        isPinned ? 'sticky z-10 bg-zinc-950 group-hover:bg-zinc-900' : ''
+                                        isPinned ? 'sticky z-10 bg-background group-hover:bg-card' : ''
                                       } ${isPinned && isLastPinned ? 'shadow-[1px_0_0_rgba(63,63,70,0.85)]' : ''}`}
                                       style={{
                                         width: columnWidths[column.id] ?? column.width,
@@ -4038,7 +4150,7 @@ export function EntityTable({
                                                 type="button"
                                                 onMouseDown={(event) => event.preventDefault()}
                                                 onClick={(event) => event.stopPropagation()}
-                                                className="flex w-full items-center justify-between rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left text-xs text-zinc-100"
+                                                className="flex w-full items-center justify-between rounded border border-border bg-card px-2 py-1 text-left text-xs text-foreground"
                                               >
                                                 <span className="truncate">
                                                   {draftListValue.length > 0
@@ -4049,7 +4161,7 @@ export function EntityTable({
                                                     : `Select ${column.label.toLowerCase()}`}
                                                 </span>
                                                 <ChevronDown
-                                                  className={`h-3.5 w-3.5 text-zinc-400 transition ${
+                                                  className={`h-3.5 w-3.5 text-muted-foreground transition ${
                                                     multiselectOpen ? 'rotate-180' : ''
                                                   }`}
                                                 />
@@ -4058,13 +4170,13 @@ export function EntityTable({
                                             <DropdownMenuContent
                                               align="start"
                                               sideOffset={4}
-                                              className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-zinc-700 bg-zinc-900 text-zinc-100"
+                                              className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(540px,70vw)] border-border bg-card text-foreground"
                                               onCloseAutoFocus={(event) => {
                                                 event.preventDefault()
                                               }}
                                             >
                                               {(column.options ?? []).length === 0 ? (
-                                                <p className="px-2 py-1.5 text-xs text-zinc-500">
+                                                <p className="px-2 py-1.5 text-xs text-muted-foreground">
                                                   No options
                                                 </p>
                                               ) : (
@@ -4098,7 +4210,7 @@ export function EntityTable({
                                                         reportCellUpdateError(error)
                                                       })
                                                     }}
-                                                    className="text-zinc-100 focus:bg-zinc-800 focus:text-zinc-100"
+                                                    className="text-foreground focus:bg-accent focus:text-foreground"
                                                   >
                                                     {option.label}
                                                   </DropdownMenuCheckboxItem>
@@ -4120,7 +4232,7 @@ export function EntityTable({
                                               cancelEditing()
                                             }
                                           }}
-                                          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                                          className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
                                           rows={3}
                                           autoFocus
                                         />
@@ -4144,7 +4256,7 @@ export function EntityTable({
                                             }
                                           }}
                                           onBlur={cancelEditing}
-                                          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                                          className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
                                           autoFocus
                                         >
                                           {(column.options ?? []).map((option) => (
@@ -4174,7 +4286,7 @@ export function EntityTable({
                                               cancelEditing()
                                             }
                                           }}
-                                          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                                          className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
                                           autoFocus
                                         />
                                         )
@@ -4195,7 +4307,7 @@ export function EntityTable({
                                                 event.stopPropagation()
                                                 startEditing(row, column)
                                               }}
-                                              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-sm p-1 text-zinc-500 opacity-0 transition hover:bg-zinc-800 hover:text-zinc-200 group-hover/cell:opacity-100"
+                                              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground/80 group-hover/cell:opacity-100"
                                             >
                                               <Pencil className="h-3.5 w-3.5" />
                                             </button>
@@ -4215,12 +4327,12 @@ export function EntityTable({
               )}
             </div>
 
-            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-background px-3 py-2 text-xs text-muted-foreground">
               <span>
                 Showing {pageRangeStart}-{pageRangeEnd} of {totalRows}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   Rows
                 </span>
                 <select
@@ -4229,7 +4341,7 @@ export function EntityTable({
                     setPageSize(clampPageSize(event.target.value))
                     setCurrentPage(1)
                   }}
-                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   {PAGE_SIZE_OPTIONS.map((option) => (
                     <option key={option} value={option}>
@@ -4241,7 +4353,7 @@ export function EntityTable({
                   type="button"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={safeCurrentPage <= 1}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-border px-2 py-1 text-xs text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Prev
                 </button>
@@ -4254,7 +4366,7 @@ export function EntityTable({
                     setCurrentPage((prev) => Math.min(pageCount, prev + 1))
                   }
                   disabled={safeCurrentPage >= pageCount}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-border px-2 py-1 text-xs text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -4270,19 +4382,19 @@ export function EntityTable({
         <Dialog open={csvImportOpen} onOpenChange={handleCsvImportDialogToggle}>
           <DialogContent
             showCloseButton={!csvImporting}
-            className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] sm:!max-w-[calc(100vw-1rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100"
+            className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] sm:!max-w-[calc(100vw-1rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-border bg-background p-0 text-foreground"
           >
-            <div className="border-b border-zinc-800 px-4 py-4 sm:px-5">
-              <DialogTitle className="text-xl font-semibold text-zinc-100">
+            <div className="border-b border-border px-4 py-4 sm:px-5">
+              <DialogTitle className="text-xl font-semibold text-foreground">
                 Bulk CSV Import
               </DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-zinc-400">
+              <DialogDescription className="mt-1 text-sm text-muted-foreground">
                 Upload your file, map source columns, choose an optional ID column, then
                 preview before import.
               </DialogDescription>
             </div>
 
-            <div className="border-b border-zinc-800 px-4 py-3 sm:px-5">
+            <div className="border-b border-border px-4 py-3 sm:px-5">
               <div className="flex flex-wrap items-center gap-1">
                 {csvImportSteps.map((step) => {
                   const isActive = csvImportStep === step.id
@@ -4297,8 +4409,8 @@ export function EntityTable({
                         isActive
                           ? 'bg-sky-500/20 text-sky-300'
                           : isEnabled
-                            ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                            : 'cursor-not-allowed text-zinc-600'
+                            ? 'text-muted-foreground hover:bg-accent hover:text-foreground/80'
+                            : 'cursor-not-allowed text-muted-foreground'
                       }`}
                     >
                       {step.label}
@@ -4339,8 +4451,8 @@ export function EntityTable({
               ) : null}
 
               {csvImportStep === 1 ? (
-                <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-4">
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                <div className="rounded-md border border-border bg-card/40 p-4">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     CSV file
                   </label>
                   <input
@@ -4348,19 +4460,19 @@ export function EntityTable({
                     accept=".csv,text/csv"
                     onChange={handleCsvFileChange}
                     disabled={csvImporting}
-                    className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 file:mr-3 file:rounded file:border file:border-zinc-700 file:bg-zinc-800 file:px-2 file:py-1 file:text-xs file:text-zinc-200"
+                    className="w-full rounded border border-border bg-card px-3 py-2 text-sm text-foreground file:mr-3 file:rounded file:border file:border-border file:bg-accent file:px-2 file:py-1 file:text-xs file:text-foreground/80"
                   />
                   {csvImportFileName ? (
-                    <p className="mt-3 text-xs text-zinc-400">
-                      Loaded <span className="text-zinc-200">{csvImportFileName}</span> with{' '}
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Loaded <span className="text-foreground/80">{csvImportFileName}</span> with{' '}
                       {csvImportRows.length} row(s), delimiter{' '}
-                      <span className="text-zinc-200">
+                      <span className="text-foreground/80">
                         {csvImportDelimiter === '\t' ? 'TAB' : csvImportDelimiter}
                       </span>
                       .
                     </p>
                   ) : (
-                    <p className="mt-3 text-xs text-zinc-500">
+                    <p className="mt-3 text-xs text-muted-foreground">
                       Upload a CSV with header row. Continue to map each source column.
                     </p>
                   )}
@@ -4368,15 +4480,15 @@ export function EntityTable({
               ) : null}
 
               {csvImportStep === 2 ? (
-                <div className="flex min-h-[420px] min-w-0 flex-col rounded-md border border-zinc-800 bg-zinc-900/30">
-                  <div className="border-b border-zinc-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                <div className="flex min-h-[420px] min-w-0 flex-col rounded-md border border-border bg-card/30">
+                  <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Column mapping ({csvMappedColumnCount}/{csvImportHeaders.length})
                   </div>
-                  <div className="border-b border-zinc-800 px-3 py-2 text-[11px] text-zinc-500">
+                  <div className="border-b border-border px-3 py-2 text-[11px] text-muted-foreground">
                     Scroll horizontally to view and map all columns.
                   </div>
                   {csvImportHeaders.length === 0 ? (
-                    <div className="px-3 py-4 text-sm text-zinc-400">
+                    <div className="px-3 py-4 text-sm text-muted-foreground">
                       Upload a CSV first to map columns.
                     </div>
                   ) : (
@@ -4384,21 +4496,21 @@ export function EntityTable({
                       <div className="h-full min-w-max overflow-y-auto">
                         <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
                         <tbody>
-                          <tr className="bg-zinc-950/95 text-zinc-500">
-                            <th className="sticky left-0 z-20 border-b border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                          <tr className="bg-background/95 text-muted-foreground">
+                            <th className="sticky left-0 z-20 border-b border-r border-border bg-background px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Your Column
                             </th>
                             {csvImportHeaders.map((header, index) => (
                               <th
                                 key={`${header}-${index}`}
-                                className="min-w-[160px] border-b border-r border-zinc-800 px-3 py-2 text-left font-medium text-zinc-300"
+                                className="min-w-[160px] border-b border-r border-border px-3 py-2 text-left font-medium text-foreground/70"
                               >
                                 {header}
                               </th>
                             ))}
                           </tr>
                           <tr>
-                            <th className="sticky left-0 z-20 border-b border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                            <th className="sticky left-0 z-20 border-b border-r border-border bg-background px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Target Column
                             </th>
                             {csvImportHeaders.map((header) => {
@@ -4406,7 +4518,7 @@ export function EntityTable({
                               return (
                                 <td
                                   key={`mapping-${header}`}
-                                  className="border-b border-r border-zinc-800 px-2 py-2"
+                                  className="border-b border-r border-border px-2 py-2"
                                 >
                                   <select
                                     value={mappedValue}
@@ -4414,7 +4526,7 @@ export function EntityTable({
                                       handleCsvColumnMappingChange(header, event.target.value)
                                     }
                                     disabled={csvImporting}
-                                    className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                    className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                   >
                                     <option value="">Not importing</option>
                                     {resolvedColumns.map((column) => {
@@ -4439,13 +4551,13 @@ export function EntityTable({
                             })}
                           </tr>
                           <tr>
-                            <th className="sticky left-0 z-20 border-r border-zinc-800 bg-zinc-950 px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                            <th className="sticky left-0 z-20 border-r border-border bg-background px-3 py-2 text-left font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Data Preview
                             </th>
                             {csvImportHeaders.map((header, index) => (
                               <td
                                 key={`preview-${header}-${index}`}
-                                className="max-w-[180px] border-r border-zinc-800 px-3 py-2 text-zinc-300"
+                                className="max-w-[180px] border-r border-border px-3 py-2 text-foreground/70"
                               >
                                 <span className="block truncate">
                                   {csvImportRows[0]?.[index] || '-'}
@@ -4462,9 +4574,9 @@ export function EntityTable({
               ) : null}
 
               {csvImportStep === 3 ? (
-                <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-4">
-                  <div className="text-sm font-medium text-zinc-200">Specify ID column</div>
-                  <p className="mt-2 text-xs text-zinc-400">
+                <div className="rounded-md border border-border bg-card/30 p-4">
+                  <div className="text-sm font-medium text-foreground/80">Specify ID column</div>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Optional. Choose a mapped source column to use as external identifier
                     during import.
                   </p>
@@ -4475,7 +4587,7 @@ export function EntityTable({
                         setCsvImportIdentifierHeader(event.target.value)
                       }
                       disabled={csvImporting || csvMappedTargetColumns.length === 0}
-                      className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">None (always create rows)</option>
                       {csvMappedTargetColumns.map((entry) => (
@@ -4486,9 +4598,9 @@ export function EntityTable({
                     </select>
                   </div>
                   {csvImportIdentifierHeader && csvIdentifierTargetColumn ? (
-                    <p className="mt-3 text-xs text-zinc-400">
-                      Selected ID mapping: <span className="text-zinc-200">{csvImportIdentifierHeader}</span>{' '}
-                      -&gt; <span className="text-zinc-200">{csvIdentifierTargetColumn}</span>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Selected ID mapping: <span className="text-foreground/80">{csvImportIdentifierHeader}</span>{' '}
+                      -&gt; <span className="text-foreground/80">{csvIdentifierTargetColumn}</span>
                     </p>
                   ) : null}
                 </div>
@@ -4496,23 +4608,23 @@ export function EntityTable({
 
               {csvImportStep === 4 ? (
                 <div className="space-y-4">
-                  <div className="rounded-md border border-zinc-800 bg-zinc-900/30 px-3 py-2 text-xs text-zinc-400">
-                    Ready to import <span className="text-zinc-200">{csvImportRows.length}</span>{' '}
-                    row(s) with <span className="text-zinc-200">{csvMappedColumnCount}</span>{' '}
+                  <div className="rounded-md border border-border bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                    Ready to import <span className="text-foreground/80">{csvImportRows.length}</span>{' '}
+                    row(s) with <span className="text-foreground/80">{csvMappedColumnCount}</span>{' '}
                     mapped column(s).
                   </div>
-                  <div className="rounded-md border border-zinc-800 bg-zinc-900/30">
-                    <div className="border-b border-zinc-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                  <div className="rounded-md border border-border bg-card/30">
+                    <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Preview ({csvMappedPreviewRows.length} of {csvImportRows.length})
                     </div>
                     {csvMappedColumnCount === 0 ? (
-                      <div className="px-3 py-4 text-sm text-zinc-400">
+                      <div className="px-3 py-4 text-sm text-muted-foreground">
                         No mapped columns available.
                       </div>
                     ) : (
                       <div className="max-h-[260px] overflow-auto">
                         <table className="min-w-full table-auto text-xs">
-                          <thead className="sticky top-0 z-10 bg-zinc-950/95 text-zinc-500">
+                          <thead className="sticky top-0 z-10 bg-background/95 text-muted-foreground">
                             <tr>
                               {csvMappedTargetColumns.map((entry) => (
                                 <th key={entry.header} className="px-3 py-2 text-left">
@@ -4524,7 +4636,7 @@ export function EntityTable({
                               {csvMappedTargetColumns.map((entry) => (
                                 <th
                                   key={`source-${entry.header}`}
-                                  className="px-3 pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600"
+                                  className="px-3 pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                                 >
                                   {entry.header}
                                 </th>
@@ -4533,11 +4645,11 @@ export function EntityTable({
                           </thead>
                           <tbody>
                             {csvMappedPreviewRows.map((row, rowIndex) => (
-                              <tr key={rowIndex} className="border-t border-zinc-800">
+                              <tr key={rowIndex} className="border-t border-border">
                                 {row.map((value, columnIndex) => (
                                   <td
                                     key={`${rowIndex}-${columnIndex}`}
-                                    className="max-w-[220px] truncate px-3 py-2 text-zinc-300"
+                                    className="max-w-[220px] truncate px-3 py-2 text-foreground/70"
                                   >
                                     {value || '-'}
                                   </td>
@@ -4553,12 +4665,12 @@ export function EntityTable({
               ) : null}
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-5">
               <button
                 type="button"
                 onClick={() => handleCsvImportDialogToggle(false)}
                 disabled={csvImporting}
-                className="rounded border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded border border-border px-3 py-1.5 text-sm text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Close
               </button>
@@ -4568,7 +4680,7 @@ export function EntityTable({
                     type="button"
                     onClick={goToPreviousCsvStep}
                     disabled={csvImporting}
-                    className="rounded border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-border px-3 py-1.5 text-sm text-foreground/70 transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Back
                   </button>
@@ -4591,7 +4703,7 @@ export function EntityTable({
                       csvImportRows.length === 0 ||
                       csvMappedColumnCount === 0
                     }
-                    className="rounded border border-amber-400 bg-amber-400/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-primary bg-primary/90 px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {csvImporting ? 'Importing...' : `Import ${csvImportRows.length} Row(s)`}
                   </button>
@@ -4612,7 +4724,7 @@ export function EntityTable({
           }}
         >
           <div
-            className="absolute min-w-[180px] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-2xl"
+            className="absolute min-w-[180px] rounded-md border border-border bg-card p-1 shadow-2xl"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -4620,8 +4732,8 @@ export function EntityTable({
               <button
                 key={`${action.label}-${index}`}
                 type="button"
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-zinc-800 ${
-                  action.variant === 'destructive' ? 'text-red-400' : 'text-zinc-100'
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-accent ${
+                  action.variant === 'destructive' ? 'text-red-400' : 'text-foreground'
                 }`}
                 onClick={() => {
                   action.onClick()

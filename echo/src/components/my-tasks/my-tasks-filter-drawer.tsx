@@ -48,25 +48,25 @@ export function MyTasksFilterDrawer(props: {
         onClick={props.onClose}
       />
       <div
-        className="absolute left-0 top-full z-40 mt-2 w-[24rem] max-w-[calc(100vw-2rem)] rounded-md border border-zinc-800 bg-zinc-950 shadow-2xl"
+        className="absolute left-0 top-full z-40 mt-2 w-[24rem] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-background shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-          <p className="text-sm font-medium text-zinc-100">
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <p className="text-sm font-medium text-foreground">
             Filters {props.filterCount > 0 ? `(${props.filterCount})` : ''}
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={props.onClearAll}
-              className="text-xs text-zinc-400 hover:text-zinc-100"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               Clear all
             </button>
             <button
               type="button"
               onClick={props.onClose}
-              className="text-xs text-zinc-500 hover:text-zinc-100"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               Close
             </button>
@@ -88,11 +88,11 @@ export function MyTasksFilterDrawer(props: {
 
           {props.sections.map((section) => (
             <div key={section.key}>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 {section.label}
               </p>
               {section.options.length === 0 ? (
-                <p className="text-xs text-zinc-600">No options in this view.</p>
+                <p className="text-xs text-muted-foreground">No options in this view.</p>
               ) : (
                 <div className="space-y-1">
                   {section.options.map((option) => {
@@ -100,18 +100,18 @@ export function MyTasksFilterDrawer(props: {
                     return (
                       <label
                         key={`${section.key}:${option.value}`}
-                        className="flex cursor-pointer items-center justify-between rounded border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-sm hover:border-zinc-700"
+                        className="flex cursor-pointer items-center justify-between rounded border border-border bg-card/60 px-2 py-1.5 text-sm hover:border-border"
                       >
-                        <span className="min-w-0 truncate text-zinc-200">
+                        <span className="min-w-0 truncate text-foreground/80">
                           {option.label}
                         </span>
                         <span className="ml-2 flex items-center gap-2">
-                          <span className="text-xs text-zinc-500">{option.count}</span>
+                          <span className="text-xs text-muted-foreground">{option.count}</span>
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => props.onToggleOption(section.key, option.value)}
-                            className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500"
+                            className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary"
                           />
                         </span>
                       </label>

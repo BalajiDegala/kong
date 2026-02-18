@@ -72,7 +72,7 @@ export function VersionViewer({ version, open, onOpenChange, onNavigate }: Versi
           <div className="flex items-center gap-4">
             <div>
               <h3 className="text-lg font-semibold text-white">{version.code}</h3>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 Version {version.version_number} • {version.entity_name}
               </p>
             </div>
@@ -160,7 +160,7 @@ export function VersionViewer({ version, open, onOpenChange, onNavigate }: Versi
         {/* Footer with description */}
         {version.description && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-            <p className="text-sm text-zinc-300">{version.description}</p>
+            <p className="text-sm text-foreground/70">{version.description}</p>
           </div>
         )}
       </DialogContent>

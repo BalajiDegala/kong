@@ -32,22 +32,22 @@ export function ProjectPostsPage({
         <div className="flex items-center gap-2 text-sm mb-2">
           <Link
             href="/pulse"
-            className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition"
+            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground/80 transition"
           >
             <ArrowLeft className="h-4 w-4" />
             Pulse
           </Link>
-          <span className="text-zinc-600">/</span>
-          <span className="text-zinc-300">{project.code || project.name}</span>
+          <span className="text-muted-foreground">/</span>
+          <span className="text-foreground/70">{project.code || project.name}</span>
         </div>
 
         <div className="flex items-center gap-2 mb-1">
           <FolderOpen className="h-5 w-5 text-blue-400" />
-          <h1 className="text-lg font-semibold text-zinc-100">
+          <h1 className="text-lg font-semibold text-foreground">
             {project.name}
           </h1>
         </div>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Activity feed for {project.name}
         </p>
       </div>

@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
+import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
+import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
 import { PlaylistTabs } from '@/components/layout/playlist-tabs'
 
 export default async function PlaylistLayout({
@@ -36,33 +39,66 @@ export default async function PlaylistLayout({
     redirect(`/apex/${projectId}/playlists`)
   }
 
+  const { data: playlistOptions } = await supabase
+    .from('playlists')
+    .select('id, code, name')
+    .eq('project_id', projectId)
+    .order('code', { ascending: true })
+
+  const title = `${playlist.code || playlist.name || `Playlist ${playlist.id}`}${
+    playlist.code && playlist.name ? ` · ${playlist.name}` : ''
+  }`
+  const switchOptions = (playlistOptions || []).map((option) => ({
+    id: String(option.id),
+    label: `${option.code || `Playlist ${option.id}`}${option.name ? ` · ${option.name}` : ''}`,
+  }))
+  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'playlist')
+  const fields = applyFieldOptionMap(
+    appendAutoHeaderFields(
+      'playlist',
+      playlist as Record<string, unknown>,
+      [
+      {
+        id: 'code',
+        label: 'Code',
+        type: 'text',
+        value: playlist.code || null,
+        editable: true,
+        column: 'code',
+      },
+      {
+        id: 'locked',
+        label: 'Locked',
+        type: 'boolean',
+        value: Boolean(playlist.locked),
+        editable: true,
+        column: 'locked',
+      },
+    ],
+      {
+        excludeColumns: ['project'],
+      }
+    ),
+    fieldOptionMap
+  )
+
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-800 bg-zinc-950 px-6 py-4">
-        <div className="flex gap-6">
-          <div className="h-24 w-36 rounded-md border border-zinc-800 bg-zinc-900">
-            <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-              Playlist
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-xl font-semibold text-zinc-100">
-                {playlist.code} {playlist.name ? `· ${playlist.name}` : ''}
-              </h3>
-              {playlist.locked && (
-                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200">
-                  Locked
-                </span>
-              )}
-            </div>
-            <p className="mt-2 text-sm text-zinc-400">
-              {playlist.description || 'No description'}
-            </p>
-          </div>
-        </div>
-      </div>
+      <EntityDetailHeader
+        entityType="playlist"
+        entityPlural="playlists"
+        entityId={playlistId}
+        projectId={projectId}
+        title={title}
+        badge={playlist.locked ? 'Locked' : null}
+        description={playlist.description}
+        descriptionColumn="description"
+        thumbnailPlaceholder="Playlist"
+        switchOptions={switchOptions}
+        tabPaths={['activity', 'info', 'versions', 'history']}
+        fields={fields}
+        defaultVisibleFieldIds={['code', 'locked']}
+      />
 
       <PlaylistTabs projectId={projectId} playlistId={playlistId} />
 
