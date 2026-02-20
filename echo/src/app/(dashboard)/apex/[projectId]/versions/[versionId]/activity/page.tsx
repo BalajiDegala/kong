@@ -76,6 +76,7 @@ export default async function VersionActivityPage({
     )
     .eq('id', versionId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   const { data: noteRows } = await supabase
@@ -86,6 +87,7 @@ export default async function VersionActivityPage({
     .eq('project_id', projectId)
     .eq('entity_type', 'version')
     .eq('entity_id', Number(versionId))
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(50)
 

@@ -108,6 +108,70 @@ export async function logEntityUpdated(
 }
 
 /**
+ * Log entity trashed (sent to Skull Island). Fire-and-forget.
+ */
+export async function logEntityTrashed(
+  entityType: string,
+  entityId: number | string,
+  projectId: number | string | null,
+  entityData: Record<string, unknown>
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const entityLabel = ENTITY_TYPE_LABELS[entityType] || entityType
+    const name = entityData.name || entityData.code || entityId
+    const description = `Trashed ${entityLabel} "${name}"`
+
+    await supabase.from('activity_events').insert({
+      project_id: projectId ? Number(projectId) : null,
+      event_type: `${entityType}_trashed`,
+      entity_type: entityType,
+      entity_id: Number(entityId),
+      actor_id: user.id,
+      description,
+      old_value: entityData,
+    })
+  } catch {
+    // Fire-and-forget: never block mutations
+  }
+}
+
+/**
+ * Log entity restored from Skull Island. Fire-and-forget.
+ */
+export async function logEntityRestored(
+  entityType: string,
+  entityId: number | string,
+  projectId: number | string | null,
+  entityData: Record<string, unknown>
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const entityLabel = ENTITY_TYPE_LABELS[entityType] || entityType
+    const name = entityData.name || entityData.code || entityId
+    const description = `Restored ${entityLabel} "${name}" from Skull Island`
+
+    await supabase.from('activity_events').insert({
+      project_id: projectId ? Number(projectId) : null,
+      event_type: `${entityType}_restored`,
+      entity_type: entityType,
+      entity_id: Number(entityId),
+      actor_id: user.id,
+      description,
+      new_value: entityData,
+    })
+  } catch {
+    // Fire-and-forget: never block mutations
+  }
+}
+
+/**
  * Log entity deletion. Fire-and-forget — never blocks the caller.
  */
 export async function logEntityDeleted(

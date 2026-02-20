@@ -37,6 +37,7 @@ export default function PlaylistsPage({
         .from('playlists')
         .select('*')
         .eq('project_id', projId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       setPlaylists(data || [])

@@ -23,6 +23,7 @@ export default async function SequenceInfoPage({
     )
     .eq('id', sequenceId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!sequence) {

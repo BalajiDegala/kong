@@ -1,6 +1,6 @@
 -- ============================================================================
 -- KONG: Align DB schema with CSV schema definitions
--- Generated: 2026-02-10T13:55:45Z
+-- Generated: 2026-02-19T09:33:48Z
 -- Source CSV dir: /dd/ayon/git/kong/images/schema
 --
 -- This migration is designed to be safe to re-run:
@@ -35,7 +35,7 @@ ALTER TABLE public.versions
 ALTER TABLE public.notes DROP CONSTRAINT IF EXISTS notes_entity_type_check;
 ALTER TABLE public.notes
   ADD CONSTRAINT notes_entity_type_check
-  CHECK (entity_type IN ('task', 'asset', 'shot', 'sequence', 'version', 'project', 'published_file')) NOT VALID;
+  CHECK (entity_type IN ('task', 'asset', 'shot', 'sequence', 'version', 'project', 'published_file', 'post')) NOT VALID;
 
 ALTER TABLE public.published_files DROP CONSTRAINT IF EXISTS published_files_entity_type_check;
 ALTER TABLE public.published_files
@@ -184,6 +184,7 @@ ALTER TABLE public.shots
   ADD COLUMN IF NOT EXISTS raw_tail_out integer,
   ADD COLUMN IF NOT EXISTS seq_shot text,
   ADD COLUMN IF NOT EXISTS sequence_id integer,
+  ADD COLUMN IF NOT EXISTS name text,
   ADD COLUMN IF NOT EXISTS code text,
   ADD COLUMN IF NOT EXISTS shot_notes text,
   ADD COLUMN IF NOT EXISTS status text,
@@ -425,4 +426,3 @@ ALTER TABLE public.published_files
   ADD COLUMN IF NOT EXISTS upstream_published_files text[] DEFAULT '{}'::text[],
   ADD COLUMN IF NOT EXISTS version_id integer,
   ADD COLUMN IF NOT EXISTS version_number integer;
-

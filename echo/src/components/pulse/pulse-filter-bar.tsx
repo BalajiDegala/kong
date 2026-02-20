@@ -64,6 +64,7 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
       const { data: projectsData } = await supabase
         .from('projects')
         .select('id, name')
+        .is('deleted_at', null)
         .order('name')
 
       // Load users (profiles)
@@ -76,18 +77,21 @@ export function PulseFilterBar({ onFilterChange }: PulseFilterBarProps) {
       const { data: sequencesData } = await supabase
         .from('sequences')
         .select('id, name, project_id')
+        .is('deleted_at', null)
         .order('name')
 
       // Load all shots (we'll filter client-side)
       const { data: shotsData } = await supabase
         .from('shots')
         .select('id, name, sequence_id')
+        .is('deleted_at', null)
         .order('name')
 
       // Load all tasks (we'll filter client-side based on selected entities)
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('id, name')
+        .is('deleted_at', null)
         .order('name')
 
       setProjects(projectsData || [])

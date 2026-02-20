@@ -1,13 +1,8 @@
 'use client'
 
-import { getMyTasksBucket } from '@/lib/tasks/my-tasks-buckets'
+import { asText, getMyTasksBucket } from '@/lib/fields'
 import type { MyTaskRow } from './my-tasks-types'
 import { buildDateGroups, queueDateLabel } from './my-tasks-utils'
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
 
 function bucketDotClass(task: MyTaskRow): string {
   const bucket = getMyTasksBucket(task.status)

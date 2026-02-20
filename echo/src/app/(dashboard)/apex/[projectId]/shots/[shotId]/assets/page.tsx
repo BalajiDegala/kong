@@ -64,6 +64,7 @@ export default function ShotAssetsPage({
         .from('shots')
         .select('id, code')
         .eq('id', shotIdFilter)
+        .is('deleted_at', null)
         .maybeSingle()
 
       let query = supabase
@@ -77,6 +78,7 @@ export default function ShotAssetsPage({
         `
         )
         .eq('project_id', projId)
+        .is('deleted_at', null)
 
       if (shotRow?.code) {
         query = query.or(`shot_id.eq.${shotIdFilter},shots.cs.{${shotRow.code}}`)

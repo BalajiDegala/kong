@@ -18,6 +18,8 @@ type StatusMutationInput = {
   sort_order?: number | null
 }
 
+type StatusId = string | number
+
 type StatusMetadata = {
   table: string
   columns: Set<string>
@@ -35,6 +37,20 @@ function toStatusCode(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
+}
+
+function resolveStatusId(value: unknown): StatusId | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    if (/^-?\d+$/.test(trimmed)) {
+      const parsed = Number(trimmed)
+      if (Number.isSafeInteger(parsed)) return parsed
+    }
+    return trimmed
+  }
+  return null
 }
 
 function normalizeEntityTypes(
@@ -118,7 +134,7 @@ async function hasStatusEntityTypesTable(
 
 async function replaceStatusEntityTypes(
   service: ReturnType<typeof createServiceClient>,
-  statusId: number,
+  statusId: StatusId,
   entityTypes: string[]
 ) {
   const { error: deleteError } = await service
@@ -270,8 +286,8 @@ export async function createStatus(input: StatusMutationInput) {
 
     const hasEntityTypesTable = await hasStatusEntityTypesTable(service)
     const idColumn = fields.id || 'id'
-    const statusId = Number((data as Record<string, unknown>)[idColumn])
-    if (hasEntityTypesTable && !Number.isNaN(statusId)) {
+    const statusId = resolveStatusId((data as Record<string, unknown>)[idColumn])
+    if (hasEntityTypesTable && statusId !== null) {
       await replaceStatusEntityTypes(service, statusId, normalizedEntityTypes)
     }
 
@@ -283,7 +299,7 @@ export async function createStatus(input: StatusMutationInput) {
 }
 
 export async function updateStatus(
-  statusId: number,
+  statusId: StatusId,
   input: StatusMutationInput
 ) {
   try {
@@ -383,7 +399,7 @@ export async function updateStatus(
   }
 }
 
-export async function deleteStatus(statusId: number) {
+export async function deleteStatus(statusId: StatusId) {
   try {
     await requireAuthenticatedUser()
     const service = createServiceClient()

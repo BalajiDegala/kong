@@ -28,10 +28,33 @@ DROP POLICY IF EXISTS "Users can view note attachments in their projects" ON sto
 DROP POLICY IF EXISTS "Users can view files in their projects" ON storage.objects;
 DROP POLICY IF EXISTS "Users can upload note attachments" ON storage.objects;
 DROP POLICY IF EXISTS "Users can upload files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own post-media" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update note attachments" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own post-media" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete note attachments" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete files" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view post-media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload post-media" ON storage.objects;
+DROP POLICY IF EXISTS tags_select_authenticated ON public.tags;
+DROP POLICY IF EXISTS statuses_select_authenticated ON public.statuses;
+DROP POLICY IF EXISTS status_entity_types_select_authenticated ON public.status_entity_types;
+DROP POLICY IF EXISTS schema_fields_select_authenticated ON public.schema_fields;
+DROP POLICY IF EXISTS schema_fields_alpha_write ON public.schema_fields;
+DROP POLICY IF EXISTS schema_field_link_targets_select_authenticated ON public.schema_field_link_targets;
+DROP POLICY IF EXISTS schema_field_link_targets_alpha_write ON public.schema_field_link_targets;
+DROP POLICY IF EXISTS schema_field_entities_select_authenticated ON public.schema_field_entities;
+DROP POLICY IF EXISTS schema_field_entities_alpha_write ON public.schema_field_entities;
+DROP POLICY IF EXISTS schema_choice_sets_select_authenticated ON public.schema_choice_sets;
+DROP POLICY IF EXISTS schema_choice_sets_alpha_write ON public.schema_choice_sets;
+DROP POLICY IF EXISTS schema_choice_set_items_select_authenticated ON public.schema_choice_set_items;
+DROP POLICY IF EXISTS schema_choice_set_items_alpha_write ON public.schema_choice_set_items;
+DROP POLICY IF EXISTS schema_change_log_alpha_write ON public.schema_change_log;
+DROP POLICY IF EXISTS schema_change_log_alpha_select ON public.schema_change_log;
+DROP POLICY IF EXISTS posts_select_project ON public.posts;
+DROP POLICY IF EXISTS posts_select_own ON public.posts;
+DROP POLICY IF EXISTS posts_select_global ON public.posts;
+DROP POLICY IF EXISTS departments_select_authenticated ON public.departments;
 DROP POLICY IF EXISTS "allow read own allowlist record" ON public.allowed_users;
 DROP POLICY IF EXISTS "Users can view versions in their projects" ON public.versions;
 DROP POLICY IF EXISTS "Users can view time logs in their projects" ON public.time_logs;
@@ -43,33 +66,54 @@ DROP POLICY IF EXISTS "Users can view shots in their projects" ON public.shots;
 DROP POLICY IF EXISTS "Users can view sequences in their projects" ON public.sequences;
 DROP POLICY IF EXISTS "Users can view published files in their projects" ON public.published_files;
 DROP POLICY IF EXISTS "Users can view project members of their projects" ON public.project_members;
+DROP POLICY IF EXISTS "Users can view post media for visible posts" ON public.post_media;
 DROP POLICY IF EXISTS "Users can view playlists in their projects" ON public.playlists;
 DROP POLICY IF EXISTS "Users can view phases in their projects" ON public.phases;
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 DROP POLICY IF EXISTS "Users can view notes in their projects" ON public.notes;
 DROP POLICY IF EXISTS "Users can view milestones in their projects" ON public.milestones;
 DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can view global posts" ON public.posts;
 DROP POLICY IF EXISTS "Users can view deliveries in their projects" ON public.deliveries;
 DROP POLICY IF EXISTS "Users can view co-members" ON public.conversation_members;
 DROP POLICY IF EXISTS "Users can view attachments in their projects" ON public.attachments;
 DROP POLICY IF EXISTS "Users can view assets in their projects" ON public.assets;
+DROP POLICY IF EXISTS "Users can view annotations" ON public.annotations;
+DROP POLICY IF EXISTS "Users can view all reactions" ON public.post_reactions;
 DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Users can view activity in their projects" ON public.activity_events;
 DROP POLICY IF EXISTS "Users can update versions in their projects" ON public.versions;
 DROP POLICY IF EXISTS "Users can update their own notes" ON public.notes;
 DROP POLICY IF EXISTS "Users can update their own attachments" ON public.attachments;
+DROP POLICY IF EXISTS "Users can update published files in their projects" ON public.published_files;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own posts" ON public.posts;
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update own annotations" ON public.annotations;
 DROP POLICY IF EXISTS "Users can send messages to their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can remove own reactions" ON public.post_reactions;
+DROP POLICY IF EXISTS "Users can insert post media for own posts" ON public.post_media;
 DROP POLICY IF EXISTS "Users can edit their own messages" ON public.messages;
 DROP POLICY IF EXISTS "Users can delete versions in their projects" ON public.versions;
 DROP POLICY IF EXISTS "Users can delete their own notes" ON public.notes;
 DROP POLICY IF EXISTS "Users can delete their own messages" ON public.messages;
 DROP POLICY IF EXISTS "Users can delete their own attachments" ON public.attachments;
+DROP POLICY IF EXISTS "Users can delete published files in their projects" ON public.published_files;
+DROP POLICY IF EXISTS "Users can delete post media for own posts" ON public.post_media;
+DROP POLICY IF EXISTS "Users can delete own posts" ON public.posts;
+DROP POLICY IF EXISTS "Users can delete own annotations" ON public.annotations;
 DROP POLICY IF EXISTS "Users can create versions in their projects" ON public.versions;
+DROP POLICY IF EXISTS "Users can create published files in their projects" ON public.published_files;
+DROP POLICY IF EXISTS "Users can create posts" ON public.posts;
 DROP POLICY IF EXISTS "Users can create notes in their projects" ON public.notes;
 DROP POLICY IF EXISTS "Users can create attachments in their projects" ON public.attachments;
+DROP POLICY IF EXISTS "Users can create annotations" ON public.annotations;
+DROP POLICY IF EXISTS "Users can add reactions" ON public.post_reactions;
 DROP POLICY IF EXISTS "Leads can manage project members" ON public.project_members;
 DROP POLICY IF EXISTS "Leads and alphas can update their projects" ON public.projects;
 DROP POLICY IF EXISTS "Conversation creators can add members" ON public.conversation_members;
+DROP POLICY IF EXISTS "Authenticated users can insert notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Authenticated users can insert activity" ON public.activity_events;
 DROP POLICY IF EXISTS "Authenticated users can create conversations" ON public.conversations;
 DROP POLICY IF EXISTS "Alphas and leads can create projects" ON public.projects;
 DROP POLICY IF EXISTS "Allow users to update their projects" ON public.projects;
@@ -124,7 +168,12 @@ ALTER TABLE IF EXISTS ONLY public.task_dependencies DROP CONSTRAINT IF EXISTS ta
 ALTER TABLE IF EXISTS ONLY public.task_dependencies DROP CONSTRAINT IF EXISTS task_dependencies_depends_on_task_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.task_assignments DROP CONSTRAINT IF EXISTS task_assignments_user_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.task_assignments DROP CONSTRAINT IF EXISTS task_assignments_task_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags DROP CONSTRAINT IF EXISTS tags_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags DROP CONSTRAINT IF EXISTS tags_created_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.steps DROP CONSTRAINT IF EXISTS steps_department_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.statuses DROP CONSTRAINT IF EXISTS statuses_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.statuses DROP CONSTRAINT IF EXISTS statuses_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.status_entity_types DROP CONSTRAINT IF EXISTS status_entity_types_status_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_updated_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_sequence_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_project_id_fkey;
@@ -132,6 +181,21 @@ ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_created_
 ALTER TABLE IF EXISTS ONLY public.sequences DROP CONSTRAINT IF EXISTS sequences_updated_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.sequences DROP CONSTRAINT IF EXISTS sequences_project_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.sequences DROP CONSTRAINT IF EXISTS sequences_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_fields DROP CONSTRAINT IF EXISTS schema_fields_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_fields DROP CONSTRAINT IF EXISTS schema_fields_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_fields DROP CONSTRAINT IF EXISTS schema_fields_choice_set_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_link_targets DROP CONSTRAINT IF EXISTS schema_field_link_targets_field_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_field_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_sets DROP CONSTRAINT IF EXISTS schema_choice_sets_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_sets DROP CONSTRAINT IF EXISTS schema_choice_sets_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_set_items DROP CONSTRAINT IF EXISTS schema_choice_set_items_updated_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_set_items DROP CONSTRAINT IF EXISTS schema_choice_set_items_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_set_items DROP CONSTRAINT IF EXISTS schema_choice_set_items_choice_set_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_change_log DROP CONSTRAINT IF EXISTS schema_change_log_field_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_change_log DROP CONSTRAINT IF EXISTS schema_change_log_choice_set_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.schema_change_log DROP CONSTRAINT IF EXISTS schema_change_log_actor_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.published_files DROP CONSTRAINT IF EXISTS published_files_version_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.published_files DROP CONSTRAINT IF EXISTS published_files_updated_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.published_files DROP CONSTRAINT IF EXISTS published_files_task_id_fkey;
@@ -144,6 +208,22 @@ ALTER TABLE IF EXISTS ONLY public.project_members DROP CONSTRAINT IF EXISTS proj
 ALTER TABLE IF EXISTS ONLY public.project_members DROP CONSTRAINT IF EXISTS project_members_project_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_department_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.posts DROP CONSTRAINT IF EXISTS posts_project_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.posts DROP CONSTRAINT IF EXISTS posts_author_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_users DROP CONSTRAINT IF EXISTS post_users_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_users DROP CONSTRAINT IF EXISTS post_users_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_tasks DROP CONSTRAINT IF EXISTS post_tasks_task_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_tasks DROP CONSTRAINT IF EXISTS post_tasks_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_shots DROP CONSTRAINT IF EXISTS post_shots_shot_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_shots DROP CONSTRAINT IF EXISTS post_shots_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_sequences DROP CONSTRAINT IF EXISTS post_sequences_sequence_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_sequences DROP CONSTRAINT IF EXISTS post_sequences_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_reactions DROP CONSTRAINT IF EXISTS post_reactions_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_reactions DROP CONSTRAINT IF EXISTS post_reactions_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_reactions DROP CONSTRAINT IF EXISTS post_reactions_comment_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_projects DROP CONSTRAINT IF EXISTS post_projects_project_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_projects DROP CONSTRAINT IF EXISTS post_projects_post_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.post_media DROP CONSTRAINT IF EXISTS post_media_post_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.playlists DROP CONSTRAINT IF EXISTS playlists_project_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.playlists DROP CONSTRAINT IF EXISTS playlists_created_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.playlist_shares DROP CONSTRAINT IF EXISTS playlist_shares_playlist_id_fkey;
@@ -151,6 +231,9 @@ ALTER TABLE IF EXISTS ONLY public.playlist_shares DROP CONSTRAINT IF EXISTS play
 ALTER TABLE IF EXISTS ONLY public.playlist_items DROP CONSTRAINT IF EXISTS playlist_items_version_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.playlist_items DROP CONSTRAINT IF EXISTS playlist_items_playlist_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.phases DROP CONSTRAINT IF EXISTS phases_project_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_project_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_actor_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.notes DROP CONSTRAINT IF EXISTS notes_updated_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.notes DROP CONSTRAINT IF EXISTS notes_task_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.notes DROP CONSTRAINT IF EXISTS notes_project_id_fkey;
@@ -179,6 +262,9 @@ ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_shot_i
 ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_sequence_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_project_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.annotations DROP CONSTRAINT IF EXISTS annotations_version_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.annotations DROP CONSTRAINT IF EXISTS annotations_post_media_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.annotations DROP CONSTRAINT IF EXISTS annotations_author_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.activity_events DROP CONSTRAINT IF EXISTS activity_events_project_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.activity_events DROP CONSTRAINT IF EXISTS activity_events_actor_id_fkey;
 ALTER TABLE IF EXISTS ONLY auth.sso_domains DROP CONSTRAINT IF EXISTS sso_domains_sso_provider_id_fkey;
@@ -213,18 +299,33 @@ DROP TRIGGER IF EXISTS update_tickets_updated_at ON public.tickets;
 DROP TRIGGER IF EXISTS update_tasks_updated_at ON public.tasks;
 DROP TRIGGER IF EXISTS update_shots_updated_at ON public.shots;
 DROP TRIGGER IF EXISTS update_sequences_updated_at ON public.sequences;
+DROP TRIGGER IF EXISTS update_schema_fields_updated_at ON public.schema_fields;
+DROP TRIGGER IF EXISTS update_schema_field_entities_updated_at ON public.schema_field_entities;
+DROP TRIGGER IF EXISTS update_schema_choice_sets_updated_at ON public.schema_choice_sets;
+DROP TRIGGER IF EXISTS update_schema_choice_set_items_updated_at ON public.schema_choice_set_items;
 DROP TRIGGER IF EXISTS update_published_files_updated_at ON public.published_files;
 DROP TRIGGER IF EXISTS update_projects_updated_at ON public.projects;
 DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS update_post_users_count ON public.post_users;
+DROP TRIGGER IF EXISTS update_post_tasks_count ON public.post_tasks;
+DROP TRIGGER IF EXISTS update_post_shots_count ON public.post_shots;
+DROP TRIGGER IF EXISTS update_post_sequences_count ON public.post_sequences;
+DROP TRIGGER IF EXISTS update_post_projects_count ON public.post_projects;
 DROP TRIGGER IF EXISTS update_playlists_updated_at ON public.playlists;
 DROP TRIGGER IF EXISTS update_notes_updated_at ON public.notes;
 DROP TRIGGER IF EXISTS update_deliveries_updated_at ON public.deliveries;
 DROP TRIGGER IF EXISTS update_assets_updated_at ON public.assets;
+DROP TRIGGER IF EXISTS trg_tags_set_updated_at ON public.tags;
+DROP TRIGGER IF EXISTS trg_statuses_set_updated_at ON public.statuses;
+DROP TRIGGER IF EXISTS trg_profiles_set_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS trg_departments_set_updated_at ON public.departments;
 DROP TRIGGER IF EXISTS task_activity_logger ON public.tasks;
 DROP TRIGGER IF EXISTS published_file_activity_logger ON public.published_files;
+DROP TRIGGER IF EXISTS posts_updated_at ON public.posts;
 DROP TRIGGER IF EXISTS note_activity_logger ON public.notes;
 DROP TRIGGER IF EXISTS messages_updated_at ON public.messages;
 DROP TRIGGER IF EXISTS conversations_updated_at ON public.conversations;
+DROP TRIGGER IF EXISTS annotations_updated_at ON public.annotations;
 DROP INDEX IF EXISTS supabase_functions.supabase_functions_hooks_request_id_idx;
 DROP INDEX IF EXISTS supabase_functions.supabase_functions_hooks_h_table_id_h_name_idx;
 DROP INDEX IF EXISTS storage.vector_indexes_name_bucket_id_idx;
@@ -240,12 +341,13 @@ DROP INDEX IF EXISTS storage.idx_iceberg_namespaces_bucket_id;
 DROP INDEX IF EXISTS storage.bucketid_objname;
 DROP INDEX IF EXISTS storage.bname;
 DROP INDEX IF EXISTS realtime.subscription_subscription_id_entity_filters_key;
-DROP INDEX IF EXISTS realtime.messages_2026_02_13_inserted_at_topic_idx;
-DROP INDEX IF EXISTS realtime.messages_2026_02_12_inserted_at_topic_idx;
-DROP INDEX IF EXISTS realtime.messages_2026_02_11_inserted_at_topic_idx;
-DROP INDEX IF EXISTS realtime.messages_2026_02_10_inserted_at_topic_idx;
-DROP INDEX IF EXISTS realtime.messages_2026_02_09_inserted_at_topic_idx;
-DROP INDEX IF EXISTS realtime.messages_2026_02_08_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_20_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_19_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_18_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_17_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_16_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_15_inserted_at_topic_idx;
+DROP INDEX IF EXISTS realtime.messages_2026_02_14_inserted_at_topic_idx;
 DROP INDEX IF EXISTS realtime.messages_inserted_at_topic_index;
 DROP INDEX IF EXISTS realtime.ix_realtime_subscription_entity;
 DROP INDEX IF EXISTS public.idx_versions_task;
@@ -269,9 +371,23 @@ DROP INDEX IF EXISTS public.idx_tasks_entity;
 DROP INDEX IF EXISTS public.idx_tasks_due_date;
 DROP INDEX IF EXISTS public.idx_tasks_assigned_to;
 DROP INDEX IF EXISTS public.idx_task_assignments_user;
+DROP INDEX IF EXISTS public.idx_tags_usage_count;
+DROP INDEX IF EXISTS public.idx_tags_name;
+DROP INDEX IF EXISTS public.idx_statuses_sort_order;
+DROP INDEX IF EXISTS public.idx_statuses_name;
+DROP INDEX IF EXISTS public.idx_statuses_entity_type;
+DROP INDEX IF EXISTS public.idx_statuses_code_entity_type;
+DROP INDEX IF EXISTS public.idx_status_entity_types_status_id;
+DROP INDEX IF EXISTS public.idx_status_entity_types_entity_type;
 DROP INDEX IF EXISTS public.idx_shots_status;
 DROP INDEX IF EXISTS public.idx_shots_sequence;
 DROP INDEX IF EXISTS public.idx_shots_project;
+DROP INDEX IF EXISTS public.idx_schema_fields_data_type;
+DROP INDEX IF EXISTS public.idx_schema_fields_active;
+DROP INDEX IF EXISTS public.idx_schema_field_entities_table_column;
+DROP INDEX IF EXISTS public.idx_schema_field_entities_entity;
+DROP INDEX IF EXISTS public.idx_schema_choice_set_items_choice_set;
+DROP INDEX IF EXISTS public.idx_schema_change_log_created_at;
 DROP INDEX IF EXISTS public.idx_published_files_version;
 DROP INDEX IF EXISTS public.idx_published_files_task;
 DROP INDEX IF EXISTS public.idx_published_files_project;
@@ -281,8 +397,29 @@ DROP INDEX IF EXISTS public.idx_projects_archived;
 DROP INDEX IF EXISTS public.idx_project_members_user_id;
 DROP INDEX IF EXISTS public.idx_project_members_role;
 DROP INDEX IF EXISTS public.idx_profiles_role;
+DROP INDEX IF EXISTS public.idx_profiles_department_id;
 DROP INDEX IF EXISTS public.idx_profiles_department;
+DROP INDEX IF EXISTS public.idx_posts_project;
+DROP INDEX IF EXISTS public.idx_posts_created;
+DROP INDEX IF EXISTS public.idx_posts_author;
+DROP INDEX IF EXISTS public.idx_post_users_user;
+DROP INDEX IF EXISTS public.idx_post_users_post;
+DROP INDEX IF EXISTS public.idx_post_tasks_task;
+DROP INDEX IF EXISTS public.idx_post_tasks_post;
+DROP INDEX IF EXISTS public.idx_post_shots_shot;
+DROP INDEX IF EXISTS public.idx_post_shots_post;
+DROP INDEX IF EXISTS public.idx_post_sequences_sequence;
+DROP INDEX IF EXISTS public.idx_post_sequences_post;
+DROP INDEX IF EXISTS public.idx_post_reactions_user;
+DROP INDEX IF EXISTS public.idx_post_reactions_post;
+DROP INDEX IF EXISTS public.idx_post_reactions_comment;
+DROP INDEX IF EXISTS public.idx_post_projects_project;
+DROP INDEX IF EXISTS public.idx_post_projects_post;
+DROP INDEX IF EXISTS public.idx_post_media_post;
 DROP INDEX IF EXISTS public.idx_phases_project;
+DROP INDEX IF EXISTS public.idx_notifications_user_unread;
+DROP INDEX IF EXISTS public.idx_notifications_user_time;
+DROP INDEX IF EXISTS public.idx_notifications_project;
 DROP INDEX IF EXISTS public.idx_notes_task_id;
 DROP INDEX IF EXISTS public.idx_notes_status;
 DROP INDEX IF EXISTS public.idx_notes_project;
@@ -297,6 +434,9 @@ DROP INDEX IF EXISTS public.idx_milestones_phase;
 DROP INDEX IF EXISTS public.idx_messages_created_at;
 DROP INDEX IF EXISTS public.idx_messages_conversation_id;
 DROP INDEX IF EXISTS public.idx_messages_author_id;
+DROP INDEX IF EXISTS public.idx_departments_status;
+DROP INDEX IF EXISTS public.idx_departments_name;
+DROP INDEX IF EXISTS public.idx_departments_code;
 DROP INDEX IF EXISTS public.idx_deliveries_status;
 DROP INDEX IF EXISTS public.idx_deliveries_project;
 DROP INDEX IF EXISTS public.idx_conversations_type;
@@ -308,7 +448,13 @@ DROP INDEX IF EXISTS public.idx_assets_status;
 DROP INDEX IF EXISTS public.idx_assets_shot;
 DROP INDEX IF EXISTS public.idx_assets_sequence;
 DROP INDEX IF EXISTS public.idx_assets_project;
+DROP INDEX IF EXISTS public.idx_annotations_version;
+DROP INDEX IF EXISTS public.idx_annotations_post_media;
+DROP INDEX IF EXISTS public.idx_annotations_frame;
+DROP INDEX IF EXISTS public.idx_annotations_author;
+DROP INDEX IF EXISTS public.idx_activity_project_type_time;
 DROP INDEX IF EXISTS public.idx_activity_project_time;
+DROP INDEX IF EXISTS public.idx_activity_entity_attribute;
 DROP INDEX IF EXISTS public.idx_activity_entity;
 DROP INDEX IF EXISTS auth.users_is_anonymous_idx;
 DROP INDEX IF EXISTS auth.users_instance_id_idx;
@@ -374,12 +520,13 @@ ALTER TABLE IF EXISTS ONLY storage.buckets DROP CONSTRAINT IF EXISTS buckets_pke
 ALTER TABLE IF EXISTS ONLY storage.buckets_analytics DROP CONSTRAINT IF EXISTS buckets_analytics_pkey;
 ALTER TABLE IF EXISTS ONLY realtime.schema_migrations DROP CONSTRAINT IF EXISTS schema_migrations_pkey;
 ALTER TABLE IF EXISTS ONLY realtime.subscription DROP CONSTRAINT IF EXISTS pk_subscription;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_13 DROP CONSTRAINT IF EXISTS messages_2026_02_13_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_12 DROP CONSTRAINT IF EXISTS messages_2026_02_12_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_11 DROP CONSTRAINT IF EXISTS messages_2026_02_11_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_10 DROP CONSTRAINT IF EXISTS messages_2026_02_10_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_09 DROP CONSTRAINT IF EXISTS messages_2026_02_09_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_08 DROP CONSTRAINT IF EXISTS messages_2026_02_08_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_20 DROP CONSTRAINT IF EXISTS messages_2026_02_20_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_19 DROP CONSTRAINT IF EXISTS messages_2026_02_19_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_18 DROP CONSTRAINT IF EXISTS messages_2026_02_18_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_17 DROP CONSTRAINT IF EXISTS messages_2026_02_17_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_16 DROP CONSTRAINT IF EXISTS messages_2026_02_16_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_15 DROP CONSTRAINT IF EXISTS messages_2026_02_15_pkey;
+ALTER TABLE IF EXISTS ONLY realtime.messages_2026_02_14 DROP CONSTRAINT IF EXISTS messages_2026_02_14_pkey;
 ALTER TABLE IF EXISTS ONLY realtime.messages DROP CONSTRAINT IF EXISTS messages_pkey;
 ALTER TABLE IF EXISTS ONLY public.versions DROP CONSTRAINT IF EXISTS versions_project_id_entity_type_entity_id_version_number_key;
 ALTER TABLE IF EXISTS ONLY public.versions DROP CONSTRAINT IF EXISTS versions_pkey;
@@ -390,14 +537,30 @@ ALTER TABLE IF EXISTS ONLY public.tasks DROP CONSTRAINT IF EXISTS tasks_pkey;
 ALTER TABLE IF EXISTS public.tasks DROP CONSTRAINT IF EXISTS tasks_entity_type_check;
 ALTER TABLE IF EXISTS ONLY public.task_dependencies DROP CONSTRAINT IF EXISTS task_dependencies_pkey;
 ALTER TABLE IF EXISTS ONLY public.task_assignments DROP CONSTRAINT IF EXISTS task_assignments_pkey;
+ALTER TABLE IF EXISTS ONLY public.tags DROP CONSTRAINT IF EXISTS tags_pkey;
+ALTER TABLE IF EXISTS ONLY public.tags DROP CONSTRAINT IF EXISTS tags_name_key;
 ALTER TABLE IF EXISTS ONLY public.steps DROP CONSTRAINT IF EXISTS steps_pkey;
 ALTER TABLE IF EXISTS ONLY public.steps DROP CONSTRAINT IF EXISTS steps_code_key;
 ALTER TABLE IF EXISTS ONLY public.statuses DROP CONSTRAINT IF EXISTS statuses_pkey;
 ALTER TABLE IF EXISTS ONLY public.statuses DROP CONSTRAINT IF EXISTS statuses_code_entity_type_key;
+ALTER TABLE IF EXISTS ONLY public.status_entity_types DROP CONSTRAINT IF EXISTS status_entity_types_status_id_entity_type_key;
+ALTER TABLE IF EXISTS ONLY public.status_entity_types DROP CONSTRAINT IF EXISTS status_entity_types_pkey;
 ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.shots DROP CONSTRAINT IF EXISTS shots_pkey;
 ALTER TABLE IF EXISTS ONLY public.sequences DROP CONSTRAINT IF EXISTS sequences_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.sequences DROP CONSTRAINT IF EXISTS sequences_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_fields DROP CONSTRAINT IF EXISTS schema_fields_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_fields DROP CONSTRAINT IF EXISTS schema_fields_code_key;
+ALTER TABLE IF EXISTS ONLY public.schema_field_link_targets DROP CONSTRAINT IF EXISTS schema_field_link_targets_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_link_targets DROP CONSTRAINT IF EXISTS schema_field_link_targets_field_target_key;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_field_entity_key;
+ALTER TABLE IF EXISTS ONLY public.schema_field_entities DROP CONSTRAINT IF EXISTS schema_field_entities_entity_column_key;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_sets DROP CONSTRAINT IF EXISTS schema_choice_sets_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_sets DROP CONSTRAINT IF EXISTS schema_choice_sets_name_key;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_set_items DROP CONSTRAINT IF EXISTS schema_choice_set_items_pkey;
+ALTER TABLE IF EXISTS ONLY public.schema_choice_set_items DROP CONSTRAINT IF EXISTS schema_choice_set_items_choice_set_value_key;
+ALTER TABLE IF EXISTS ONLY public.schema_change_log DROP CONSTRAINT IF EXISTS schema_change_log_pkey;
 ALTER TABLE IF EXISTS ONLY public.published_files DROP CONSTRAINT IF EXISTS published_files_pkey;
 ALTER TABLE IF EXISTS public.published_files DROP CONSTRAINT IF EXISTS published_files_entity_type_check;
 ALTER TABLE IF EXISTS ONLY public.published_file_dependencies DROP CONSTRAINT IF EXISTS published_file_dependencies_pkey;
@@ -406,6 +569,20 @@ ALTER TABLE IF EXISTS ONLY public.projects DROP CONSTRAINT IF EXISTS projects_co
 ALTER TABLE IF EXISTS ONLY public.project_members DROP CONSTRAINT IF EXISTS project_members_pkey;
 ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_pkey;
 ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_email_key;
+ALTER TABLE IF EXISTS ONLY public.posts DROP CONSTRAINT IF EXISTS posts_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_users DROP CONSTRAINT IF EXISTS post_users_post_id_user_id_key;
+ALTER TABLE IF EXISTS ONLY public.post_users DROP CONSTRAINT IF EXISTS post_users_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_tasks DROP CONSTRAINT IF EXISTS post_tasks_post_id_task_id_key;
+ALTER TABLE IF EXISTS ONLY public.post_tasks DROP CONSTRAINT IF EXISTS post_tasks_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_shots DROP CONSTRAINT IF EXISTS post_shots_post_id_shot_id_key;
+ALTER TABLE IF EXISTS ONLY public.post_shots DROP CONSTRAINT IF EXISTS post_shots_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_sequences DROP CONSTRAINT IF EXISTS post_sequences_post_id_sequence_id_key;
+ALTER TABLE IF EXISTS ONLY public.post_sequences DROP CONSTRAINT IF EXISTS post_sequences_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_reactions DROP CONSTRAINT IF EXISTS post_reactions_user_id_post_id_comment_id_reaction_type_key;
+ALTER TABLE IF EXISTS ONLY public.post_reactions DROP CONSTRAINT IF EXISTS post_reactions_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_projects DROP CONSTRAINT IF EXISTS post_projects_post_id_project_id_key;
+ALTER TABLE IF EXISTS ONLY public.post_projects DROP CONSTRAINT IF EXISTS post_projects_pkey;
+ALTER TABLE IF EXISTS ONLY public.post_media DROP CONSTRAINT IF EXISTS post_media_pkey;
 ALTER TABLE IF EXISTS ONLY public.playlists DROP CONSTRAINT IF EXISTS playlists_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.playlists DROP CONSTRAINT IF EXISTS playlists_pkey;
 ALTER TABLE IF EXISTS ONLY public.playlist_shares DROP CONSTRAINT IF EXISTS playlist_shares_pkey;
@@ -413,8 +590,8 @@ ALTER TABLE IF EXISTS ONLY public.playlist_shares DROP CONSTRAINT IF EXISTS play
 ALTER TABLE IF EXISTS ONLY public.playlist_items DROP CONSTRAINT IF EXISTS playlist_items_pkey;
 ALTER TABLE IF EXISTS ONLY public.phases DROP CONSTRAINT IF EXISTS phases_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.phases DROP CONSTRAINT IF EXISTS phases_pkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_pkey;
 ALTER TABLE IF EXISTS ONLY public.notes DROP CONSTRAINT IF EXISTS notes_pkey;
-ALTER TABLE IF EXISTS public.notes DROP CONSTRAINT IF EXISTS notes_entity_type_check;
 ALTER TABLE IF EXISTS ONLY public.note_mentions DROP CONSTRAINT IF EXISTS note_mentions_pkey;
 ALTER TABLE IF EXISTS ONLY public.milestones DROP CONSTRAINT IF EXISTS milestones_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.milestones DROP CONSTRAINT IF EXISTS milestones_pkey;
@@ -433,6 +610,7 @@ ALTER TABLE IF EXISTS ONLY public.conversation_members DROP CONSTRAINT IF EXISTS
 ALTER TABLE IF EXISTS ONLY public.attachments DROP CONSTRAINT IF EXISTS attachments_pkey;
 ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_project_id_code_key;
 ALTER TABLE IF EXISTS ONLY public.assets DROP CONSTRAINT IF EXISTS assets_pkey;
+ALTER TABLE IF EXISTS ONLY public.annotations DROP CONSTRAINT IF EXISTS annotations_pkey;
 ALTER TABLE IF EXISTS ONLY public.allowed_users DROP CONSTRAINT IF EXISTS allowed_users_pkey;
 ALTER TABLE IF EXISTS ONLY public.activity_events DROP CONSTRAINT IF EXISTS activity_events_pkey;
 ALTER TABLE IF EXISTS ONLY auth.users DROP CONSTRAINT IF EXISTS users_pkey;
@@ -473,13 +651,29 @@ ALTER TABLE IF EXISTS public.tickets ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.tasks ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.steps ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.statuses ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.status_entity_types ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.shots ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.sequences ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_fields ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_field_link_targets ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_field_entities ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_choice_sets ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_choice_set_items ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.schema_change_log ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.published_files ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.projects ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.posts ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_users ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_tasks ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_shots ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_sequences ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_reactions ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_projects ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.post_media ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.playlists ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.playlist_shares ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.phases ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.notifications ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.notes ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.milestones ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.groups ALTER COLUMN id DROP DEFAULT;
@@ -487,6 +681,7 @@ ALTER TABLE IF EXISTS public.departments ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.deliveries ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.attachments ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.assets ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.annotations ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.activity_events ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS auth.refresh_tokens ALTER COLUMN id DROP DEFAULT;
 DROP TABLE IF EXISTS supabase_functions.migrations;
@@ -505,12 +700,13 @@ DROP TABLE IF EXISTS storage.buckets_analytics;
 DROP TABLE IF EXISTS storage.buckets;
 DROP TABLE IF EXISTS realtime.subscription;
 DROP TABLE IF EXISTS realtime.schema_migrations;
-DROP TABLE IF EXISTS realtime.messages_2026_02_13;
-DROP TABLE IF EXISTS realtime.messages_2026_02_12;
-DROP TABLE IF EXISTS realtime.messages_2026_02_11;
-DROP TABLE IF EXISTS realtime.messages_2026_02_10;
-DROP TABLE IF EXISTS realtime.messages_2026_02_09;
-DROP TABLE IF EXISTS realtime.messages_2026_02_08;
+DROP TABLE IF EXISTS realtime.messages_2026_02_20;
+DROP TABLE IF EXISTS realtime.messages_2026_02_19;
+DROP TABLE IF EXISTS realtime.messages_2026_02_18;
+DROP TABLE IF EXISTS realtime.messages_2026_02_17;
+DROP TABLE IF EXISTS realtime.messages_2026_02_16;
+DROP TABLE IF EXISTS realtime.messages_2026_02_15;
+DROP TABLE IF EXISTS realtime.messages_2026_02_14;
 DROP TABLE IF EXISTS realtime.messages;
 DROP SEQUENCE IF EXISTS public.versions_id_seq;
 DROP TABLE IF EXISTS public.versions;
@@ -522,14 +718,30 @@ DROP SEQUENCE IF EXISTS public.tasks_id_seq;
 DROP TABLE IF EXISTS public.tasks;
 DROP TABLE IF EXISTS public.task_dependencies;
 DROP TABLE IF EXISTS public.task_assignments;
+DROP TABLE IF EXISTS public.tags;
 DROP SEQUENCE IF EXISTS public.steps_id_seq;
 DROP TABLE IF EXISTS public.steps;
 DROP SEQUENCE IF EXISTS public.statuses_id_seq;
 DROP TABLE IF EXISTS public.statuses;
+DROP SEQUENCE IF EXISTS public.status_entity_types_id_seq;
+DROP TABLE IF EXISTS public.status_entity_types;
 DROP SEQUENCE IF EXISTS public.shots_id_seq;
 DROP TABLE IF EXISTS public.shots;
 DROP SEQUENCE IF EXISTS public.sequences_id_seq;
 DROP TABLE IF EXISTS public.sequences;
+DROP SEQUENCE IF EXISTS public.schema_fields_id_seq;
+DROP VIEW IF EXISTS public.schema_field_runtime_v;
+DROP TABLE IF EXISTS public.schema_fields;
+DROP SEQUENCE IF EXISTS public.schema_field_link_targets_id_seq;
+DROP TABLE IF EXISTS public.schema_field_link_targets;
+DROP SEQUENCE IF EXISTS public.schema_field_entities_id_seq;
+DROP TABLE IF EXISTS public.schema_field_entities;
+DROP SEQUENCE IF EXISTS public.schema_choice_sets_id_seq;
+DROP TABLE IF EXISTS public.schema_choice_sets;
+DROP SEQUENCE IF EXISTS public.schema_choice_set_items_id_seq;
+DROP TABLE IF EXISTS public.schema_choice_set_items;
+DROP SEQUENCE IF EXISTS public.schema_change_log_id_seq;
+DROP TABLE IF EXISTS public.schema_change_log;
 DROP SEQUENCE IF EXISTS public.published_files_id_seq;
 DROP TABLE IF EXISTS public.published_files;
 DROP TABLE IF EXISTS public.published_file_dependencies;
@@ -537,6 +749,22 @@ DROP SEQUENCE IF EXISTS public.projects_id_seq;
 DROP TABLE IF EXISTS public.projects;
 DROP TABLE IF EXISTS public.project_members;
 DROP TABLE IF EXISTS public.profiles;
+DROP SEQUENCE IF EXISTS public.posts_id_seq;
+DROP TABLE IF EXISTS public.posts;
+DROP SEQUENCE IF EXISTS public.post_users_id_seq;
+DROP TABLE IF EXISTS public.post_users;
+DROP SEQUENCE IF EXISTS public.post_tasks_id_seq;
+DROP TABLE IF EXISTS public.post_tasks;
+DROP SEQUENCE IF EXISTS public.post_shots_id_seq;
+DROP TABLE IF EXISTS public.post_shots;
+DROP SEQUENCE IF EXISTS public.post_sequences_id_seq;
+DROP TABLE IF EXISTS public.post_sequences;
+DROP SEQUENCE IF EXISTS public.post_reactions_id_seq;
+DROP TABLE IF EXISTS public.post_reactions;
+DROP SEQUENCE IF EXISTS public.post_projects_id_seq;
+DROP TABLE IF EXISTS public.post_projects;
+DROP SEQUENCE IF EXISTS public.post_media_id_seq;
+DROP TABLE IF EXISTS public.post_media;
 DROP SEQUENCE IF EXISTS public.playlists_id_seq;
 DROP TABLE IF EXISTS public.playlists;
 DROP SEQUENCE IF EXISTS public.playlist_shares_id_seq;
@@ -544,6 +772,8 @@ DROP TABLE IF EXISTS public.playlist_shares;
 DROP TABLE IF EXISTS public.playlist_items;
 DROP SEQUENCE IF EXISTS public.phases_id_seq;
 DROP TABLE IF EXISTS public.phases;
+DROP SEQUENCE IF EXISTS public.notifications_id_seq;
+DROP TABLE IF EXISTS public.notifications;
 DROP SEQUENCE IF EXISTS public.notes_id_seq;
 DROP TABLE IF EXISTS public.notes;
 DROP TABLE IF EXISTS public.note_mentions;
@@ -564,6 +794,8 @@ DROP SEQUENCE IF EXISTS public.attachments_id_seq;
 DROP TABLE IF EXISTS public.attachments;
 DROP SEQUENCE IF EXISTS public.assets_id_seq;
 DROP TABLE IF EXISTS public.assets;
+DROP SEQUENCE IF EXISTS public.annotations_id_seq;
+DROP TABLE IF EXISTS public.annotations;
 DROP TABLE IF EXISTS public.allowed_users;
 DROP SEQUENCE IF EXISTS public.activity_events_id_seq;
 DROP TABLE IF EXISTS public.activity_events;
@@ -632,9 +864,36 @@ DROP FUNCTION IF EXISTS realtime."cast"(val text, type_ regtype);
 DROP FUNCTION IF EXISTS realtime.build_prepared_statement_sql(prepared_statement_name text, entity regclass, columns realtime.wal_column[]);
 DROP FUNCTION IF EXISTS realtime.broadcast_changes(topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text);
 DROP FUNCTION IF EXISTS realtime.apply_rls(wal jsonb, max_record_bytes integer);
+DROP FUNCTION IF EXISTS public.user_can_view_post(p_post_id integer);
 DROP FUNCTION IF EXISTS public.update_updated_at_column();
 DROP FUNCTION IF EXISTS public.update_updated_at();
+DROP FUNCTION IF EXISTS public.update_post_entity_counts();
+DROP FUNCTION IF EXISTS public.set_updated_at();
 DROP FUNCTION IF EXISTS public.set_current_user(user_id integer);
+DROP FUNCTION IF EXISTS public.schema_validate_field_code(p_code text);
+DROP FUNCTION IF EXISTS public.schema_update_field_meta(p_field_id bigint, p_patch jsonb);
+DROP FUNCTION IF EXISTS public.schema_try_parse_timestamptz(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_text_array(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_numeric(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_jsonb(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_integer(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_double(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_date(p_value text);
+DROP FUNCTION IF EXISTS public.schema_try_parse_boolean(p_value text);
+DROP FUNCTION IF EXISTS public.schema_sql_type_for_data_type(p_data_type text);
+DROP FUNCTION IF EXISTS public.schema_require_field_admin();
+DROP FUNCTION IF EXISTS public.schema_normalize_data_type(p_data_type text);
+DROP FUNCTION IF EXISTS public.schema_entity_table_name(p_entity_type text);
+DROP FUNCTION IF EXISTS public.schema_default_expression_for_data_type(p_data_type text);
+DROP FUNCTION IF EXISTS public.schema_deactivate_field(p_field_id bigint, p_reason text);
+DROP FUNCTION IF EXISTS public.schema_data_type_from_db_column(p_data_type text, p_udt_name text);
+DROP FUNCTION IF EXISTS public.schema_create_field(p_name text, p_code text, p_data_type text, p_field_type text, p_description text, p_default_value jsonb, p_choice_set_id bigint, p_entities text[], p_required boolean, p_visible_by_default boolean, p_display_order integer, p_link_target_entities text[]);
+DROP FUNCTION IF EXISTS public.schema_create_choice_set(p_name text, p_description text, p_items jsonb);
+DROP FUNCTION IF EXISTS public.schema_column_definition_for_data_type(p_data_type text);
+DROP FUNCTION IF EXISTS public.schema_change_field_data_type(p_field_id bigint, p_data_type text);
+DROP FUNCTION IF EXISTS public.schema_can_manage_fields();
+DROP FUNCTION IF EXISTS public.schema_bootstrap_table_columns(p_entity_type text);
+DROP FUNCTION IF EXISTS public.schema_add_field_to_entity(p_field_id bigint, p_entity_type text, p_required boolean, p_visible_by_default boolean, p_display_order integer);
 DROP FUNCTION IF EXISTS public.log_version_created();
 DROP FUNCTION IF EXISTS public.log_task_status_change();
 DROP FUNCTION IF EXISTS public.log_published_file_created();
@@ -643,6 +902,7 @@ DROP FUNCTION IF EXISTS public.log_activity_event(p_project_id integer, p_event_
 DROP FUNCTION IF EXISTS public.is_conversation_member(conv_id bigint);
 DROP FUNCTION IF EXISTS public.get_task_progress(p_entity_type text, p_entity_id integer);
 DROP FUNCTION IF EXISTS public.get_next_version_number(p_project_id integer, p_entity_type text, p_entity_id integer);
+DROP FUNCTION IF EXISTS public.get_filtered_posts(p_project_ids integer[], p_sequence_ids integer[], p_shot_ids integer[], p_task_ids integer[], p_user_ids uuid[], p_limit integer, p_offset integer);
 DROP FUNCTION IF EXISTS public.echo_handle_updated_at();
 DROP FUNCTION IF EXISTS pgbouncer.get_auth(p_usename text);
 DROP FUNCTION IF EXISTS extensions.set_graphql_placeholder();
@@ -1450,6 +1710,69 @@ $$;
 
 
 --
+-- Name: get_filtered_posts(integer[], integer[], integer[], integer[], uuid[], integer, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.get_filtered_posts(p_project_ids integer[] DEFAULT NULL::integer[], p_sequence_ids integer[] DEFAULT NULL::integer[], p_shot_ids integer[] DEFAULT NULL::integer[], p_task_ids integer[] DEFAULT NULL::integer[], p_user_ids uuid[] DEFAULT NULL::uuid[], p_limit integer DEFAULT 50, p_offset integer DEFAULT 0) RETURNS TABLE(id integer, author_id uuid, content text, content_html text, media_count integer, comment_count integer, reaction_count integer, visibility text, created_at timestamp with time zone, updated_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT DISTINCT
+        p.id,
+        p.author_id,
+        p.content,
+        p.content_html,
+        p.media_count,
+        p.comment_count,
+        p.reaction_count,
+        p.visibility,
+        p.created_at,
+        p.updated_at
+    FROM public.posts p
+    WHERE
+        -- Apply project filter
+        (p_project_ids IS NULL OR EXISTS (
+            SELECT 1 FROM public.post_projects pp
+            WHERE pp.post_id = p.id
+            AND pp.project_id = ANY(p_project_ids)
+        ))
+        AND
+        -- Apply sequence filter
+        (p_sequence_ids IS NULL OR EXISTS (
+            SELECT 1 FROM public.post_sequences ps
+            WHERE ps.post_id = p.id
+            AND ps.sequence_id = ANY(p_sequence_ids)
+        ))
+        AND
+        -- Apply shot filter
+        (p_shot_ids IS NULL OR EXISTS (
+            SELECT 1 FROM public.post_shots psh
+            WHERE psh.post_id = p.id
+            AND psh.shot_id = ANY(p_shot_ids)
+        ))
+        AND
+        -- Apply task filter
+        (p_task_ids IS NULL OR EXISTS (
+            SELECT 1 FROM public.post_tasks pt
+            WHERE pt.post_id = p.id
+            AND pt.task_id = ANY(p_task_ids)
+        ))
+        AND
+        -- Apply user filter
+        (p_user_ids IS NULL OR EXISTS (
+            SELECT 1 FROM public.post_users pu
+            WHERE pu.post_id = p.id
+            AND pu.user_id = ANY(p_user_ids)
+        ))
+    ORDER BY p.created_at DESC
+    LIMIT p_limit
+    OFFSET p_offset;
+END;
+$$;
+
+
+--
 -- Name: get_next_version_number(integer, text, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1640,6 +1963,1304 @@ $$;
 
 
 --
+-- Name: schema_add_field_to_entity(bigint, text, boolean, boolean, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_add_field_to_entity(p_field_id bigint, p_entity_type text, p_required boolean DEFAULT false, p_visible_by_default boolean DEFAULT true, p_display_order integer DEFAULT 1000) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+  v_field public.schema_fields%ROWTYPE;
+  v_entity_type text;
+  v_table_name text;
+  v_column_def text;
+  v_exists boolean;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+  v_entity_type := lower(trim(coalesce(p_entity_type, '')));
+
+  SELECT *
+  INTO v_field
+  FROM public.schema_fields sf
+  WHERE sf.id = p_field_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Field % not found', p_field_id;
+  END IF;
+
+  IF v_field.is_active = false THEN
+    RAISE EXCEPTION 'Field % is inactive', p_field_id;
+  END IF;
+
+  v_table_name := public.schema_entity_table_name(v_entity_type);
+  IF v_table_name IS NULL THEN
+    RAISE EXCEPTION 'Unsupported entity type: %', v_entity_type;
+  END IF;
+
+  v_column_def := public.schema_column_definition_for_data_type(v_field.data_type);
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND c.table_name = v_table_name
+      AND c.column_name = v_field.code
+  )
+  INTO v_exists;
+
+  IF NOT v_exists THEN
+    EXECUTE format(
+      'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS %I %s',
+      v_table_name,
+      v_field.code,
+      v_column_def
+    );
+  END IF;
+
+  INSERT INTO public.schema_field_entities (
+    field_id,
+    entity_type,
+    table_name,
+    column_name,
+    required,
+    visible_by_default,
+    display_order,
+    is_active,
+    created_by,
+    updated_by
+  )
+  VALUES (
+    p_field_id,
+    v_entity_type,
+    v_table_name,
+    v_field.code,
+    p_required,
+    p_visible_by_default,
+    coalesce(p_display_order, 1000),
+    true,
+    v_actor,
+    v_actor
+  )
+  ON CONFLICT (field_id, entity_type)
+  DO UPDATE SET
+    required = EXCLUDED.required,
+    visible_by_default = EXCLUDED.visible_by_default,
+    display_order = EXCLUDED.display_order,
+    is_active = true,
+    updated_by = v_actor,
+    updated_at = now();
+
+  INSERT INTO public.schema_change_log (action, field_id, actor_id, payload)
+  VALUES (
+    'add_field_to_entity',
+    p_field_id,
+    v_actor,
+    jsonb_build_object('entity_type', v_entity_type)
+  );
+END;
+$$;
+
+
+--
+-- Name: schema_bootstrap_table_columns(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_bootstrap_table_columns(p_entity_type text DEFAULT NULL::text) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+  v_target_entity text := nullif(lower(trim(coalesce(p_entity_type, ''))), '');
+  v_entity record;
+  v_col record;
+  v_field_id bigint;
+  v_data_type text;
+  v_count integer := 0;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+
+  FOR v_entity IN
+    SELECT *
+    FROM (
+      VALUES
+        ('asset'::text, 'assets'::text),
+        ('sequence'::text, 'sequences'::text),
+        ('shot'::text, 'shots'::text),
+        ('task'::text, 'tasks'::text),
+        ('version'::text, 'versions'::text),
+        ('note'::text, 'notes'::text),
+        ('published_file'::text, 'published_files'::text),
+        ('project'::text, 'projects'::text),
+        ('department'::text, 'departments'::text),
+        ('person'::text, 'profiles'::text)
+    ) AS entities(entity_type, table_name)
+  LOOP
+    IF v_target_entity IS NOT NULL AND v_entity.entity_type <> v_target_entity THEN
+      CONTINUE;
+    END IF;
+
+    FOR v_col IN
+      SELECT
+        c.column_name,
+        c.data_type,
+        c.udt_name
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name = v_entity.table_name
+        AND c.column_name <> ALL (
+          ARRAY[
+            'id',
+            'project_id',
+            'entity_type',
+            'entity_id',
+            'created_at',
+            'updated_at',
+            'created_by',
+            'updated_by'
+          ]
+        )
+      ORDER BY c.ordinal_position
+    LOOP
+      IF EXISTS (
+        SELECT 1
+        FROM public.schema_field_entities sfe
+        WHERE sfe.entity_type = v_entity.entity_type
+          AND sfe.column_name = v_col.column_name
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      v_data_type := public.schema_data_type_from_db_column(v_col.data_type, v_col.udt_name);
+
+      INSERT INTO public.schema_fields (
+        code,
+        name,
+        data_type,
+        field_type,
+        description,
+        is_active,
+        created_by,
+        updated_by
+      )
+      VALUES (
+        v_col.column_name,
+        initcap(replace(v_col.column_name, '_', ' ')),
+        v_data_type,
+        'dynamic',
+        'Bootstrapped from existing DB column',
+        true,
+        v_actor,
+        v_actor
+      )
+      ON CONFLICT (code)
+      DO UPDATE SET
+        updated_by = v_actor,
+        updated_at = now()
+      RETURNING id INTO v_field_id;
+
+      INSERT INTO public.schema_field_entities (
+        field_id,
+        entity_type,
+        table_name,
+        column_name,
+        required,
+        visible_by_default,
+        display_order,
+        is_active,
+        created_by,
+        updated_by
+      )
+      VALUES (
+        v_field_id,
+        v_entity.entity_type,
+        v_entity.table_name,
+        v_col.column_name,
+        false,
+        true,
+        1000,
+        true,
+        v_actor,
+        v_actor
+      )
+      ON CONFLICT (field_id, entity_type)
+      DO UPDATE SET
+        is_active = true,
+        updated_by = v_actor,
+        updated_at = now();
+
+      v_count := v_count + 1;
+    END LOOP;
+  END LOOP;
+
+  INSERT INTO public.schema_change_log (action, actor_id, payload)
+  VALUES (
+    'bootstrap_fields',
+    v_actor,
+    jsonb_build_object('entity_type', v_target_entity, 'inserted_or_linked', v_count)
+  );
+
+  RETURN v_count;
+END;
+$$;
+
+
+--
+-- Name: schema_can_manage_fields(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_can_manage_fields() RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND p.active = true
+      AND lower(coalesce(p.role, '')) = 'alpha'
+  );
+$$;
+
+
+--
+-- Name: schema_change_field_data_type(bigint, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_change_field_data_type(p_field_id bigint, p_data_type text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $_$
+DECLARE
+  v_actor uuid;
+  v_field public.schema_fields%ROWTYPE;
+  v_new_data_type text;
+  v_sql_type text;
+  v_default_expression text;
+  v_using_expression text;
+  v_mapping record;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+  v_new_data_type := public.schema_normalize_data_type(p_data_type);
+
+  SELECT *
+  INTO v_field
+  FROM public.schema_fields sf
+  WHERE sf.id = p_field_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Field % not found', p_field_id;
+  END IF;
+
+  IF v_field.data_type = v_new_data_type THEN
+    RETURN;
+  END IF;
+
+  v_sql_type := public.schema_sql_type_for_data_type(v_new_data_type);
+  v_default_expression := public.schema_default_expression_for_data_type(v_new_data_type);
+
+  FOR v_mapping IN
+    SELECT
+      sfe.table_name,
+      sfe.column_name
+    FROM public.schema_field_entities sfe
+    WHERE sfe.field_id = p_field_id
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name = v_mapping.table_name
+        AND c.column_name = v_mapping.column_name
+    ) THEN
+      CONTINUE;
+    END IF;
+
+    CASE v_new_data_type
+      WHEN 'checkbox' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_boolean(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'date' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_date(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'date_time' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_timestamptz(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'number' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_integer(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'float' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_double(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'duration' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_numeric(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'percent' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_numeric(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'serializable' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_jsonb(%1$I::text)',
+          v_mapping.column_name
+        );
+      WHEN 'multi_entity' THEN
+        v_using_expression := format(
+          'public.schema_try_parse_text_array(%1$I::text)',
+          v_mapping.column_name
+        );
+      ELSE
+        v_using_expression := format('%1$I::text', v_mapping.column_name);
+    END CASE;
+
+    EXECUTE format(
+      'ALTER TABLE public.%I ALTER COLUMN %I DROP DEFAULT',
+      v_mapping.table_name,
+      v_mapping.column_name
+    );
+
+    EXECUTE format(
+      'ALTER TABLE public.%I ALTER COLUMN %I TYPE %s USING %s',
+      v_mapping.table_name,
+      v_mapping.column_name,
+      v_sql_type,
+      v_using_expression
+    );
+
+    IF v_default_expression IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN %I SET DEFAULT %s',
+        v_mapping.table_name,
+        v_mapping.column_name,
+        v_default_expression
+      );
+    END IF;
+  END LOOP;
+
+  UPDATE public.schema_fields sf
+  SET
+    data_type = v_new_data_type,
+    choice_set_id = CASE
+      WHEN v_new_data_type IN ('list', 'status_list') THEN sf.choice_set_id
+      ELSE NULL
+    END,
+    updated_by = v_actor,
+    updated_at = now()
+  WHERE sf.id = p_field_id;
+
+  INSERT INTO public.schema_change_log (action, field_id, actor_id, payload)
+  VALUES (
+    'change_field_data_type',
+    p_field_id,
+    v_actor,
+    jsonb_build_object(
+      'code', v_field.code,
+      'old_data_type', v_field.data_type,
+      'new_data_type', v_new_data_type
+    )
+  );
+END;
+$_$;
+
+
+--
+-- Name: schema_column_definition_for_data_type(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_column_definition_for_data_type(p_data_type text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_type text := public.schema_normalize_data_type(p_data_type);
+BEGIN
+  CASE v_type
+    WHEN 'checkbox' THEN RETURN 'boolean DEFAULT false';
+    WHEN 'date' THEN RETURN 'date';
+    WHEN 'date_time' THEN RETURN 'timestamptz';
+    WHEN 'number' THEN RETURN 'integer';
+    WHEN 'float' THEN RETURN 'double precision';
+    WHEN 'duration' THEN RETURN 'numeric';
+    WHEN 'percent' THEN RETURN 'numeric';
+    WHEN 'serializable' THEN RETURN 'jsonb';
+    WHEN 'multi_entity' THEN RETURN 'text[] DEFAULT ''{}''::text[]';
+    ELSE RETURN 'text';
+  END CASE;
+END;
+$$;
+
+
+--
+-- Name: schema_create_choice_set(text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_create_choice_set(p_name text, p_description text DEFAULT NULL::text, p_items jsonb DEFAULT '[]'::jsonb) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+  v_name text;
+  v_choice_set_id bigint;
+  v_item jsonb;
+  v_value text;
+  v_label text;
+  v_color text;
+  v_sort integer := 0;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+  v_name := nullif(trim(p_name), '');
+
+  IF v_name IS NULL THEN
+    RAISE EXCEPTION 'Choice set name is required';
+  END IF;
+
+  INSERT INTO public.schema_choice_sets (
+    name,
+    description,
+    created_by,
+    updated_by
+  )
+  VALUES (
+    v_name,
+    nullif(trim(coalesce(p_description, '')), ''),
+    v_actor,
+    v_actor
+  )
+  ON CONFLICT (name)
+  DO UPDATE SET
+    description = EXCLUDED.description,
+    updated_by = v_actor,
+    updated_at = now(),
+    is_active = true
+  RETURNING id INTO v_choice_set_id;
+
+  IF p_items IS NOT NULL THEN
+    IF jsonb_typeof(p_items) <> 'array' THEN
+      RAISE EXCEPTION 'Choice set items must be a JSON array';
+    END IF;
+
+    DELETE FROM public.schema_choice_set_items
+    WHERE choice_set_id = v_choice_set_id;
+
+    FOR v_item IN
+      SELECT value
+      FROM jsonb_array_elements(p_items) AS x(value)
+    LOOP
+      v_sort := v_sort + 10;
+      v_value := NULL;
+      v_label := NULL;
+      v_color := NULL;
+
+      IF jsonb_typeof(v_item) = 'string' THEN
+        v_value := nullif(trim(both '"' from v_item::text), '');
+        v_label := v_value;
+      ELSIF jsonb_typeof(v_item) = 'object' THEN
+        v_value := nullif(trim(v_item ->> 'value'), '');
+        v_label := nullif(trim(coalesce(v_item ->> 'label', v_value)), '');
+        v_color := nullif(trim(v_item ->> 'color'), '');
+
+        IF v_item ? 'sort_order' THEN
+          BEGIN
+            v_sort := (v_item ->> 'sort_order')::integer;
+          EXCEPTION WHEN others THEN
+            -- keep auto-incremented v_sort
+          END;
+        END IF;
+      END IF;
+
+      IF v_value IS NULL THEN
+        CONTINUE;
+      END IF;
+
+      IF v_label IS NULL THEN
+        v_label := v_value;
+      END IF;
+
+      INSERT INTO public.schema_choice_set_items (
+        choice_set_id,
+        value,
+        label,
+        color,
+        sort_order,
+        created_by,
+        updated_by
+      )
+      VALUES (
+        v_choice_set_id,
+        v_value,
+        v_label,
+        v_color,
+        v_sort,
+        v_actor,
+        v_actor
+      )
+      ON CONFLICT (choice_set_id, value)
+      DO UPDATE SET
+        label = EXCLUDED.label,
+        color = EXCLUDED.color,
+        sort_order = EXCLUDED.sort_order,
+        is_active = true,
+        updated_by = v_actor,
+        updated_at = now();
+    END LOOP;
+  END IF;
+
+  INSERT INTO public.schema_change_log (action, choice_set_id, actor_id, payload)
+  VALUES (
+    'create_choice_set',
+    v_choice_set_id,
+    v_actor,
+    jsonb_build_object('name', v_name)
+  );
+
+  RETURN v_choice_set_id;
+END;
+$$;
+
+
+--
+-- Name: schema_create_field(text, text, text, text, text, jsonb, bigint, text[], boolean, boolean, integer, text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_create_field(p_name text, p_code text, p_data_type text, p_field_type text DEFAULT 'dynamic'::text, p_description text DEFAULT NULL::text, p_default_value jsonb DEFAULT NULL::jsonb, p_choice_set_id bigint DEFAULT NULL::bigint, p_entities text[] DEFAULT ARRAY[]::text[], p_required boolean DEFAULT false, p_visible_by_default boolean DEFAULT true, p_display_order integer DEFAULT 1000, p_link_target_entities text[] DEFAULT ARRAY[]::text[]) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+  v_name text;
+  v_code text;
+  v_data_type text;
+  v_field_type text;
+  v_field_id bigint;
+  v_entity_type text;
+  v_table_name text;
+  v_column_def text;
+  v_exists boolean;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+  v_name := nullif(trim(p_name), '');
+  v_code := public.schema_validate_field_code(p_code);
+  v_data_type := public.schema_normalize_data_type(p_data_type);
+  v_field_type := coalesce(nullif(lower(trim(coalesce(p_field_type, ''))), ''), 'dynamic');
+
+  IF v_name IS NULL THEN
+    RAISE EXCEPTION 'Field name is required';
+  END IF;
+
+  IF v_field_type <> ALL (ARRAY['dynamic', 'permanent', 'system_owned', 'custom']) THEN
+    RAISE EXCEPTION 'Unsupported field type: %', v_field_type;
+  END IF;
+
+  IF coalesce(array_length(p_entities, 1), 0) = 0 THEN
+    RAISE EXCEPTION 'At least one entity is required';
+  END IF;
+
+  IF p_choice_set_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.schema_choice_sets cs
+      WHERE cs.id = p_choice_set_id
+        AND cs.is_active = true
+    ) THEN
+      RAISE EXCEPTION 'Choice set % not found or inactive', p_choice_set_id;
+    END IF;
+  END IF;
+
+  INSERT INTO public.schema_fields (
+    code,
+    name,
+    data_type,
+    field_type,
+    description,
+    default_value,
+    choice_set_id,
+    created_by,
+    updated_by
+  )
+  VALUES (
+    v_code,
+    v_name,
+    v_data_type,
+    v_field_type,
+    nullif(trim(coalesce(p_description, '')), ''),
+    p_default_value,
+    p_choice_set_id,
+    v_actor,
+    v_actor
+  )
+  RETURNING id INTO v_field_id;
+
+  v_column_def := public.schema_column_definition_for_data_type(v_data_type);
+
+  FOR v_entity_type IN
+    SELECT DISTINCT lower(trim(x))
+    FROM unnest(p_entities) AS x
+    WHERE nullif(trim(x), '') IS NOT NULL
+  LOOP
+    v_table_name := public.schema_entity_table_name(v_entity_type);
+
+    IF v_table_name IS NULL THEN
+      RAISE EXCEPTION 'Unsupported entity type: %', v_entity_type;
+    END IF;
+
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name = v_table_name
+        AND c.column_name = v_code
+    )
+    INTO v_exists;
+
+    IF NOT v_exists THEN
+      EXECUTE format(
+        'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS %I %s',
+        v_table_name,
+        v_code,
+        v_column_def
+      );
+    END IF;
+
+    INSERT INTO public.schema_field_entities (
+      field_id,
+      entity_type,
+      table_name,
+      column_name,
+      required,
+      visible_by_default,
+      display_order,
+      is_active,
+      created_by,
+      updated_by
+    )
+    VALUES (
+      v_field_id,
+      v_entity_type,
+      v_table_name,
+      v_code,
+      p_required,
+      p_visible_by_default,
+      coalesce(p_display_order, 1000),
+      true,
+      v_actor,
+      v_actor
+    )
+    ON CONFLICT (field_id, entity_type)
+    DO UPDATE SET
+      required = EXCLUDED.required,
+      visible_by_default = EXCLUDED.visible_by_default,
+      display_order = EXCLUDED.display_order,
+      is_active = true,
+      updated_by = v_actor,
+      updated_at = now();
+  END LOOP;
+
+  IF p_link_target_entities IS NOT NULL THEN
+    INSERT INTO public.schema_field_link_targets (field_id, target_entity_type)
+    SELECT
+      v_field_id,
+      lower(trim(x))
+    FROM unnest(p_link_target_entities) AS x
+    WHERE nullif(trim(x), '') IS NOT NULL
+    ON CONFLICT (field_id, target_entity_type) DO NOTHING;
+  END IF;
+
+  INSERT INTO public.schema_change_log (action, field_id, actor_id, payload)
+  VALUES (
+    'create_field',
+    v_field_id,
+    v_actor,
+    jsonb_build_object(
+      'code', v_code,
+      'name', v_name,
+      'data_type', v_data_type,
+      'field_type', v_field_type,
+      'entities', p_entities
+    )
+  );
+
+  RETURN v_field_id;
+END;
+$$;
+
+
+--
+-- Name: schema_data_type_from_db_column(text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_data_type_from_db_column(p_data_type text, p_udt_name text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_data_type text := lower(trim(coalesce(p_data_type, '')));
+  v_udt_name text := lower(trim(coalesce(p_udt_name, '')));
+BEGIN
+  IF v_data_type = 'array' AND v_udt_name = '_text' THEN RETURN 'multi_entity'; END IF;
+  IF v_data_type = 'boolean' THEN RETURN 'checkbox'; END IF;
+  IF v_data_type = 'date' THEN RETURN 'date'; END IF;
+  IF v_data_type = 'timestamp with time zone' OR v_data_type = 'timestamp without time zone' THEN RETURN 'date_time'; END IF;
+  IF v_data_type = 'integer' OR v_data_type = 'bigint' OR v_data_type = 'smallint' THEN RETURN 'number'; END IF;
+  IF v_data_type = 'numeric' OR v_data_type = 'double precision' OR v_data_type = 'real' THEN RETURN 'float'; END IF;
+  IF v_data_type = 'jsonb' THEN RETURN 'serializable'; END IF;
+  RETURN 'text';
+END;
+$$;
+
+
+--
+-- Name: schema_deactivate_field(bigint, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_deactivate_field(p_field_id bigint, p_reason text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+
+  IF NOT EXISTS (SELECT 1 FROM public.schema_fields sf WHERE sf.id = p_field_id) THEN
+    RAISE EXCEPTION 'Field % not found', p_field_id;
+  END IF;
+
+  UPDATE public.schema_fields sf
+  SET
+    is_active = false,
+    updated_by = v_actor,
+    updated_at = now()
+  WHERE sf.id = p_field_id;
+
+  UPDATE public.schema_field_entities sfe
+  SET
+    is_active = false,
+    updated_by = v_actor,
+    updated_at = now()
+  WHERE sfe.field_id = p_field_id;
+
+  INSERT INTO public.schema_change_log (action, field_id, actor_id, payload)
+  VALUES (
+    'deactivate_field',
+    p_field_id,
+    v_actor,
+    jsonb_build_object('reason', nullif(trim(coalesce(p_reason, '')), ''))
+  );
+END;
+$$;
+
+
+--
+-- Name: schema_default_expression_for_data_type(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_default_expression_for_data_type(p_data_type text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_type text := public.schema_normalize_data_type(p_data_type);
+BEGIN
+  CASE v_type
+    WHEN 'checkbox' THEN RETURN 'false';
+    WHEN 'multi_entity' THEN RETURN '''{}''::text[]';
+    ELSE RETURN NULL;
+  END CASE;
+END;
+$$;
+
+
+--
+-- Name: schema_entity_table_name(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_entity_table_name(p_entity_type text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_entity text := lower(trim(coalesce(p_entity_type, '')));
+BEGIN
+  CASE v_entity
+    WHEN 'asset' THEN RETURN 'assets';
+    WHEN 'sequence' THEN RETURN 'sequences';
+    WHEN 'shot' THEN RETURN 'shots';
+    WHEN 'task' THEN RETURN 'tasks';
+    WHEN 'version' THEN RETURN 'versions';
+    WHEN 'note' THEN RETURN 'notes';
+    WHEN 'published_file' THEN RETURN 'published_files';
+    WHEN 'project' THEN RETURN 'projects';
+    WHEN 'department' THEN RETURN 'departments';
+    WHEN 'person' THEN RETURN 'profiles';
+    WHEN 'profile' THEN RETURN 'profiles';
+    ELSE RETURN NULL;
+  END CASE;
+END;
+$$;
+
+
+--
+-- Name: schema_normalize_data_type(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_normalize_data_type(p_data_type text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_type text := lower(trim(coalesce(p_data_type, '')));
+BEGIN
+  IF v_type = ANY (
+    ARRAY[
+      'calculated',
+      'checkbox',
+      'color',
+      'currency',
+      'date',
+      'date_time',
+      'duration',
+      'entity',
+      'file_link',
+      'float',
+      'footage',
+      'image',
+      'list',
+      'multi_entity',
+      'number',
+      'password',
+      'percent',
+      'query',
+      'serializable',
+      'status_list',
+      'summary',
+      'text',
+      'timecode',
+      'url',
+      'url_template'
+    ]
+  ) THEN
+    RETURN v_type;
+  END IF;
+
+  RETURN 'text';
+END;
+$$;
+
+
+--
+-- Name: schema_require_field_admin(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_require_field_admin() RETURNS uuid
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  v_actor uuid := auth.uid();
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public.schema_can_manage_fields() THEN
+    RAISE EXCEPTION 'Only alpha users can manage schema fields';
+  END IF;
+
+  RETURN v_actor;
+END;
+$$;
+
+
+--
+-- Name: schema_sql_type_for_data_type(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_sql_type_for_data_type(p_data_type text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v_type text := public.schema_normalize_data_type(p_data_type);
+BEGIN
+  CASE v_type
+    WHEN 'checkbox' THEN RETURN 'boolean';
+    WHEN 'date' THEN RETURN 'date';
+    WHEN 'date_time' THEN RETURN 'timestamptz';
+    WHEN 'number' THEN RETURN 'integer';
+    WHEN 'float' THEN RETURN 'double precision';
+    WHEN 'duration' THEN RETURN 'numeric';
+    WHEN 'percent' THEN RETURN 'numeric';
+    WHEN 'serializable' THEN RETURN 'jsonb';
+    WHEN 'multi_entity' THEN RETURN 'text[]';
+    ELSE RETURN 'text';
+  END CASE;
+END;
+$$;
+
+
+--
+-- Name: schema_try_parse_boolean(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_boolean(p_value text) RETURNS boolean
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v text := lower(trim(coalesce(p_value, '')));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  IF v = ANY (ARRAY['1', 'true', 't', 'yes', 'y', 'on']) THEN
+    RETURN true;
+  END IF;
+
+  IF v = ANY (ARRAY['0', 'false', 'f', 'no', 'n', 'off']) THEN
+    RETURN false;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: schema_try_parse_date(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_date(p_value text) RETURNS date
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    RETURN v::date;
+  EXCEPTION WHEN others THEN
+    RETURN NULL;
+  END;
+END;
+$$;
+
+
+--
+-- Name: schema_try_parse_double(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_double(p_value text) RETURNS double precision
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  IF v ~ '^[-+]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$' THEN
+    BEGIN
+      RETURN v::double precision;
+    EXCEPTION WHEN others THEN
+      RETURN NULL;
+    END;
+  END IF;
+
+  RETURN NULL;
+END;
+$_$;
+
+
+--
+-- Name: schema_try_parse_integer(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_integer(p_value text) RETURNS integer
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  IF v ~ '^[-+]?[0-9]+$' THEN
+    BEGIN
+      RETURN v::integer;
+    EXCEPTION WHEN others THEN
+      RETURN NULL;
+    END;
+  END IF;
+
+  RETURN NULL;
+END;
+$_$;
+
+
+--
+-- Name: schema_try_parse_jsonb(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_jsonb(p_value text) RETURNS jsonb
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    RETURN v::jsonb;
+  EXCEPTION WHEN others THEN
+    RETURN to_jsonb(v);
+  END;
+END;
+$$;
+
+
+--
+-- Name: schema_try_parse_numeric(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_numeric(p_value text) RETURNS numeric
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  IF v ~ '^[-+]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$' THEN
+    BEGIN
+      RETURN v::numeric;
+    EXCEPTION WHEN others THEN
+      RETURN NULL;
+    END;
+  END IF;
+
+  RETURN NULL;
+END;
+$_$;
+
+
+--
+-- Name: schema_try_parse_text_array(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_text_array(p_value text) RETURNS text[]
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  IF left(v, 1) = '[' THEN
+    BEGIN
+      RETURN ARRAY(SELECT jsonb_array_elements_text(v::jsonb));
+    EXCEPTION WHEN others THEN
+      -- fall through to other parsing methods
+    END;
+  END IF;
+
+  IF left(v, 1) = '{' AND right(v, 1) = '}' THEN
+    BEGIN
+      RETURN v::text[];
+    EXCEPTION WHEN others THEN
+      -- fall through to CSV parsing
+    END;
+  END IF;
+
+  RETURN ARRAY(
+    SELECT item
+    FROM (
+      SELECT nullif(trim(raw_item), '') AS item
+      FROM unnest(regexp_split_to_array(v, '\s*,\s*')) AS raw(raw_item)
+    ) items
+    WHERE item IS NOT NULL
+  );
+END;
+$$;
+
+
+--
+-- Name: schema_try_parse_timestamptz(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_try_parse_timestamptz(p_value text) RETURNS timestamp with time zone
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  v text := trim(coalesce(p_value, ''));
+BEGIN
+  IF v = '' THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    RETURN v::timestamptz;
+  EXCEPTION WHEN others THEN
+    RETURN NULL;
+  END;
+END;
+$$;
+
+
+--
+-- Name: schema_update_field_meta(bigint, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_update_field_meta(p_field_id bigint, p_patch jsonb DEFAULT '{}'::jsonb) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_actor uuid;
+  v_name text;
+  v_description text;
+  v_field_type text;
+  v_choice_set_id bigint;
+  v_is_active boolean;
+BEGIN
+  v_actor := public.schema_require_field_admin();
+
+  IF NOT EXISTS (SELECT 1 FROM public.schema_fields sf WHERE sf.id = p_field_id) THEN
+    RAISE EXCEPTION 'Field % not found', p_field_id;
+  END IF;
+
+  IF p_patch IS NULL THEN
+    p_patch := '{}'::jsonb;
+  END IF;
+
+  IF p_patch ? 'name' THEN
+    v_name := nullif(trim(p_patch ->> 'name'), '');
+    IF v_name IS NULL THEN
+      RAISE EXCEPTION 'Field name cannot be empty';
+    END IF;
+  END IF;
+
+  IF p_patch ? 'description' THEN
+    v_description := nullif(trim(p_patch ->> 'description'), '');
+  END IF;
+
+  IF p_patch ? 'field_type' THEN
+    v_field_type := nullif(lower(trim(p_patch ->> 'field_type')), '');
+    IF v_field_type IS NULL OR v_field_type <> ALL (ARRAY['dynamic', 'permanent', 'system_owned', 'custom']) THEN
+      RAISE EXCEPTION 'Unsupported field type: %', p_patch ->> 'field_type';
+    END IF;
+  END IF;
+
+  IF p_patch ? 'choice_set_id' THEN
+    IF coalesce(nullif(trim(p_patch ->> 'choice_set_id'), ''), '') = '' THEN
+      v_choice_set_id := NULL;
+    ELSE
+      v_choice_set_id := (p_patch ->> 'choice_set_id')::bigint;
+      IF NOT EXISTS (
+        SELECT 1
+        FROM public.schema_choice_sets cs
+        WHERE cs.id = v_choice_set_id
+          AND cs.is_active = true
+      ) THEN
+        RAISE EXCEPTION 'Choice set % not found or inactive', v_choice_set_id;
+      END IF;
+    END IF;
+  END IF;
+
+  IF p_patch ? 'is_active' THEN
+    v_is_active := (p_patch ->> 'is_active')::boolean;
+  END IF;
+
+  UPDATE public.schema_fields sf
+  SET
+    name = CASE WHEN p_patch ? 'name' THEN v_name ELSE sf.name END,
+    description = CASE WHEN p_patch ? 'description' THEN v_description ELSE sf.description END,
+    field_type = CASE WHEN p_patch ? 'field_type' THEN v_field_type ELSE sf.field_type END,
+    default_value = CASE WHEN p_patch ? 'default_value' THEN p_patch -> 'default_value' ELSE sf.default_value END,
+    choice_set_id = CASE WHEN p_patch ? 'choice_set_id' THEN v_choice_set_id ELSE sf.choice_set_id END,
+    is_active = CASE WHEN p_patch ? 'is_active' THEN v_is_active ELSE sf.is_active END,
+    updated_by = v_actor,
+    updated_at = now()
+  WHERE sf.id = p_field_id;
+
+  IF p_patch ? 'is_active' THEN
+    UPDATE public.schema_field_entities sfe
+    SET
+      is_active = v_is_active,
+      updated_by = v_actor,
+      updated_at = now()
+    WHERE sfe.field_id = p_field_id;
+  END IF;
+
+  INSERT INTO public.schema_change_log (action, field_id, actor_id, payload)
+  VALUES (
+    'update_field_meta',
+    p_field_id,
+    v_actor,
+    p_patch
+  );
+END;
+$$;
+
+
+--
+-- Name: schema_validate_field_code(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.schema_validate_field_code(p_code text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+DECLARE
+  v_code text := lower(trim(coalesce(p_code, '')));
+BEGIN
+  IF v_code = '' THEN
+    RAISE EXCEPTION 'Field code is required';
+  END IF;
+
+  IF v_code !~ '^[a-z][a-z0-9_]{0,62}$' THEN
+    RAISE EXCEPTION 'Invalid field code. Use lowercase letters, numbers, underscore, and start with a letter.';
+  END IF;
+
+  IF v_code = ANY (
+    ARRAY[
+      'id',
+      'project_id',
+      'entity_type',
+      'entity_id',
+      'created_at',
+      'updated_at',
+      'created_by',
+      'updated_by'
+    ]
+  ) THEN
+    RAISE EXCEPTION 'Field code % is reserved', v_code;
+  END IF;
+
+  RETURN v_code;
+END;
+$_$;
+
+
+--
 -- Name: set_current_user(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1648,6 +3269,44 @@ CREATE FUNCTION public.set_current_user(user_id integer) RETURNS void
     AS $$
 BEGIN
     PERFORM set_config('app.current_user_id', user_id::text, false);
+END;
+$$;
+
+
+--
+-- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
+-- Name: update_post_entity_counts(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_post_entity_counts() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' OR TG_OP = 'DELETE' THEN
+        UPDATE public.posts
+        SET
+            project_count = (SELECT COUNT(*) FROM public.post_projects WHERE post_id = COALESCE(NEW.post_id, OLD.post_id)),
+            sequence_count = (SELECT COUNT(*) FROM public.post_sequences WHERE post_id = COALESCE(NEW.post_id, OLD.post_id)),
+            shot_count = (SELECT COUNT(*) FROM public.post_shots WHERE post_id = COALESCE(NEW.post_id, OLD.post_id)),
+            task_count = (SELECT COUNT(*) FROM public.post_tasks WHERE post_id = COALESCE(NEW.post_id, OLD.post_id)),
+            mentioned_user_count = (SELECT COUNT(*) FROM public.post_users WHERE post_id = COALESCE(NEW.post_id, OLD.post_id))
+        WHERE id = COALESCE(NEW.post_id, OLD.post_id);
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
 END;
 $$;
 
@@ -1676,6 +3335,52 @@ CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
 BEGIN
     NEW.updated_at = now();
     RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: user_can_view_post(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.user_can_view_post(p_post_id integer) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    AS $$
+DECLARE
+    v_author_id uuid;
+    v_visibility text;
+    v_has_access boolean := false;
+BEGIN
+    -- Get post info
+    SELECT author_id, visibility
+    INTO v_author_id, v_visibility
+    FROM public.posts
+    WHERE id = p_post_id;
+
+    -- Author can always view their own posts
+    IF v_author_id = auth.uid() THEN
+        RETURN true;
+    END IF;
+
+    -- Global posts are visible to all
+    IF v_visibility = 'global' THEN
+        RETURN true;
+    END IF;
+
+    -- For project posts, check if user is member of any associated project
+    IF v_visibility = 'project' THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM public.post_projects pp
+            JOIN public.project_members pm ON pm.project_id = pp.project_id
+            WHERE pp.post_id = p_post_id
+            AND pm.user_id = auth.uid()
+        ) INTO v_has_access;
+
+        RETURN v_has_access;
+    END IF;
+
+    RETURN false;
 END;
 $$;
 
@@ -3990,7 +5695,13 @@ CREATE TABLE public.activity_events (
     entity_id integer NOT NULL,
     actor_id uuid,
     metadata jsonb,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    attribute_name text,
+    old_value jsonb,
+    new_value jsonb,
+    field_data_type text,
+    description text,
+    session_id text
 );
 
 
@@ -4023,6 +5734,47 @@ CREATE TABLE public.allowed_users (
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: annotations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.annotations (
+    id integer NOT NULL,
+    post_media_id integer,
+    version_id integer,
+    author_id uuid NOT NULL,
+    frame_number integer DEFAULT 1 NOT NULL,
+    timecode text,
+    annotation_data jsonb DEFAULT '{}'::jsonb NOT NULL,
+    annotation_text text,
+    status text DEFAULT 'active'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT annotations_check CHECK (((post_media_id IS NOT NULL) OR (version_id IS NOT NULL))),
+    CONSTRAINT annotations_status_check CHECK ((status = ANY (ARRAY['active'::text, 'resolved'::text, 'archived'::text])))
+);
+
+
+--
+-- Name: annotations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.annotations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: annotations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.annotations_id_seq OWNED BY public.annotations.id;
 
 
 --
@@ -4076,6 +5828,7 @@ CREATE TABLE public.assets (
     thumbnail_blur_hash text,
     updated_by uuid,
     version_link text[] DEFAULT '{}'::text[],
+    publish_status text,
     CONSTRAINT assets_asset_type_check CHECK ((asset_type = ANY (ARRAY['character'::text, 'prop'::text, 'environment'::text, 'vehicle'::text, 'fx'::text, 'matte_painting'::text, 'other'::text])))
 );
 
@@ -4262,7 +6015,17 @@ CREATE TABLE public.departments (
     name text NOT NULL,
     description text,
     color character varying(7),
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    department_type text,
+    status text DEFAULT 'Active'::text,
+    "order" integer,
+    tags text[] DEFAULT '{}'::text[],
+    people text[] DEFAULT '{}'::text[],
+    thumbnail_url text,
+    image_source_entity text,
+    created_by uuid,
+    updated_by uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -4456,6 +6219,7 @@ CREATE TABLE public.notes (
     thumbnail_blur_hash text,
     f_to text[] DEFAULT '{}'::text[],
     updated_by uuid,
+    CONSTRAINT notes_entity_type_check CHECK ((entity_type = ANY (ARRAY['task'::text, 'asset'::text, 'shot'::text, 'version'::text, 'project'::text, 'published_file'::text, 'post'::text]))),
     CONSTRAINT notes_note_type_check CHECK ((note_type = ANY (ARRAY['comment'::text, 'status_change'::text, 'approval'::text, 'client_note'::text, 'internal'::text]))),
     CONSTRAINT notes_status_check CHECK ((status = ANY (ARRAY['open'::text, 'closed'::text, 'resolved'::text])))
 );
@@ -4479,6 +6243,46 @@ CREATE SEQUENCE public.notes_id_seq
 --
 
 ALTER SEQUENCE public.notes_id_seq OWNED BY public.notes.id;
+
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id integer NOT NULL,
+    user_id uuid NOT NULL,
+    project_id integer,
+    type text NOT NULL,
+    title text NOT NULL,
+    body text,
+    entity_type text,
+    entity_id integer,
+    actor_id uuid,
+    metadata jsonb,
+    read_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.notifications_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.notifications_id_seq OWNED BY public.notifications.id;
 
 
 --
@@ -4605,6 +6409,291 @@ ALTER SEQUENCE public.playlists_id_seq OWNED BY public.playlists.id;
 
 
 --
+-- Name: post_media; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_media (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    storage_path text NOT NULL,
+    file_name text DEFAULT ''::text NOT NULL,
+    file_size bigint DEFAULT 0 NOT NULL,
+    mime_type text DEFAULT ''::text NOT NULL,
+    media_type text DEFAULT 'image'::text NOT NULL,
+    thumbnail_url text,
+    width integer,
+    height integer,
+    duration_seconds numeric,
+    frame_count integer,
+    fps numeric,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT post_media_media_type_check CHECK ((media_type = ANY (ARRAY['image'::text, 'video'::text])))
+);
+
+
+--
+-- Name: post_media_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_media_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_media_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_media_id_seq OWNED BY public.post_media.id;
+
+
+--
+-- Name: post_projects; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_projects (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    project_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: post_projects_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_projects_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_projects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_projects_id_seq OWNED BY public.post_projects.id;
+
+
+--
+-- Name: post_reactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_reactions (
+    id integer NOT NULL,
+    user_id uuid NOT NULL,
+    post_id integer,
+    comment_id integer,
+    reaction_type text DEFAULT 'like'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT post_reactions_check CHECK (((post_id IS NOT NULL) OR (comment_id IS NOT NULL))),
+    CONSTRAINT post_reactions_reaction_type_check CHECK ((reaction_type = ANY (ARRAY['like'::text, 'love'::text, 'celebrate'::text, 'wow'::text, 'sad'::text, 'angry'::text])))
+);
+
+
+--
+-- Name: post_reactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_reactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_reactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_reactions_id_seq OWNED BY public.post_reactions.id;
+
+
+--
+-- Name: post_sequences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_sequences (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    sequence_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: post_sequences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_sequences_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_sequences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_sequences_id_seq OWNED BY public.post_sequences.id;
+
+
+--
+-- Name: post_shots; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_shots (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    shot_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: post_shots_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_shots_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_shots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_shots_id_seq OWNED BY public.post_shots.id;
+
+
+--
+-- Name: post_tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_tasks (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    task_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: post_tasks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_tasks_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_tasks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_tasks_id_seq OWNED BY public.post_tasks.id;
+
+
+--
+-- Name: post_users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_users (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    user_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: post_users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_users_id_seq OWNED BY public.post_users.id;
+
+
+--
+-- Name: posts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.posts (
+    id integer NOT NULL,
+    author_id uuid NOT NULL,
+    project_id integer,
+    content text DEFAULT ''::text NOT NULL,
+    content_html text,
+    media_count integer DEFAULT 0 NOT NULL,
+    comment_count integer DEFAULT 0 NOT NULL,
+    reaction_count integer DEFAULT 0 NOT NULL,
+    visibility text DEFAULT 'global'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    project_count integer DEFAULT 0 NOT NULL,
+    sequence_count integer DEFAULT 0 NOT NULL,
+    shot_count integer DEFAULT 0 NOT NULL,
+    task_count integer DEFAULT 0 NOT NULL,
+    mentioned_user_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT posts_visibility_check CHECK ((visibility = ANY (ARRAY['global'::text, 'project'::text])))
+);
+
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.posts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
+
+
+--
 -- Name: profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4622,6 +6711,14 @@ CREATE TABLE public.profiles (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     full_name text,
+    login text,
+    password_set boolean DEFAULT false,
+    password_strength double precision,
+    projects text[] DEFAULT '{}'::text[],
+    tags text[] DEFAULT '{}'::text[],
+    status text DEFAULT 'Active'::text,
+    created_by uuid,
+    updated_by uuid,
     CONSTRAINT profiles_role_check CHECK ((role = ANY (ARRAY['alpha'::text, 'beta'::text, 'member'::text])))
 );
 
@@ -4770,6 +6867,256 @@ CREATE SEQUENCE public.published_files_id_seq
 --
 
 ALTER SEQUENCE public.published_files_id_seq OWNED BY public.published_files.id;
+
+
+--
+-- Name: schema_change_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_change_log (
+    id bigint NOT NULL,
+    action text NOT NULL,
+    field_id bigint,
+    choice_set_id bigint,
+    actor_id uuid,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: schema_change_log_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_change_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_change_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_change_log_id_seq OWNED BY public.schema_change_log.id;
+
+
+--
+-- Name: schema_choice_set_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_choice_set_items (
+    id bigint NOT NULL,
+    choice_set_id bigint NOT NULL,
+    value text NOT NULL,
+    label text NOT NULL,
+    color text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: schema_choice_set_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_choice_set_items_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_choice_set_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_choice_set_items_id_seq OWNED BY public.schema_choice_set_items.id;
+
+
+--
+-- Name: schema_choice_sets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_choice_sets (
+    id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    is_system boolean DEFAULT false NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: schema_choice_sets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_choice_sets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_choice_sets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_choice_sets_id_seq OWNED BY public.schema_choice_sets.id;
+
+
+--
+-- Name: schema_field_entities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_field_entities (
+    id bigint NOT NULL,
+    field_id bigint NOT NULL,
+    entity_type text NOT NULL,
+    table_name text NOT NULL,
+    column_name text NOT NULL,
+    required boolean DEFAULT false NOT NULL,
+    visible_by_default boolean DEFAULT true NOT NULL,
+    display_order integer DEFAULT 1000 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: schema_field_entities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_field_entities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_field_entities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_field_entities_id_seq OWNED BY public.schema_field_entities.id;
+
+
+--
+-- Name: schema_field_link_targets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_field_link_targets (
+    id bigint NOT NULL,
+    field_id bigint NOT NULL,
+    target_entity_type text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: schema_field_link_targets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_field_link_targets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_field_link_targets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_field_link_targets_id_seq OWNED BY public.schema_field_link_targets.id;
+
+
+--
+-- Name: schema_fields; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_fields (
+    id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    data_type text NOT NULL,
+    field_type text DEFAULT 'dynamic'::text NOT NULL,
+    description text,
+    default_value jsonb,
+    choice_set_id bigint,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT schema_fields_code_format_check CHECK ((code ~ '^[a-z][a-z0-9_]{0,62}$'::text)),
+    CONSTRAINT schema_fields_data_type_check CHECK ((data_type = ANY (ARRAY['calculated'::text, 'checkbox'::text, 'color'::text, 'currency'::text, 'date'::text, 'date_time'::text, 'duration'::text, 'entity'::text, 'file_link'::text, 'float'::text, 'footage'::text, 'image'::text, 'list'::text, 'multi_entity'::text, 'number'::text, 'password'::text, 'percent'::text, 'query'::text, 'serializable'::text, 'status_list'::text, 'summary'::text, 'text'::text, 'timecode'::text, 'url'::text, 'url_template'::text]))),
+    CONSTRAINT schema_fields_field_type_check CHECK ((field_type = ANY (ARRAY['dynamic'::text, 'permanent'::text, 'system_owned'::text, 'custom'::text])))
+);
+
+
+--
+-- Name: schema_field_runtime_v; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.schema_field_runtime_v AS
+ SELECT sfe.entity_type,
+    sfe.table_name,
+    sfe.column_name,
+    sfe.required,
+    sfe.visible_by_default,
+    sfe.display_order,
+    sfe.is_active AS entity_active,
+    sf.id AS field_id,
+    sf.code,
+    sf.name,
+    sf.data_type,
+    sf.field_type,
+    sf.description,
+    sf.default_value,
+    sf.choice_set_id,
+    sf.is_active AS field_active,
+    sf.created_at,
+    sf.updated_at
+   FROM (public.schema_field_entities sfe
+     JOIN public.schema_fields sf ON ((sf.id = sfe.field_id)))
+  WHERE ((sf.is_active = true) AND (sfe.is_active = true));
+
+
+--
+-- Name: schema_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.schema_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: schema_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.schema_fields_id_seq OWNED BY public.schema_fields.id;
 
 
 --
@@ -4932,6 +7279,37 @@ ALTER SEQUENCE public.shots_id_seq OWNED BY public.shots.id;
 
 
 --
+-- Name: status_entity_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.status_entity_types (
+    id bigint NOT NULL,
+    status_id integer NOT NULL,
+    entity_type text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: status_entity_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.status_entity_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: status_entity_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.status_entity_types_id_seq OWNED BY public.status_entity_types.id;
+
+
+--
 -- Name: statuses; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4944,7 +7322,11 @@ CREATE TABLE public.statuses (
     icon text,
     sort_order integer,
     is_default boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    is_system_locked boolean DEFAULT false NOT NULL,
+    created_by uuid,
+    updated_by uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -5008,6 +7390,37 @@ ALTER SEQUENCE public.steps_id_seq OWNED BY public.steps.id;
 
 
 --
+-- Name: tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tags (
+    id integer NOT NULL,
+    name text NOT NULL,
+    usage_count integer DEFAULT 0 NOT NULL,
+    color text,
+    description text,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.tags ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.tags_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: task_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5056,7 +7469,7 @@ CREATE TABLE public.tasks (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     assigned_to uuid,
-    reviewer text,
+    reviewer text[],
     link text,
     bid numeric,
     bid_breakdown text,
@@ -5085,9 +7498,9 @@ CREATE TABLE public.tasks (
     versions text[] DEFAULT '{}'::text[],
     workload text,
     pipeline_step_color text,
-    ayon_assignees text,
+    ayon_assignees text[],
     ayon_id text,
-    ayon_sync_status text,
+    ayon_sync_status boolean,
     cached_display_name text,
     filmstrip_thumbnail_url text,
     image_source_entity text,
@@ -5110,6 +7523,8 @@ CREATE TABLE public.tasks (
     updated_by uuid,
     upstream_dependency text[] DEFAULT '{}'::text[],
     workload_assignee_count integer,
+    target text,
+    department text,
     CONSTRAINT tasks_priority_check CHECK ((priority = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'urgent'::text])))
 );
 
@@ -5337,10 +7752,10 @@ PARTITION BY RANGE (inserted_at);
 
 
 --
--- Name: messages_2026_02_08; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_08 (
+CREATE TABLE realtime.messages_2026_02_14 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5353,10 +7768,10 @@ CREATE TABLE realtime.messages_2026_02_08 (
 
 
 --
--- Name: messages_2026_02_09; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_09 (
+CREATE TABLE realtime.messages_2026_02_15 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5369,10 +7784,10 @@ CREATE TABLE realtime.messages_2026_02_09 (
 
 
 --
--- Name: messages_2026_02_10; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_10 (
+CREATE TABLE realtime.messages_2026_02_16 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5385,10 +7800,10 @@ CREATE TABLE realtime.messages_2026_02_10 (
 
 
 --
--- Name: messages_2026_02_11; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_17; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_11 (
+CREATE TABLE realtime.messages_2026_02_17 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5401,10 +7816,10 @@ CREATE TABLE realtime.messages_2026_02_11 (
 
 
 --
--- Name: messages_2026_02_12; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_18; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_12 (
+CREATE TABLE realtime.messages_2026_02_18 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5417,10 +7832,26 @@ CREATE TABLE realtime.messages_2026_02_12 (
 
 
 --
--- Name: messages_2026_02_13; Type: TABLE; Schema: realtime; Owner: -
+-- Name: messages_2026_02_19; Type: TABLE; Schema: realtime; Owner: -
 --
 
-CREATE TABLE realtime.messages_2026_02_13 (
+CREATE TABLE realtime.messages_2026_02_19 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+--
+-- Name: messages_2026_02_20; Type: TABLE; Schema: realtime; Owner: -
+--
+
+CREATE TABLE realtime.messages_2026_02_20 (
     topic text NOT NULL,
     extension text NOT NULL,
     payload jsonb,
@@ -5705,45 +8136,52 @@ CREATE TABLE supabase_functions.migrations (
 
 
 --
--- Name: messages_2026_02_08; Type: TABLE ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14; Type: TABLE ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_08 FOR VALUES FROM ('2026-02-08 00:00:00') TO ('2026-02-09 00:00:00');
-
-
---
--- Name: messages_2026_02_09; Type: TABLE ATTACH; Schema: realtime; Owner: -
---
-
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_09 FOR VALUES FROM ('2026-02-09 00:00:00') TO ('2026-02-10 00:00:00');
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_14 FOR VALUES FROM ('2026-02-14 00:00:00') TO ('2026-02-15 00:00:00');
 
 
 --
--- Name: messages_2026_02_10; Type: TABLE ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15; Type: TABLE ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_10 FOR VALUES FROM ('2026-02-10 00:00:00') TO ('2026-02-11 00:00:00');
-
-
---
--- Name: messages_2026_02_11; Type: TABLE ATTACH; Schema: realtime; Owner: -
---
-
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_11 FOR VALUES FROM ('2026-02-11 00:00:00') TO ('2026-02-12 00:00:00');
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_15 FOR VALUES FROM ('2026-02-15 00:00:00') TO ('2026-02-16 00:00:00');
 
 
 --
--- Name: messages_2026_02_12; Type: TABLE ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16; Type: TABLE ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_12 FOR VALUES FROM ('2026-02-12 00:00:00') TO ('2026-02-13 00:00:00');
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_16 FOR VALUES FROM ('2026-02-16 00:00:00') TO ('2026-02-17 00:00:00');
 
 
 --
--- Name: messages_2026_02_13; Type: TABLE ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_17; Type: TABLE ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_13 FOR VALUES FROM ('2026-02-13 00:00:00') TO ('2026-02-14 00:00:00');
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_17 FOR VALUES FROM ('2026-02-17 00:00:00') TO ('2026-02-18 00:00:00');
+
+
+--
+-- Name: messages_2026_02_18; Type: TABLE ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_18 FOR VALUES FROM ('2026-02-18 00:00:00') TO ('2026-02-19 00:00:00');
+
+
+--
+-- Name: messages_2026_02_19; Type: TABLE ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_19 FOR VALUES FROM ('2026-02-19 00:00:00') TO ('2026-02-20 00:00:00');
+
+
+--
+-- Name: messages_2026_02_20; Type: TABLE ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_02_20 FOR VALUES FROM ('2026-02-20 00:00:00') TO ('2026-02-21 00:00:00');
 
 
 --
@@ -5758,6 +8196,13 @@ ALTER TABLE ONLY auth.refresh_tokens ALTER COLUMN id SET DEFAULT nextval('auth.r
 --
 
 ALTER TABLE ONLY public.activity_events ALTER COLUMN id SET DEFAULT nextval('public.activity_events_id_seq'::regclass);
+
+
+--
+-- Name: annotations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.annotations ALTER COLUMN id SET DEFAULT nextval('public.annotations_id_seq'::regclass);
 
 
 --
@@ -5810,6 +8255,13 @@ ALTER TABLE ONLY public.notes ALTER COLUMN id SET DEFAULT nextval('public.notes_
 
 
 --
+-- Name: notifications id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications ALTER COLUMN id SET DEFAULT nextval('public.notifications_id_seq'::regclass);
+
+
+--
 -- Name: phases id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -5831,6 +8283,62 @@ ALTER TABLE ONLY public.playlists ALTER COLUMN id SET DEFAULT nextval('public.pl
 
 
 --
+-- Name: post_media id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_media ALTER COLUMN id SET DEFAULT nextval('public.post_media_id_seq'::regclass);
+
+
+--
+-- Name: post_projects id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_projects ALTER COLUMN id SET DEFAULT nextval('public.post_projects_id_seq'::regclass);
+
+
+--
+-- Name: post_reactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions ALTER COLUMN id SET DEFAULT nextval('public.post_reactions_id_seq'::regclass);
+
+
+--
+-- Name: post_sequences id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_sequences ALTER COLUMN id SET DEFAULT nextval('public.post_sequences_id_seq'::regclass);
+
+
+--
+-- Name: post_shots id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_shots ALTER COLUMN id SET DEFAULT nextval('public.post_shots_id_seq'::regclass);
+
+
+--
+-- Name: post_tasks id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_tasks ALTER COLUMN id SET DEFAULT nextval('public.post_tasks_id_seq'::regclass);
+
+
+--
+-- Name: post_users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_users ALTER COLUMN id SET DEFAULT nextval('public.post_users_id_seq'::regclass);
+
+
+--
+-- Name: posts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.posts ALTER COLUMN id SET DEFAULT nextval('public.posts_id_seq'::regclass);
+
+
+--
 -- Name: projects id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -5845,6 +8353,48 @@ ALTER TABLE ONLY public.published_files ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
+-- Name: schema_change_log id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_change_log ALTER COLUMN id SET DEFAULT nextval('public.schema_change_log_id_seq'::regclass);
+
+
+--
+-- Name: schema_choice_set_items id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items ALTER COLUMN id SET DEFAULT nextval('public.schema_choice_set_items_id_seq'::regclass);
+
+
+--
+-- Name: schema_choice_sets id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_sets ALTER COLUMN id SET DEFAULT nextval('public.schema_choice_sets_id_seq'::regclass);
+
+
+--
+-- Name: schema_field_entities id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities ALTER COLUMN id SET DEFAULT nextval('public.schema_field_entities_id_seq'::regclass);
+
+
+--
+-- Name: schema_field_link_targets id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_link_targets ALTER COLUMN id SET DEFAULT nextval('public.schema_field_link_targets_id_seq'::regclass);
+
+
+--
+-- Name: schema_fields id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields ALTER COLUMN id SET DEFAULT nextval('public.schema_fields_id_seq'::regclass);
+
+
+--
 -- Name: sequences id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -5856,6 +8406,13 @@ ALTER TABLE ONLY public.sequences ALTER COLUMN id SET DEFAULT nextval('public.se
 --
 
 ALTER TABLE ONLY public.shots ALTER COLUMN id SET DEFAULT nextval('public.shots_id_seq'::regclass);
+
+
+--
+-- Name: status_entity_types id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.status_entity_types ALTER COLUMN id SET DEFAULT nextval('public.status_entity_types_id_seq'::regclass);
 
 
 --
@@ -6258,6 +8815,500 @@ COPY auth.audit_log_entries (instance_id, id, payload, created_at, ip_address) F
 00000000-0000-0000-0000-000000000000	53d5fda6-0384-46d3-8966-086b2d9f49d4	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 04:20:00.822106+00	
 00000000-0000-0000-0000-000000000000	7ca22356-5f73-4108-82b4-4de5fb977e76	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 05:18:04.186094+00	
 00000000-0000-0000-0000-000000000000	cd3812b4-bb03-46dd-83fb-15485314e9b6	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 05:18:04.187504+00	
+00000000-0000-0000-0000-000000000000	1b375f4b-05ab-421c-abb5-fc6175b879f9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 06:16:13.458411+00	
+00000000-0000-0000-0000-000000000000	8aa7d9f3-a733-4ce2-ac4d-6930e9dbdc50	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 06:16:13.45989+00	
+00000000-0000-0000-0000-000000000000	4ac115a3-81f0-42c8-978d-d2b17ffc30ed	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 07:14:39.305662+00	
+00000000-0000-0000-0000-000000000000	e290f3e3-ec16-4408-b26f-6fad62a62b64	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 07:14:39.306959+00	
+00000000-0000-0000-0000-000000000000	a9e2743a-51c6-49fc-9b19-f249a0f0d31c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 08:12:39.304937+00	
+00000000-0000-0000-0000-000000000000	3c71414b-0fd1-40a3-aa40-70af609e3226	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 08:12:39.306367+00	
+00000000-0000-0000-0000-000000000000	8c56417e-3927-4ae5-b7a3-dbc21af201fb	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 09:10:39.306202+00	
+00000000-0000-0000-0000-000000000000	5fcbc76b-6f29-4d4f-a6ac-3912a9c4470b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 09:10:39.307661+00	
+00000000-0000-0000-0000-000000000000	53855905-4028-4886-8832-f13fec4f2a69	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 10:45:51.846863+00	
+00000000-0000-0000-0000-000000000000	9168a6e9-0ad8-4937-9d9d-127459362933	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 10:45:51.848011+00	
+00000000-0000-0000-0000-000000000000	3f16030d-1f0c-4288-b07e-81e9508f4d02	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 11:43:56.336055+00	
+00000000-0000-0000-0000-000000000000	bf86e1bb-00ed-4d99-8491-9bdd9a5f23ae	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 11:43:56.337505+00	
+00000000-0000-0000-0000-000000000000	b9aeaebe-8b2a-49aa-bda0-9b64a765dd48	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 12:42:03.754484+00	
+00000000-0000-0000-0000-000000000000	350c0837-c37e-48cb-9f91-77a976e8bc28	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 12:42:03.755756+00	
+00000000-0000-0000-0000-000000000000	0f2ed233-35b2-43cf-9c5f-0d73ae78697d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 13:40:24.787178+00	
+00000000-0000-0000-0000-000000000000	a03abe35-3c2f-425b-86a3-682697b1b132	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 13:40:24.788643+00	
+00000000-0000-0000-0000-000000000000	2489cfad-1452-438c-be1d-b8a1252495b5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 14:38:24.786255+00	
+00000000-0000-0000-0000-000000000000	6d466db9-d622-428b-8a6c-c7a18f95c8f5	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 14:38:24.787517+00	
+00000000-0000-0000-0000-000000000000	62280dff-60e7-41a3-850c-a7e1c87831b8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 15:36:24.785809+00	
+00000000-0000-0000-0000-000000000000	a1b9beb1-133b-44da-9105-5e4e949ba9c1	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 15:36:24.787228+00	
+00000000-0000-0000-0000-000000000000	38cf4c2f-7176-46b6-80ed-ce4d79b29ab4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 16:34:24.789432+00	
+00000000-0000-0000-0000-000000000000	ce2d2170-8359-4a08-9c4e-3ec570529266	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 16:34:24.790897+00	
+00000000-0000-0000-0000-000000000000	96709217-4a9e-4681-b766-1c52dec4e844	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 17:32:24.786106+00	
+00000000-0000-0000-0000-000000000000	6f4be623-eacc-4704-81cb-0bfbd3b32b96	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 17:32:24.787491+00	
+00000000-0000-0000-0000-000000000000	a8cb7276-3625-4674-9a6d-21d693e5701f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 18:30:24.785731+00	
+00000000-0000-0000-0000-000000000000	e4c4cb36-5396-4cd9-9605-313f8662156b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 18:30:24.787104+00	
+00000000-0000-0000-0000-000000000000	708fd840-0c7f-41f1-854c-d01faaecb48d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 19:28:24.78959+00	
+00000000-0000-0000-0000-000000000000	fd4b0269-5b35-489a-ba89-178a4f048fd8	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 19:28:24.791177+00	
+00000000-0000-0000-0000-000000000000	787f2c17-ac6f-4f76-9572-31e4c022a15e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 20:26:24.785808+00	
+00000000-0000-0000-0000-000000000000	285c13bd-8bdf-4cba-8113-025238c02431	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 20:26:24.787274+00	
+00000000-0000-0000-0000-000000000000	24ca3455-bf72-4b3c-9779-0ec17f2f9429	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 21:24:24.785175+00	
+00000000-0000-0000-0000-000000000000	451ac048-da5a-468a-a031-37a3b76bc29b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 21:24:24.786377+00	
+00000000-0000-0000-0000-000000000000	2beab25d-be5f-427a-a4da-8a794c5291ee	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 22:22:24.785614+00	
+00000000-0000-0000-0000-000000000000	a855e730-e3bc-465c-8533-c86cbfe3c9ec	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 22:22:24.78689+00	
+00000000-0000-0000-0000-000000000000	1f2250d2-fe99-464d-abd8-ecb16e97869d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 23:20:24.784357+00	
+00000000-0000-0000-0000-000000000000	10410d8d-9852-4a4f-a9f6-40aa03d18f6d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-11 23:20:24.785847+00	
+00000000-0000-0000-0000-000000000000	2f813590-589a-4587-a5d1-b57098016ff9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 00:18:24.792193+00	
+00000000-0000-0000-0000-000000000000	86bec303-6e4f-432d-b62d-6faa5945c4be	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 00:18:24.793561+00	
+00000000-0000-0000-0000-000000000000	627bb5ce-2029-4d53-9361-0c1486b73199	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 01:16:24.787464+00	
+00000000-0000-0000-0000-000000000000	afd40fa1-6c02-4a54-9cc4-fb8cfc40d824	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 01:16:24.788625+00	
+00000000-0000-0000-0000-000000000000	16234ef1-7b72-4884-b5a8-32a3f7cfa7d3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 02:14:24.787341+00	
+00000000-0000-0000-0000-000000000000	9cd7d07b-b641-40c9-ae1c-a76e68081336	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 02:14:24.788452+00	
+00000000-0000-0000-0000-000000000000	ab8e2e8b-e1b5-442b-81c6-3910a53871ef	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 03:12:24.785971+00	
+00000000-0000-0000-0000-000000000000	127d14fe-6371-42d3-9630-56a67181b175	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 03:12:24.787409+00	
+00000000-0000-0000-0000-000000000000	db6aedf7-c8f9-44ec-b6f4-b38117b7535f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 04:10:24.784664+00	
+00000000-0000-0000-0000-000000000000	68dee314-5a32-4242-8dc8-699849edbb7d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 04:10:24.785965+00	
+00000000-0000-0000-0000-000000000000	14042c12-5b0e-44c2-bf2f-b2043b591ef1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 05:08:24.786207+00	
+00000000-0000-0000-0000-000000000000	ab4c7633-5ebc-4b88-b8a2-d676c44ca36a	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 05:08:24.787516+00	
+00000000-0000-0000-0000-000000000000	c3998b57-0352-4915-a075-c3a3ab7a662a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 06:06:52.356599+00	
+00000000-0000-0000-0000-000000000000	4a200131-6051-4779-85db-c2067fe7a6d2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 06:06:52.358105+00	
+00000000-0000-0000-0000-000000000000	9b80ef31-025b-4918-8ed9-88b6fb0d6a05	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 07:05:52.305567+00	
+00000000-0000-0000-0000-000000000000	c430c230-8ab0-435a-b9f4-ef7d44ee941f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 07:05:52.307073+00	
+00000000-0000-0000-0000-000000000000	b68b8a7b-9924-48eb-8e6f-5d9d231a6f3a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 07:05:54.487723+00	
+00000000-0000-0000-0000-000000000000	7b8c7409-e229-4ea8-bf49-f63417149f2b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 07:05:54.937655+00	
+00000000-0000-0000-0000-000000000000	ae9fd5a3-302f-455f-9c49-151a7496c3a6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 07:05:55.608734+00	
+00000000-0000-0000-0000-000000000000	520d2796-d47e-46b4-aac4-4fb491191e52	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 08:04:05.008079+00	
+00000000-0000-0000-0000-000000000000	3bd863e3-c3bb-4b8e-ab99-5586a89839e1	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 08:04:05.009386+00	
+00000000-0000-0000-0000-000000000000	a9a0bcca-23d2-4fc7-af2f-4937ade6f15e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 09:03:25.675825+00	
+00000000-0000-0000-0000-000000000000	9e3b17a2-f3ff-455a-8569-8e6e5426e0ab	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 09:03:25.677174+00	
+00000000-0000-0000-0000-000000000000	824de0cd-c9d8-423f-926b-45ccba465ba0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 10:01:37.477558+00	
+00000000-0000-0000-0000-000000000000	ee705aa0-8d9b-40d9-bfc4-7c3ddc309d7b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 10:01:37.478949+00	
+00000000-0000-0000-0000-000000000000	aa93b78d-51a6-4717-9ffa-a0a66c7aa4fb	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 10:59:41.918204+00	
+00000000-0000-0000-0000-000000000000	61c0ecef-d8dd-42ae-8265-ec2779e76cae	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 10:59:41.919845+00	
+00000000-0000-0000-0000-000000000000	dc6a212e-6de8-4a1f-b804-8d5c9c1e3825	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 11:58:01.870209+00	
+00000000-0000-0000-0000-000000000000	65314c42-cae5-43ff-bea9-b827ac38ac8a	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 11:58:01.871645+00	
+00000000-0000-0000-0000-000000000000	9450a878-b6cf-40d0-91c1-5ccd86840d67	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 13:27:12.531616+00	
+00000000-0000-0000-0000-000000000000	c23145b5-0e3a-49ff-bfe3-7b725b4062ad	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 13:27:12.532993+00	
+00000000-0000-0000-0000-000000000000	cf2dcc8c-ac27-42c2-848c-647ed38a4b23	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 14:25:34.268584+00	
+00000000-0000-0000-0000-000000000000	3e923f92-5526-4300-9354-a6a17902c285	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 14:25:34.270015+00	
+00000000-0000-0000-0000-000000000000	bf53833a-aabd-4dbd-b6d6-491c5ef23763	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 15:23:34.270405+00	
+00000000-0000-0000-0000-000000000000	1971e83f-3358-4a53-a074-e269e6bac95f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 15:23:34.271952+00	
+00000000-0000-0000-0000-000000000000	777a7aa7-65b6-4c83-a372-57dbbfe69e6e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 16:21:34.273872+00	
+00000000-0000-0000-0000-000000000000	34c2143b-9999-4338-8232-247456b7d559	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 16:21:34.275155+00	
+00000000-0000-0000-0000-000000000000	2d66efb3-5e66-4f35-af62-a6fea19d6891	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 17:19:34.266531+00	
+00000000-0000-0000-0000-000000000000	4d2146da-ab45-4be8-a0fa-54aa7f733f52	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 17:19:34.267521+00	
+00000000-0000-0000-0000-000000000000	59b177f2-f3b2-4579-b298-892c1b5799b2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 18:17:34.268678+00	
+00000000-0000-0000-0000-000000000000	a29196ef-2822-4d04-9819-954eb1c176af	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 18:17:34.27034+00	
+00000000-0000-0000-0000-000000000000	c54ef993-9c2a-44fe-8e04-e72c6271777b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 19:15:34.269222+00	
+00000000-0000-0000-0000-000000000000	1c2abd94-61a9-4cc9-a5f6-51aa1bfc9be4	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 19:15:34.270679+00	
+00000000-0000-0000-0000-000000000000	e5612d93-43f2-47a4-b695-14ca218d7a15	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 20:13:34.271192+00	
+00000000-0000-0000-0000-000000000000	1cacfbb2-e735-47b3-af54-524813b881e8	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 20:13:34.272674+00	
+00000000-0000-0000-0000-000000000000	e624faa1-cf7a-4d90-8efe-41b58318ad48	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 21:11:34.269359+00	
+00000000-0000-0000-0000-000000000000	f15d79e2-2d6e-4b84-969c-88dd78802af1	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 21:11:34.270636+00	
+00000000-0000-0000-0000-000000000000	8a105d4f-516c-4751-9039-49232c3247fc	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 22:09:34.271612+00	
+00000000-0000-0000-0000-000000000000	5d68b534-ba76-43ee-bab4-6c17b12de0ac	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 22:09:34.273205+00	
+00000000-0000-0000-0000-000000000000	d4ff4939-f5c0-4ab8-8046-327df801b592	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 23:07:34.269231+00	
+00000000-0000-0000-0000-000000000000	6201c0f8-689b-4b54-9a14-71d35479e8fc	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-12 23:07:34.270891+00	
+00000000-0000-0000-0000-000000000000	544b911e-4637-4369-b068-d37cea481204	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 00:05:34.280026+00	
+00000000-0000-0000-0000-000000000000	3e9cfd6b-aa68-4c46-83ac-5d12879c4b94	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 00:05:34.281415+00	
+00000000-0000-0000-0000-000000000000	f6ed040a-0dc9-4ba0-8462-aa795e918733	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 01:03:34.268719+00	
+00000000-0000-0000-0000-000000000000	cc93d0b1-6b45-427e-bb13-4d651c4ef9ff	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 01:03:34.269784+00	
+00000000-0000-0000-0000-000000000000	9cb78ccc-cd15-4678-b8ce-cbe68b75c7c3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 02:01:34.267144+00	
+00000000-0000-0000-0000-000000000000	b62e645a-4f47-45ab-ae52-2c0f06c13180	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 02:01:34.268419+00	
+00000000-0000-0000-0000-000000000000	9fc98dda-3d1b-44f0-addf-2a3df086ad62	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 02:59:34.267093+00	
+00000000-0000-0000-0000-000000000000	d9df61e9-d386-4519-be7a-b50c774f0028	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 02:59:34.268467+00	
+00000000-0000-0000-0000-000000000000	4bdc60a0-2a9b-495d-b1e3-fa6536ffaa53	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 03:57:34.270338+00	
+00000000-0000-0000-0000-000000000000	463586ee-5e28-4e74-be34-5fca68f7e10b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 03:57:34.271784+00	
+00000000-0000-0000-0000-000000000000	09561f63-4665-44ce-b5d9-89a832832ddd	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 04:55:34.268917+00	
+00000000-0000-0000-0000-000000000000	8cdcc8d5-07e0-4336-b523-e0a89c4388ef	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 04:55:34.270246+00	
+00000000-0000-0000-0000-000000000000	976b03b6-f3e9-4007-b1f3-7c217f22b1d9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 05:53:46.77766+00	
+00000000-0000-0000-0000-000000000000	5d6e0ecf-0532-41fe-b742-6fdd58912ba1	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 05:53:46.779155+00	
+00000000-0000-0000-0000-000000000000	c210e5e2-146e-45c1-8c08-d4f8d53637af	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 06:52:03.78268+00	
+00000000-0000-0000-0000-000000000000	9865c966-e8ec-4dad-b341-3b306cc73d88	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 06:52:03.784094+00	
+00000000-0000-0000-0000-000000000000	ce18f71e-1067-4425-a9f4-bfb48dd5c32b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 07:50:15.346693+00	
+00000000-0000-0000-0000-000000000000	39226d93-bf70-48e6-a666-8593949d7a2b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 07:50:15.347994+00	
+00000000-0000-0000-0000-000000000000	435e2b6b-2872-4890-b084-d5fde1333cc2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 08:51:21.041971+00	
+00000000-0000-0000-0000-000000000000	01486ce4-fe16-4318-944b-8295d71ef865	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 08:51:21.04362+00	
+00000000-0000-0000-0000-000000000000	386aac27-c021-453d-9045-6ad0843dbef8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 09:49:40.194188+00	
+00000000-0000-0000-0000-000000000000	3cfa74bc-1dc7-41ed-bc82-92b0da684fec	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 09:49:40.195627+00	
+00000000-0000-0000-0000-000000000000	e94230ee-65cf-43ce-bffd-71e647711ee3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 10:48:11.24586+00	
+00000000-0000-0000-0000-000000000000	aedbffa9-dec3-4e93-ad07-630341ee9fed	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 10:48:11.247432+00	
+00000000-0000-0000-0000-000000000000	de625b7c-b67b-4096-b494-d38be383e155	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 11:46:33.223447+00	
+00000000-0000-0000-0000-000000000000	751aac52-3aec-40ba-9f8b-e2db0f47d339	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 11:46:33.224771+00	
+00000000-0000-0000-0000-000000000000	c56e4513-1fca-429c-b0bd-da3ac679d5a1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 12:44:40.025185+00	
+00000000-0000-0000-0000-000000000000	8257ba5d-17e2-46e9-9fee-9109ea5053bf	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 12:44:40.02657+00	
+00000000-0000-0000-0000-000000000000	e729287b-7f80-4617-b421-698d81a18307	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 13:42:56.789151+00	
+00000000-0000-0000-0000-000000000000	4a257202-9fcb-4fe5-a7de-b9dc451c2953	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 13:42:56.790469+00	
+00000000-0000-0000-0000-000000000000	e5efdb0b-5b5e-4f1a-9c9e-678a0c8f9e3a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 14:40:56.788044+00	
+00000000-0000-0000-0000-000000000000	e193f2ec-d243-4655-83a2-8d57043d536b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 14:40:56.789393+00	
+00000000-0000-0000-0000-000000000000	189416f5-60db-49e4-b030-93f1e0892323	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 15:38:56.787084+00	
+00000000-0000-0000-0000-000000000000	138a04b0-b1d0-43a1-9746-edf9e222a86c	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 15:38:56.788493+00	
+00000000-0000-0000-0000-000000000000	e379fd2e-45bb-445a-ab59-e6b5e69081e1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 16:36:56.788464+00	
+00000000-0000-0000-0000-000000000000	99a2cd82-64f9-4d0e-aa08-41dcf0ec06eb	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 16:36:56.789969+00	
+00000000-0000-0000-0000-000000000000	4123d5fe-7d3f-4f15-b0cd-28e3c2b01dde	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 17:34:56.786977+00	
+00000000-0000-0000-0000-000000000000	d801c567-32c8-4aa7-a437-1dd57bc2eac7	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 17:34:56.788454+00	
+00000000-0000-0000-0000-000000000000	dad987ab-8c26-4006-bc9a-371a39dfa9d4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 18:32:56.791937+00	
+00000000-0000-0000-0000-000000000000	dcaf3e06-cd58-4908-8385-914f9a5a28fb	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 18:32:56.793517+00	
+00000000-0000-0000-0000-000000000000	5e748195-9907-4084-b93e-55cd65bc9037	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 19:30:56.796824+00	
+00000000-0000-0000-0000-000000000000	461db16e-30d3-46c0-80c8-2008ac01d8a8	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 19:30:56.798006+00	
+00000000-0000-0000-0000-000000000000	1acc6727-0267-4660-9ffb-772505b462af	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 20:28:56.787101+00	
+00000000-0000-0000-0000-000000000000	09122d20-fdeb-4c1c-b303-83d2d74a4ccf	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 20:28:56.788454+00	
+00000000-0000-0000-0000-000000000000	a4c0a51f-03e6-45b6-a0fb-7ad78cf1f579	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 21:26:56.790206+00	
+00000000-0000-0000-0000-000000000000	0affdae6-7f2d-4eec-84ac-eaa268b0517e	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 21:26:56.791339+00	
+00000000-0000-0000-0000-000000000000	cd1e93e7-ff5e-4dd5-82fb-fa8dcc9d53b0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 22:24:56.786215+00	
+00000000-0000-0000-0000-000000000000	99146abb-03c6-48cf-8fdb-9c54be84b0ff	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 22:24:56.787388+00	
+00000000-0000-0000-0000-000000000000	84192ca5-9d87-463a-9b16-ce6e7616e437	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 23:22:56.787695+00	
+00000000-0000-0000-0000-000000000000	1549fd7c-de9c-42f5-a82c-2291b502ddca	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-13 23:22:56.788983+00	
+00000000-0000-0000-0000-000000000000	a948c39e-5f47-47cd-a16d-ac790970bdf7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 00:20:56.786319+00	
+00000000-0000-0000-0000-000000000000	3a56b0d5-4b55-401f-8b37-f2bd572b5c50	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 00:20:56.787563+00	
+00000000-0000-0000-0000-000000000000	42a718a5-ebdd-425d-a414-81968ef1ac2f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 01:18:56.78778+00	
+00000000-0000-0000-0000-000000000000	778a269c-9911-4a9a-9251-bfda26cf1d57	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 01:18:56.788792+00	
+00000000-0000-0000-0000-000000000000	821a3252-ba08-4ac5-af6b-cc32b77bbb57	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 02:16:56.787727+00	
+00000000-0000-0000-0000-000000000000	82d62ed1-e623-47d1-bb20-1d44eabdfe66	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 02:16:56.789193+00	
+00000000-0000-0000-0000-000000000000	3e2237c3-7ef8-4611-8e7e-5e96bb569aa3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 03:14:56.787347+00	
+00000000-0000-0000-0000-000000000000	3838785e-f0df-429d-a54a-83a6766cbc54	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 03:14:56.788573+00	
+00000000-0000-0000-0000-000000000000	4522d7a8-a2cd-4fd5-b8c2-7b1094158206	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 04:12:56.787624+00	
+00000000-0000-0000-0000-000000000000	1ece3497-bc53-40e1-9d0f-1e66819414fe	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 04:12:56.788828+00	
+00000000-0000-0000-0000-000000000000	66d8f044-1bcf-454f-80a5-d03fb76c8947	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 05:10:56.788017+00	
+00000000-0000-0000-0000-000000000000	ce98a1db-dcbe-4fb9-8822-ffc76cb87e66	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 05:10:56.789409+00	
+00000000-0000-0000-0000-000000000000	95a84abd-d2ee-4fd3-8379-7245edd700d3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 06:08:56.786478+00	
+00000000-0000-0000-0000-000000000000	eecdc05a-a874-4ae2-901f-a69475ce7633	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 06:08:56.787581+00	
+00000000-0000-0000-0000-000000000000	715849b9-4d48-479b-9f05-bb21eeec4323	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 07:06:56.788352+00	
+00000000-0000-0000-0000-000000000000	d50dc21d-fc3b-4e9a-9d55-e85491833284	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 07:06:56.789865+00	
+00000000-0000-0000-0000-000000000000	f6e0409f-f891-47ef-9540-bf49859ae682	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 08:04:56.788253+00	
+00000000-0000-0000-0000-000000000000	60db890b-00cf-4e69-b8db-20520f9bda6d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 08:04:56.789614+00	
+00000000-0000-0000-0000-000000000000	289e490a-83c7-4a6b-9723-9a040803c75d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 09:02:56.790855+00	
+00000000-0000-0000-0000-000000000000	5d7e5b7c-b671-4788-a6fc-e36545a49ad3	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 09:02:56.792093+00	
+00000000-0000-0000-0000-000000000000	000beb90-4175-4eb9-891b-1cae77df988d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 10:00:56.787147+00	
+00000000-0000-0000-0000-000000000000	49ad1c6a-4997-4d21-bdd2-06ae60f5c5c7	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 10:00:56.78845+00	
+00000000-0000-0000-0000-000000000000	65315837-dfda-4071-9521-25336f3d956f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 10:58:56.788811+00	
+00000000-0000-0000-0000-000000000000	f522a888-9080-46e4-993c-110732871504	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 10:58:56.790445+00	
+00000000-0000-0000-0000-000000000000	2a5ac470-8975-44a7-8619-521a0328e37f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 11:56:56.78894+00	
+00000000-0000-0000-0000-000000000000	0812c72a-c4d6-43d6-afe4-8cf49110924b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 11:56:56.79044+00	
+00000000-0000-0000-0000-000000000000	9ed22e16-b1b0-4eea-a9a5-d1fb3ad65513	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 12:54:56.787687+00	
+00000000-0000-0000-0000-000000000000	53d13129-a728-4ea8-a787-cd408423c23c	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 12:54:56.788962+00	
+00000000-0000-0000-0000-000000000000	f9f14857-7368-4929-8023-0bfc52efba7b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 13:52:56.787699+00	
+00000000-0000-0000-0000-000000000000	2805b923-afe0-437c-8705-f6b933ae0175	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 13:52:56.789016+00	
+00000000-0000-0000-0000-000000000000	977d5765-03b3-498d-b965-5021b0c419e1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 14:50:56.794213+00	
+00000000-0000-0000-0000-000000000000	6c7ce76b-e3d9-4ee5-84ab-4f24110f05f4	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 14:50:56.795697+00	
+00000000-0000-0000-0000-000000000000	154f8166-477f-4383-a6f5-5cb376e9f1f3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 15:48:56.785534+00	
+00000000-0000-0000-0000-000000000000	fff4ee34-62a7-4dd8-a41d-4893f1f180a4	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 15:48:56.786592+00	
+00000000-0000-0000-0000-000000000000	c73b9f89-9396-4052-a94d-632df60b787d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 16:46:56.786899+00	
+00000000-0000-0000-0000-000000000000	af554c43-4e4b-4ca9-88d8-2e27def31a94	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 16:46:56.788422+00	
+00000000-0000-0000-0000-000000000000	2f0eb2a1-9655-4d05-bdf1-fb3816b3c5bd	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 17:44:56.788258+00	
+00000000-0000-0000-0000-000000000000	d62ddb0d-3aed-4423-9568-53b05f68e675	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 17:44:56.789792+00	
+00000000-0000-0000-0000-000000000000	9c66e95e-9533-4935-a238-0afd20c37cee	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 18:42:56.787916+00	
+00000000-0000-0000-0000-000000000000	7afa2187-e938-432d-be36-01ab49558fe2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 18:42:56.789509+00	
+00000000-0000-0000-0000-000000000000	95ac5eee-73c5-452b-8ad6-f8985fac714f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 19:40:56.788196+00	
+00000000-0000-0000-0000-000000000000	938277c1-4ddf-4be7-abac-d29fc06d3676	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 19:40:56.789619+00	
+00000000-0000-0000-0000-000000000000	b1fa9737-005a-41f1-91f6-05edb475e3ed	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 20:38:56.787672+00	
+00000000-0000-0000-0000-000000000000	8816f2e0-c21a-4114-b71e-5c43c155a8e7	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 20:38:56.788966+00	
+00000000-0000-0000-0000-000000000000	dad2813b-09fd-42c7-a0e0-0a5a1c50bb99	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 21:36:56.78719+00	
+00000000-0000-0000-0000-000000000000	9a93e8fd-b8c7-4450-bfcd-aee4eb9efc28	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 21:36:56.78838+00	
+00000000-0000-0000-0000-000000000000	26b2bbf8-c851-4cf3-901b-3c3f6d429c37	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 22:34:56.786869+00	
+00000000-0000-0000-0000-000000000000	6f58d05b-0c9c-4af5-b190-7cccdf19d70b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 22:34:56.788373+00	
+00000000-0000-0000-0000-000000000000	a6410e1d-cf2b-4f1e-b4b0-fbfabd543b0f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 23:32:56.786669+00	
+00000000-0000-0000-0000-000000000000	4b3063b4-c3e5-43b5-9c73-d5ab3c77f3b2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-14 23:32:56.787794+00	
+00000000-0000-0000-0000-000000000000	629f8da4-cbb1-42af-a8c8-cda8a275dd56	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 00:30:56.786689+00	
+00000000-0000-0000-0000-000000000000	1e387b47-6f29-43e6-a369-ed9ed68712fc	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 00:30:56.788047+00	
+00000000-0000-0000-0000-000000000000	ed5f1b70-1e28-4811-9bf5-e970d3166ff8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 01:28:56.787161+00	
+00000000-0000-0000-0000-000000000000	820f9b70-0659-48d9-887e-0a81b97ec005	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 01:28:56.788402+00	
+00000000-0000-0000-0000-000000000000	5ed66cd8-4e84-4d18-8123-e1a7cb26c4c4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 02:26:56.787224+00	
+00000000-0000-0000-0000-000000000000	11f35f4c-13a4-4a7a-a2c5-745dfd366fdb	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 02:26:56.788656+00	
+00000000-0000-0000-0000-000000000000	58e406da-aedf-4dcb-b104-750457c20d00	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 03:24:56.788397+00	
+00000000-0000-0000-0000-000000000000	8d9dd3c6-80bf-420e-83d0-76c5f8bc339d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 03:24:56.789946+00	
+00000000-0000-0000-0000-000000000000	2665e7cc-1ca1-4697-b5a4-d9a7e7c90c39	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 04:22:56.789598+00	
+00000000-0000-0000-0000-000000000000	6e294e0e-7d83-4d23-8b11-bb882be02e08	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 04:22:56.790678+00	
+00000000-0000-0000-0000-000000000000	4c608b1f-06ce-4658-a1bb-dda1f2a8d15d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 05:20:56.787167+00	
+00000000-0000-0000-0000-000000000000	f2e5c9ce-0145-4563-9e41-4d2f3d3bb19f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 05:20:56.788614+00	
+00000000-0000-0000-0000-000000000000	fc645cb6-eda2-40aa-b2cc-64033c90337f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 06:18:56.787077+00	
+00000000-0000-0000-0000-000000000000	4ac805cd-ecc8-4e8c-bc67-ba5d8c0582f8	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 06:18:56.788427+00	
+00000000-0000-0000-0000-000000000000	1cd3e360-da3b-4f71-9bf1-2c9b442068b9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 07:16:56.787877+00	
+00000000-0000-0000-0000-000000000000	9c56cea1-03d3-432c-a8f6-f85b313af9ac	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 07:16:56.789373+00	
+00000000-0000-0000-0000-000000000000	33691d7b-7f3e-4ffa-b15f-d55aab947c97	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 08:14:56.798099+00	
+00000000-0000-0000-0000-000000000000	feb160ab-3742-4c23-b3a8-359e54a990f6	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 08:14:56.79938+00	
+00000000-0000-0000-0000-000000000000	7bc1c6e3-a409-4f9e-ad67-85744b7829f2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 09:12:56.786326+00	
+00000000-0000-0000-0000-000000000000	d30fd111-d830-4321-b6a9-9bf5e472993f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 09:12:56.787346+00	
+00000000-0000-0000-0000-000000000000	87af305b-4ce1-4b48-849d-90934eb8029b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 10:10:56.787781+00	
+00000000-0000-0000-0000-000000000000	ce6a0414-6cf5-4891-8066-835746db5363	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 10:10:56.789253+00	
+00000000-0000-0000-0000-000000000000	8a184052-a6a8-4dc8-bfa9-197c55441bfa	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 11:08:56.787441+00	
+00000000-0000-0000-0000-000000000000	24112d7a-df2d-4b7b-93b6-3169d35eecc3	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 11:08:56.788598+00	
+00000000-0000-0000-0000-000000000000	3f431173-82e3-4c8f-b57d-5a6db2a0ee50	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 12:06:56.786969+00	
+00000000-0000-0000-0000-000000000000	1daf2f83-c7b8-4107-96cf-a1352cc95aba	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 12:06:56.788306+00	
+00000000-0000-0000-0000-000000000000	ee912730-560e-4a7c-b994-98114f5cc779	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 13:04:56.787551+00	
+00000000-0000-0000-0000-000000000000	42e635f4-b5e7-43a5-bc9f-f330e08d172a	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 13:04:56.788733+00	
+00000000-0000-0000-0000-000000000000	fbc07bae-75fd-4d4d-a3c2-8ebd0266d522	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 14:02:56.787365+00	
+00000000-0000-0000-0000-000000000000	257d6f1a-3237-4312-8b19-adf369cc5e62	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 14:02:56.7886+00	
+00000000-0000-0000-0000-000000000000	39a15783-c9ba-476c-bef7-413912f4adc6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 15:00:56.787823+00	
+00000000-0000-0000-0000-000000000000	410cbc47-1e3f-438f-a365-f3918c3f84b5	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 15:00:56.789315+00	
+00000000-0000-0000-0000-000000000000	0877da92-5e18-4ad1-bdfe-455d488d26ee	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 15:58:56.788893+00	
+00000000-0000-0000-0000-000000000000	77073879-ef3b-4e6d-a485-e765f1bbbb22	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 15:58:56.789974+00	
+00000000-0000-0000-0000-000000000000	4fc493b8-b7f2-4416-9533-bc270971f15a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 16:56:56.788803+00	
+00000000-0000-0000-0000-000000000000	ca3260e1-b99f-4dc7-a537-74bd6e820b16	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 16:56:56.790359+00	
+00000000-0000-0000-0000-000000000000	5cc7b2d2-5d7b-416b-b708-b92845349fc7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 17:54:56.787525+00	
+00000000-0000-0000-0000-000000000000	2d14f6d5-2e6f-492d-bbf7-413ee9055688	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 17:54:56.788535+00	
+00000000-0000-0000-0000-000000000000	7ad917d2-4210-4472-a098-17d4043aa3e8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 18:52:56.787793+00	
+00000000-0000-0000-0000-000000000000	e58a4054-5bfa-4740-a20d-72add8f7e19a	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 18:52:56.789259+00	
+00000000-0000-0000-0000-000000000000	70623812-b386-4c85-81dd-dc91eb0c5f40	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 19:50:56.787488+00	
+00000000-0000-0000-0000-000000000000	386af741-577a-4c12-adde-4ecd0e3c3c41	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 19:50:56.788787+00	
+00000000-0000-0000-0000-000000000000	7b8d9404-c0c1-442c-8a78-dc19c7a30e36	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 20:48:56.785665+00	
+00000000-0000-0000-0000-000000000000	3392e744-1dff-41ac-aa3e-4e0e0182488b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 20:48:56.786693+00	
+00000000-0000-0000-0000-000000000000	4b27d81a-403b-4615-8e6b-df572be32ad1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 21:46:56.787553+00	
+00000000-0000-0000-0000-000000000000	3f1eb82f-0848-499b-9e8d-354ad4a5bffd	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 21:46:56.788893+00	
+00000000-0000-0000-0000-000000000000	891daafb-efab-421e-9ab3-6d1900ef8ef7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 22:44:56.788563+00	
+00000000-0000-0000-0000-000000000000	d7a79395-ea74-44d2-8df5-cef88aba2826	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 22:44:56.790198+00	
+00000000-0000-0000-0000-000000000000	3d1dfd4c-9ab4-4ee4-a996-31a879e94a1d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 23:42:56.787423+00	
+00000000-0000-0000-0000-000000000000	16f9e1fc-ef93-43d2-ae8e-8cfcdec30c1c	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-15 23:42:56.788953+00	
+00000000-0000-0000-0000-000000000000	d7965be0-b3d7-4fc0-9882-a01bc320d604	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 00:40:56.788184+00	
+00000000-0000-0000-0000-000000000000	af5fb13d-267d-4605-89d1-6933e9810c23	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 00:40:56.789524+00	
+00000000-0000-0000-0000-000000000000	479cc870-72d7-4ee1-8187-e074ed23b227	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 01:38:56.788749+00	
+00000000-0000-0000-0000-000000000000	f14b3ed9-974f-4733-bd74-87df5d911aaf	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 01:38:56.78978+00	
+00000000-0000-0000-0000-000000000000	78305fc8-d860-438a-a7e9-fd0e15858959	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 02:36:56.78899+00	
+00000000-0000-0000-0000-000000000000	19203123-3c50-4ec9-882f-f8ef55405911	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 02:36:56.790454+00	
+00000000-0000-0000-0000-000000000000	310c0516-c05e-47ab-a727-564cdaa18349	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 03:34:56.789007+00	
+00000000-0000-0000-0000-000000000000	0b743846-5065-4819-9527-bec25a941f9f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 03:34:56.79046+00	
+00000000-0000-0000-0000-000000000000	6152e3df-991b-4104-ad68-2bfe58993603	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 04:32:56.789048+00	
+00000000-0000-0000-0000-000000000000	58a66602-b88a-44c8-8289-05901d497e6a	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 04:32:56.790339+00	
+00000000-0000-0000-0000-000000000000	3d7cf06c-ec51-40d9-8f69-21923d9b1670	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 05:31:07.471153+00	
+00000000-0000-0000-0000-000000000000	cf489d12-ef1e-47ae-9d49-55110ae62202	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 05:31:07.472533+00	
+00000000-0000-0000-0000-000000000000	8c54830e-b63a-4fc6-b57b-f6145e9f90b7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 06:29:15.114805+00	
+00000000-0000-0000-0000-000000000000	0ddce145-f94f-4116-b0a1-ffed2f072717	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 06:29:15.1163+00	
+00000000-0000-0000-0000-000000000000	ddb149ae-0a79-4624-8d8a-0cf8c6c8c7d3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 07:27:17.008828+00	
+00000000-0000-0000-0000-000000000000	127e9204-fb23-4449-9cf0-319d254dad61	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 07:27:17.010339+00	
+00000000-0000-0000-0000-000000000000	df8c653f-cb50-4a80-b6d2-2e9ca8cbae89	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 08:25:32.956664+00	
+00000000-0000-0000-0000-000000000000	3433346b-1561-4255-a76e-5460e5a2680f	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 08:25:32.957969+00	
+00000000-0000-0000-0000-000000000000	251b44e3-6cec-494c-922c-f174ca0e265f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 09:23:34.390382+00	
+00000000-0000-0000-0000-000000000000	ac98051d-ae98-456e-9abf-d7577b5e0f72	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 09:23:34.39187+00	
+00000000-0000-0000-0000-000000000000	e1c4445a-8b86-46aa-8957-88d5c924a01f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:21:45.565133+00	
+00000000-0000-0000-0000-000000000000	647eaf87-e89f-4da4-b659-3831540b8df0	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:21:45.567229+00	
+00000000-0000-0000-0000-000000000000	bd29bbee-5870-4254-86a6-663c63ad6991	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.169388+00	
+00000000-0000-0000-0000-000000000000	44a64b4b-5fec-4d01-8f8e-e9d1aa5274af	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.324201+00	
+00000000-0000-0000-0000-000000000000	73109824-cb72-4029-8d77-e648473e395c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.420246+00	
+00000000-0000-0000-0000-000000000000	46ef55c7-baa1-4629-a41b-c67fb30d6db7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.533581+00	
+00000000-0000-0000-0000-000000000000	2e3ef23d-3702-4435-b989-b0fd89d580b8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.730914+00	
+00000000-0000-0000-0000-000000000000	37bb6b14-3c84-4e63-a41f-01555f84be73	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.762796+00	
+00000000-0000-0000-0000-000000000000	c80e45c9-e453-45a4-b69e-3ccf14c920d2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.8744+00	
+00000000-0000-0000-0000-000000000000	41d316b2-5c16-4d00-ac21-b9751ccbad6c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:04.913644+00	
+00000000-0000-0000-0000-000000000000	27650a33-d2f1-4f11-b3fb-18c09974cdfa	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:05.038849+00	
+00000000-0000-0000-0000-000000000000	3f0f316c-6e26-4198-a78b-a266f6ab3125	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:05.760048+00	
+00000000-0000-0000-0000-000000000000	efded98e-020d-42d3-8470-58361d5201a6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:05.860819+00	
+00000000-0000-0000-0000-000000000000	ca4886fa-9028-4e39-9833-7da28c0d3d6e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:06.017134+00	
+00000000-0000-0000-0000-000000000000	5f9485b5-84ed-4a98-a6a3-d1329d3c0d1b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:06.42657+00	
+00000000-0000-0000-0000-000000000000	51c9b7b8-76dd-4597-af9e-58e410b7b840	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:06.77513+00	
+00000000-0000-0000-0000-000000000000	6331030f-bc8b-4644-9290-b2b35227e9f8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:07.100658+00	
+00000000-0000-0000-0000-000000000000	fdfc640a-0ca7-4b43-884d-5275898948f4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:07.998797+00	
+00000000-0000-0000-0000-000000000000	e862b048-2405-4f41-ae2f-68d498a66156	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:08.23354+00	
+00000000-0000-0000-0000-000000000000	0d8c3d40-fd8d-414e-91b6-dd637c94795c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:08.376235+00	
+00000000-0000-0000-0000-000000000000	437d58ed-c255-4f74-99a4-949a6399cee9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:08.628552+00	
+00000000-0000-0000-0000-000000000000	394d3b78-2122-4c18-91aa-3489062ba573	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:08.941821+00	
+00000000-0000-0000-0000-000000000000	87915e3e-a8ba-4013-9c9c-b386cae6ac98	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:09.340184+00	
+00000000-0000-0000-0000-000000000000	36e3ecb6-b62d-49ac-92ec-3a430ade3e09	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:09.906407+00	
+00000000-0000-0000-0000-000000000000	ac84d822-7e0e-4cc7-b81c-4798b5031cbb	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:09.951128+00	
+00000000-0000-0000-0000-000000000000	4e59217f-c919-4412-a1ec-f6c4da4b8bd9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:10.069812+00	
+00000000-0000-0000-0000-000000000000	ceededfb-ca5a-4720-94d1-be588232db06	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:10.434433+00	
+00000000-0000-0000-0000-000000000000	0d0dbb70-f610-40dd-ae57-2682e4666b87	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:10.57107+00	
+00000000-0000-0000-0000-000000000000	426e3bfa-cd42-4ff9-afc2-92f67471968c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:10.939501+00	
+00000000-0000-0000-0000-000000000000	b98220fe-42f0-49b7-9709-e6c96782b532	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:11.284807+00	
+00000000-0000-0000-0000-000000000000	1d9bf8f5-fc16-4798-860a-7b95000bc7e6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:11.662397+00	
+00000000-0000-0000-0000-000000000000	5dd68f05-22a4-45af-b026-36b1d1af82a3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:12.158602+00	
+00000000-0000-0000-0000-000000000000	a5d4bf92-063d-4702-9b33-ce9b7bcc7e4d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:12.392504+00	
+00000000-0000-0000-0000-000000000000	0b1d7068-2a83-4813-93e9-f5188cd91ec7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:12.58388+00	
+00000000-0000-0000-0000-000000000000	f4da6edf-b4ef-40c5-b67d-e5053ef65b63	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:12.734766+00	
+00000000-0000-0000-0000-000000000000	901d2ffe-6fd4-4512-acb4-0140e3ce48ac	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:12.967404+00	
+00000000-0000-0000-0000-000000000000	7e49eb9f-0a5a-4863-9edd-36cf8ca6353a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:13.355741+00	
+00000000-0000-0000-0000-000000000000	0f7c3a6e-268a-4fa2-a1f8-b35c0d5380e6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:13.726749+00	
+00000000-0000-0000-0000-000000000000	a00b9c8d-fc98-4f4e-a0ad-b02d15895cc3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:13.981225+00	
+00000000-0000-0000-0000-000000000000	05ed79f8-dbcc-4edc-b716-6e4588fb99ac	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:14.491243+00	
+00000000-0000-0000-0000-000000000000	6d1feb38-9d3d-4716-8af9-8335913d46ed	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:14.727181+00	
+00000000-0000-0000-0000-000000000000	088cc1ed-ea43-4001-85c5-15410343f256	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:14.88379+00	
+00000000-0000-0000-0000-000000000000	3510073d-c919-4888-9ae8-09b80ef08fc3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:15.293107+00	
+00000000-0000-0000-0000-000000000000	0d6ee927-a01d-449a-854b-6e9c1ec04fda	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:15.350774+00	
+00000000-0000-0000-0000-000000000000	7b9de43d-9f60-4472-9204-dc7a3a2078fc	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:15.972665+00	
+00000000-0000-0000-0000-000000000000	7613f57e-e8ab-418c-8dc0-eae2befc7a14	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:17.006267+00	
+00000000-0000-0000-0000-000000000000	c3f1bff2-c73e-4a7b-bbb8-a57fe06a8aba	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:17.169611+00	
+00000000-0000-0000-0000-000000000000	96529e87-c779-4b13-88a2-1e823bcf572c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:17.30512+00	
+00000000-0000-0000-0000-000000000000	7cb1bbe5-ba1a-477e-b89d-e351e78f5ee3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:17.387299+00	
+00000000-0000-0000-0000-000000000000	76c8e84a-a718-44fb-bff4-3144fe652f66	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:17.87302+00	
+00000000-0000-0000-0000-000000000000	3a76ac17-95d4-45c9-8e63-26face4940da	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:18.363627+00	
+00000000-0000-0000-0000-000000000000	07754e3c-45fb-4a26-a0dd-fff96e1d5311	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:18.680834+00	
+00000000-0000-0000-0000-000000000000	3630a01a-87de-4406-80cc-7c76f0840f9c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:18.848603+00	
+00000000-0000-0000-0000-000000000000	905178f3-db79-426c-9887-6bcec56113de	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:19.000497+00	
+00000000-0000-0000-0000-000000000000	ae5047f6-6df2-4910-a4e6-6eac9cb03986	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:19.127883+00	
+00000000-0000-0000-0000-000000000000	95e3f104-df23-4086-be2c-19c0f07c9d59	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:19.504822+00	
+00000000-0000-0000-0000-000000000000	efe413db-db99-430f-a530-653660f81972	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:20.054585+00	
+00000000-0000-0000-0000-000000000000	6af8368e-ec9c-4f60-a8ac-d3b8db61d841	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:20.212741+00	
+00000000-0000-0000-0000-000000000000	86c798e9-b07e-4274-aab8-85383c36f188	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:21.196997+00	
+00000000-0000-0000-0000-000000000000	86d81731-5923-4b1d-a4c7-40217027fdd5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:21.301421+00	
+00000000-0000-0000-0000-000000000000	e72c4eec-0644-48d1-b649-bc89318772a9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:21.465834+00	
+00000000-0000-0000-0000-000000000000	e4cf5710-4bc1-493c-8395-bd0fb775de52	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:21.915662+00	
+00000000-0000-0000-0000-000000000000	602ffc2d-2ee6-43fa-9399-62f2f4ce6126	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:22.129867+00	
+00000000-0000-0000-0000-000000000000	58a134fb-b7c9-4651-971e-fe8e159b6551	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:23.488655+00	
+00000000-0000-0000-0000-000000000000	1c669d5b-c289-4625-b8fd-17703c79faf4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:23.826472+00	
+00000000-0000-0000-0000-000000000000	76f50a5f-3d9d-4149-82d1-65b3326ba7a3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:23.956019+00	
+00000000-0000-0000-0000-000000000000	662eeff8-a10d-4e13-8f76-af9566d6b98f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:24.222028+00	
+00000000-0000-0000-0000-000000000000	5fe2d9a3-32a4-49ee-a133-48c10f2cf6bc	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:24.794346+00	
+00000000-0000-0000-0000-000000000000	9981a3b0-23c7-49ea-b0d8-b88046b99ad5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:25.032724+00	
+00000000-0000-0000-0000-000000000000	924bdc4d-5e0b-47b7-8be8-5cf0386c3a3a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:25.550759+00	
+00000000-0000-0000-0000-000000000000	505755da-649f-49be-ad50-625d62cc4fdd	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:26.004613+00	
+00000000-0000-0000-0000-000000000000	0870163f-5378-4b91-ada2-71c2fc3ed1a7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:26.766468+00	
+00000000-0000-0000-0000-000000000000	cc55cf8e-3532-475d-89b2-f2be5a345d9a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:27.168741+00	
+00000000-0000-0000-0000-000000000000	5417ae4f-f6a8-4c2e-bbbb-9fa0fa38c24f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:27.679666+00	
+00000000-0000-0000-0000-000000000000	235c5440-9f71-4f9b-89ed-250579d865a9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:27.934953+00	
+00000000-0000-0000-0000-000000000000	3c358e95-16ab-4f8c-bbfe-47a19e9191a6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:28.079876+00	
+00000000-0000-0000-0000-000000000000	9fe11068-409a-425c-81ac-9dbddaa887d4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:28.620655+00	
+00000000-0000-0000-0000-000000000000	fcdecb52-2264-49b8-b08b-f7138a48d76a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:28.997635+00	
+00000000-0000-0000-0000-000000000000	d9a4b4cf-4b65-4821-9067-ab66e497ac9a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:29.360134+00	
+00000000-0000-0000-0000-000000000000	428b364c-eaec-4197-9069-e808e29f7de4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:29.547055+00	
+00000000-0000-0000-0000-000000000000	46576ba2-7f11-4440-bff9-ba8af9d2ff43	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:29.966831+00	
+00000000-0000-0000-0000-000000000000	8381c6c5-dbf1-4dc2-81c4-0b5f4d2a15b6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:30.440679+00	
+00000000-0000-0000-0000-000000000000	475d58eb-8147-4313-a812-528c8e014e3a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:30.723631+00	
+00000000-0000-0000-0000-000000000000	496ff05f-c8c8-48f6-8c7a-f46dae0edaec	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:30.912922+00	
+00000000-0000-0000-0000-000000000000	81989863-b7f8-4811-a7ff-a2036d6a648d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:31.505027+00	
+00000000-0000-0000-0000-000000000000	5b44b323-64f8-45e3-9f95-12a7a5e4dfc9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:31.880634+00	
+00000000-0000-0000-0000-000000000000	8ca63008-3d09-4aa3-9d87-991d62384ab9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:32.090152+00	
+00000000-0000-0000-0000-000000000000	cc8c1de3-d45c-461d-be78-eae636c6838d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:32.380406+00	
+00000000-0000-0000-0000-000000000000	6e71496c-f1cf-4618-b4d1-82b86d63f35f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:32.83992+00	
+00000000-0000-0000-0000-000000000000	8753a7fd-b20f-4378-aaa3-54fa50d0fd2f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:33.218258+00	
+00000000-0000-0000-0000-000000000000	3cda8f47-9b7b-485f-b34f-c0308870b01c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:33.58246+00	
+00000000-0000-0000-0000-000000000000	70ae550c-8260-409e-91bb-315fca29671a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:33.704337+00	
+00000000-0000-0000-0000-000000000000	f78f4235-5cd4-45d4-a79b-f44d0a715a5c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:34.313283+00	
+00000000-0000-0000-0000-000000000000	b3e5d31f-d4d3-49af-ae79-d39456d386e8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:34.707363+00	
+00000000-0000-0000-0000-000000000000	6392f892-d5cb-4f8e-a033-2c8e0c12dc19	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:34.893115+00	
+00000000-0000-0000-0000-000000000000	9208dfc1-b6b0-49a8-afd2-154ea8ee6f78	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:35.1626+00	
+00000000-0000-0000-0000-000000000000	fc2eae49-1710-49c4-b5b5-7461a741b836	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:35.634657+00	
+00000000-0000-0000-0000-000000000000	2294d97b-c6e1-4e5e-824c-602be9ff77e9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:36.043693+00	
+00000000-0000-0000-0000-000000000000	0a5edcec-0a54-40f9-b92c-33098a4950ad	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:36.431405+00	
+00000000-0000-0000-0000-000000000000	88358586-d662-4603-a862-48360f373d75	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:36.558286+00	
+00000000-0000-0000-0000-000000000000	dccb0899-24b1-4b1e-be41-237fcace9712	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:37.169301+00	
+00000000-0000-0000-0000-000000000000	890e8bd8-29b6-4a08-a26e-eba0431a6bd9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:37.548528+00	
+00000000-0000-0000-0000-000000000000	a4342562-a570-4a49-a455-ce563b366f9f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:37.733936+00	
+00000000-0000-0000-0000-000000000000	eed21732-dbf6-402a-bbc6-21a4dac632c2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:38.013158+00	
+00000000-0000-0000-0000-000000000000	598bf4ec-f625-4fae-9876-d1ac6155b4d7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:38.470379+00	
+00000000-0000-0000-0000-000000000000	47078d6e-48ea-48b2-9d5b-9dec18c6ddd8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:38.798979+00	
+00000000-0000-0000-0000-000000000000	a12ea7aa-90ad-498f-8ef3-2666834f0686	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:39.15077+00	
+00000000-0000-0000-0000-000000000000	74d5609e-5873-46cf-9b7a-507c14c378f6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:40.470259+00	
+00000000-0000-0000-0000-000000000000	8921a0dc-94a9-493b-a61b-ae5b6913f95f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:40.758959+00	
+00000000-0000-0000-0000-000000000000	8923d283-5738-42ea-97f3-ba9a21ed199a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:41.418817+00	
+00000000-0000-0000-0000-000000000000	9a4ff164-6b5d-47e7-b656-06ca3429c202	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:42.03067+00	
+00000000-0000-0000-0000-000000000000	70dc6572-4dce-4c48-8001-67d8b13b1863	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:42.774609+00	
+00000000-0000-0000-0000-000000000000	55081011-63c5-4c33-baff-bf0d5bfcb2fe	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:43.474935+00	
+00000000-0000-0000-0000-000000000000	c6b923f4-b150-4b4c-b8b7-80bb136f22e9	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:44.13299+00	
+00000000-0000-0000-0000-000000000000	ecb62cab-57f5-48f9-b2fa-3a74b48a3329	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:44.843688+00	
+00000000-0000-0000-0000-000000000000	8e13b84b-8085-483b-b7cf-8a6a774328e4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:46.388207+00	
+00000000-0000-0000-0000-000000000000	01094727-c4e6-44d1-9600-5dc41c05bebb	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:46.81368+00	
+00000000-0000-0000-0000-000000000000	d04f8dce-0a5b-4e6d-b8f4-7ecf6738e30b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:47.724284+00	
+00000000-0000-0000-0000-000000000000	af01d985-66c5-4679-9f14-bd5586dd5e2d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:48.167504+00	
+00000000-0000-0000-0000-000000000000	abfe683b-deaa-4a68-9cf0-a3d96f9388e8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:48.922666+00	
+00000000-0000-0000-0000-000000000000	6ac3c346-e33f-4761-813e-f76a33af5d6d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:49.409649+00	
+00000000-0000-0000-0000-000000000000	8f6b692c-23b2-4520-ab10-cc7b722e69ea	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:50.131409+00	
+00000000-0000-0000-0000-000000000000	167dfdb9-503b-431c-ac79-800a9893a0f2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:50.801028+00	
+00000000-0000-0000-0000-000000000000	5f2cac2d-636e-4afc-8896-0b0bacadbaaf	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:51.526094+00	
+00000000-0000-0000-0000-000000000000	06320974-aa0f-4eea-ab4d-f4c27460b854	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:52.021518+00	
+00000000-0000-0000-0000-000000000000	2570aec3-7887-4c18-8d6a-08e1e7f01a8e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:52.789881+00	
+00000000-0000-0000-0000-000000000000	bd3f6d44-fc99-4e16-be52-efa9549dc6bf	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:53.383752+00	
+00000000-0000-0000-0000-000000000000	9ced4907-fb0c-4187-897b-6d45766bff40	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:54.029201+00	
+00000000-0000-0000-0000-000000000000	fee26ec8-ed94-4f4e-85b8-f2815d60219f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:54.666245+00	
+00000000-0000-0000-0000-000000000000	616ddd9b-1ca1-45b7-8c36-a06b537ba425	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:55.281321+00	
+00000000-0000-0000-0000-000000000000	f5f7b4f9-e95d-4292-a7a1-ee5c520d0a2b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:55.714496+00	
+00000000-0000-0000-0000-000000000000	4abc276b-99db-4a1b-9be0-3aa4c9eb9bea	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:56.544366+00	
+00000000-0000-0000-0000-000000000000	4678933b-17c5-4856-850d-a4e1baaf38ea	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:56.989241+00	
+00000000-0000-0000-0000-000000000000	9f6ef0d1-b54a-498b-9564-fd76fe813761	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:57.918967+00	
+00000000-0000-0000-0000-000000000000	f2b1eff5-0501-48c0-aff4-35d4cc77a480	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:58.342349+00	
+00000000-0000-0000-0000-000000000000	dceb251e-5cad-4bbf-8100-52bbfa8366a0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:59.055287+00	
+00000000-0000-0000-0000-000000000000	171becb6-e42b-40d9-bade-1b453408a7b5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:22:59.479736+00	
+00000000-0000-0000-0000-000000000000	dec6b37a-4916-4908-a7d6-cea4a7ff7455	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:00.244894+00	
+00000000-0000-0000-0000-000000000000	ddfa11d9-79a7-4180-bfc7-b48f10d4df0f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:00.710271+00	
+00000000-0000-0000-0000-000000000000	ba9a3fad-17d0-40ec-8ade-7191abaeec4e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:01.621972+00	
+00000000-0000-0000-0000-000000000000	8ad34f56-9ee9-441d-abf7-09cafdc3032e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:02.170185+00	
+00000000-0000-0000-0000-000000000000	814025fb-06d6-4ab0-a492-b5c02f991075	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:02.867942+00	
+00000000-0000-0000-0000-000000000000	ce02240e-d2c0-41e0-a4a4-5b2d48691d7e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:03.58129+00	
+00000000-0000-0000-0000-000000000000	db3093e9-3c0e-442d-b494-0e6d1b4aa662	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:04.283748+00	
+00000000-0000-0000-0000-000000000000	c4640e36-8d14-40be-9ef5-41c0f92758d1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:04.751825+00	
+00000000-0000-0000-0000-000000000000	788f09e6-b47a-4443-9e57-8f2eb2d1f137	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:05.641262+00	
+00000000-0000-0000-0000-000000000000	ad208d9b-6643-4f8f-823b-4399c75b68cb	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:06.150577+00	
+00000000-0000-0000-0000-000000000000	6fb82184-64ab-4f05-b1f1-ff8e2f60ec68	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:06.828664+00	
+00000000-0000-0000-0000-000000000000	5f5e4c67-ffa4-4bd3-9fff-af65af43e2c7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:07.557871+00	
+00000000-0000-0000-0000-000000000000	dde58507-c361-4f4a-a3a9-76d1dc0bf4d4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:08.32336+00	
+00000000-0000-0000-0000-000000000000	7adea81c-6a20-4f4f-956d-7b4ad9e1941e	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:08.840297+00	
+00000000-0000-0000-0000-000000000000	527f9b4c-b5ff-4c73-803b-4a32d5dc60a2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:09.680313+00	
+00000000-0000-0000-0000-000000000000	f1e34348-f259-45e0-b72f-12c7fbcd8025	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:10.029791+00	
+00000000-0000-0000-0000-000000000000	0efcb684-7c72-4be4-b262-d3887173a425	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:10.758065+00	
+00000000-0000-0000-0000-000000000000	1dd3cd85-e1f7-47a0-b409-9d627f23a719	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:11.259432+00	
+00000000-0000-0000-0000-000000000000	25138992-edc4-449b-a74d-5da1f50545c0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:11.974785+00	
+00000000-0000-0000-0000-000000000000	3ddb1916-1ab7-4818-9af5-095aa7ab927a	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:12.699139+00	
+00000000-0000-0000-0000-000000000000	064d7706-7012-40c6-be87-b92ba3883c27	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:13.409875+00	
+00000000-0000-0000-0000-000000000000	b8db3db2-5e8a-4869-82b3-008dbda0ec34	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:13.893926+00	
+00000000-0000-0000-0000-000000000000	797ed5f2-2cee-4063-b415-8f2d40767654	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:14.546819+00	
+00000000-0000-0000-0000-000000000000	9d8abfd9-5ca0-462e-ad41-25fe9c572278	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:15.965577+00	
+00000000-0000-0000-0000-000000000000	6b8c455a-5dc3-4e73-a107-e1c1c26214e8	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:16.519394+00	
+00000000-0000-0000-0000-000000000000	99933537-9a2c-49db-bfa9-acc603e3343f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:17.394021+00	
+00000000-0000-0000-0000-000000000000	7f59a02f-2aea-4895-a876-7dd855560e17	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:22.235267+00	
+00000000-0000-0000-0000-000000000000	e81847d8-bad5-4c55-b054-505fb629f148	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:22.888106+00	
+00000000-0000-0000-0000-000000000000	effecf33-bf9c-4a68-8d13-d7ec11239ee0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:23.644807+00	
+00000000-0000-0000-0000-000000000000	aca4de5a-e201-400a-ac62-03d637d79a21	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:24.582644+00	
+00000000-0000-0000-0000-000000000000	14e64ad8-cc62-40c5-96a4-6aef3e58893d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:25.600486+00	
+00000000-0000-0000-0000-000000000000	36aaea36-a1c4-4caa-9661-c7f35a1b8654	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:26.352739+00	
+00000000-0000-0000-0000-000000000000	01749341-0f65-41bd-b4af-48d50480e01f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:27.50267+00	
+00000000-0000-0000-0000-000000000000	40d226b3-6bd4-4d0c-acf8-000c7a456a73	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:28.722833+00	
+00000000-0000-0000-0000-000000000000	0642534c-1ee4-47fe-88d8-e2762d250af0	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:29.973438+00	
+00000000-0000-0000-0000-000000000000	ca59ac92-88be-4203-9e94-93715b8de704	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:30.541455+00	
+00000000-0000-0000-0000-000000000000	9b0d0f26-a0eb-4b1c-b015-dbf6ca165a93	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:31.288937+00	
+00000000-0000-0000-0000-000000000000	cf1799cc-2a31-4fbd-8700-b6a25ec835be	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:31.728148+00	
+00000000-0000-0000-0000-000000000000	de5b21b3-33e2-4703-81c9-c52d615547a3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:32.499211+00	
+00000000-0000-0000-0000-000000000000	f71a51b7-9007-4280-96e6-1af88811366f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:32.907925+00	
+00000000-0000-0000-0000-000000000000	1063bee5-4511-4756-83db-ac4d93bb55de	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:33.831863+00	
+00000000-0000-0000-0000-000000000000	f9a97c8c-423a-45a1-9b52-13bb10c7ab89	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:34.286414+00	
+00000000-0000-0000-0000-000000000000	741522ae-00fe-4729-be11-9a5a23a3304b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:35.098175+00	
+00000000-0000-0000-0000-000000000000	9548a5af-66c2-4c86-b4ae-17f1269feae7	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:35.549537+00	
+00000000-0000-0000-0000-000000000000	fed4c36e-1cee-4edc-ad9a-f29d9512eea6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:36.372608+00	
+00000000-0000-0000-0000-000000000000	32e1249a-70aa-48ab-9d8e-a9b9aafabc2f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:36.89532+00	
+00000000-0000-0000-0000-000000000000	e88842fb-5c55-42ea-b4e6-b24ee88fa7da	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:37.869395+00	
+00000000-0000-0000-0000-000000000000	4d9306ea-f8dd-4c82-bbc7-390cd6964075	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:38.379623+00	
+00000000-0000-0000-0000-000000000000	c9615568-2b94-47f3-94b8-8ddd2e602f72	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:39.110584+00	
+00000000-0000-0000-0000-000000000000	71c6a321-8585-49aa-86ab-6fecff936900	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:39.577666+00	
+00000000-0000-0000-0000-000000000000	5c969cae-5733-4866-bd7a-84fd8edf1c92	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:40.262637+00	
+00000000-0000-0000-0000-000000000000	33f70e9f-5e3e-4050-908d-7f35a55902ed	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:40.583305+00	
+00000000-0000-0000-0000-000000000000	b25a9bb7-eb83-45e1-b353-f339fe9574c1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:41.215997+00	
+00000000-0000-0000-0000-000000000000	713e526d-9a2c-47be-a792-67da7794c1a5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:41.560165+00	
+00000000-0000-0000-0000-000000000000	5d72032d-4d46-47f8-bf66-9d50f50b98c1	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:42.190153+00	
+00000000-0000-0000-0000-000000000000	3f095347-b40e-495b-9510-bc8128a858b6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:42.504914+00	
+00000000-0000-0000-0000-000000000000	6603070f-e124-4edd-9e14-35653ef3c1ac	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:42.942723+00	
+00000000-0000-0000-0000-000000000000	245d182a-6ad6-47dc-b57c-dd3f443f4450	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:43.519731+00	
+00000000-0000-0000-0000-000000000000	61082878-909d-4666-8437-a1c94c1c3d60	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:43.832369+00	
+00000000-0000-0000-0000-000000000000	b7b35a86-b310-4463-9071-01e7e37420d5	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 10:23:44.509401+00	
+00000000-0000-0000-0000-000000000000	d1a20a51-1ddc-4ac7-a342-065d1c5e229c	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 11:21:58.703897+00	
+00000000-0000-0000-0000-000000000000	4eef114d-e894-4775-b6d7-fd431319eb82	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 11:21:58.705298+00	
+00000000-0000-0000-0000-000000000000	805ef732-7135-49cd-afbf-859bef64cc98	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 12:20:07.027326+00	
+00000000-0000-0000-0000-000000000000	e6f09272-09cd-459e-a1d2-a317e84e18e3	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 12:20:07.028874+00	
+00000000-0000-0000-0000-000000000000	3625fca1-1b61-45bb-bd4c-4d3242dd4aa1	{"action":"logout","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"account"}	2026-02-16 12:57:04.81934+00	
+00000000-0000-0000-0000-000000000000	9e00e402-32f9-4dae-aa08-0b579f3ddc5b	{"action":"login","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}	2026-02-16 12:57:24.085749+00	
+00000000-0000-0000-0000-000000000000	77418061-6690-4414-aa40-1406c4edc444	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 13:55:27.396362+00	
+00000000-0000-0000-0000-000000000000	89a4fc78-b371-4111-a5a8-3dea1fcce8d9	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 13:55:27.39766+00	
+00000000-0000-0000-0000-000000000000	bd553013-271b-4bf1-b50b-fa39fa7fb431	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 14:53:27.391417+00	
+00000000-0000-0000-0000-000000000000	43cc6ef0-a9cf-4c4a-8c1f-8d835c2649b6	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 14:53:27.392861+00	
+00000000-0000-0000-0000-000000000000	16c705b7-d666-4ca7-b35e-3fedf0c9aa55	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 15:51:27.386104+00	
+00000000-0000-0000-0000-000000000000	db34378f-5fa5-4d92-b727-03558a55a01d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 15:51:27.387907+00	
+00000000-0000-0000-0000-000000000000	f8e906a5-69b6-409c-8fd3-7a95e42fe676	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 16:49:27.408665+00	
+00000000-0000-0000-0000-000000000000	1aa14564-b516-40bd-8361-d97f62aa674b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 16:49:27.409791+00	
+00000000-0000-0000-0000-000000000000	fb652181-9418-45fa-ac73-5a91c8597d84	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 17:47:27.391117+00	
+00000000-0000-0000-0000-000000000000	bbf52dbb-950e-4194-ad0d-cd2b79c750f1	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 17:47:27.392273+00	
+00000000-0000-0000-0000-000000000000	baf16115-6c76-4784-acbd-0ccdc1e1203f	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 18:45:27.394775+00	
+00000000-0000-0000-0000-000000000000	5ee85af5-24c5-445a-9f9c-40cc15d09df2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 18:45:27.395972+00	
+00000000-0000-0000-0000-000000000000	5cf901b1-a3ea-4c87-9213-620017cfb446	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 19:43:27.397175+00	
+00000000-0000-0000-0000-000000000000	c77355d8-d99e-4665-8705-1e8a7422b50d	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 19:43:27.398553+00	
+00000000-0000-0000-0000-000000000000	6855ea6c-cde8-49b0-bb73-bfebe5c19d5b	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 20:41:27.393218+00	
+00000000-0000-0000-0000-000000000000	73667399-36bf-42ab-a44b-3a565e595192	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 20:41:27.395276+00	
+00000000-0000-0000-0000-000000000000	37761dc9-405b-4f42-af3b-2c62041c54c2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 21:39:27.385931+00	
+00000000-0000-0000-0000-000000000000	467ac685-7564-4d38-a5d2-61f7ba480eac	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 21:39:27.387112+00	
+00000000-0000-0000-0000-000000000000	e42d27e4-9325-4023-b836-8a08bfffe09d	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 22:37:27.399835+00	
+00000000-0000-0000-0000-000000000000	6d5ba30a-579f-4404-8f67-93070b8b870b	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 22:37:27.40116+00	
+00000000-0000-0000-0000-000000000000	08155b42-c8be-4eaf-b35e-7b78c4e8a1ba	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 23:35:27.393632+00	
+00000000-0000-0000-0000-000000000000	cd2fefd5-b632-43a4-8dfb-da7c7a9e6113	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-16 23:35:27.395194+00	
+00000000-0000-0000-0000-000000000000	197499fa-e125-465d-be37-c5b0f1f71686	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 00:33:27.392884+00	
+00000000-0000-0000-0000-000000000000	5de8b59c-463a-4448-817d-a0b0cda138ce	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 00:33:27.39418+00	
+00000000-0000-0000-0000-000000000000	c92474cf-287d-409e-afb6-a741ec2f3d10	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 01:31:27.394412+00	
+00000000-0000-0000-0000-000000000000	c043a3cc-a8c1-4b72-986d-e6ad752a493e	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 01:31:27.395843+00	
+00000000-0000-0000-0000-000000000000	2747fddf-c442-4eba-b6d0-1533204ba5e4	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 02:29:27.395744+00	
+00000000-0000-0000-0000-000000000000	67bd0d59-f63a-4020-bbc5-06126f7d58ad	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 02:29:27.397519+00	
+00000000-0000-0000-0000-000000000000	f58777dd-14c4-4b27-b109-30a374e077c2	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 03:27:27.388124+00	
+00000000-0000-0000-0000-000000000000	767fbfab-4afa-4f00-9f66-02b7a91fa4b2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 03:27:27.389563+00	
+00000000-0000-0000-0000-000000000000	860b1946-4995-43cc-85c1-26c2486241d3	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 04:25:27.395701+00	
+00000000-0000-0000-0000-000000000000	df38bb61-a91e-41e6-af96-32c8d7f1fb48	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 04:25:27.397228+00	
+00000000-0000-0000-0000-000000000000	a673926a-0f7c-4cff-a3a2-0794e15d1fa6	{"action":"token_refreshed","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 05:23:27.386802+00	
+00000000-0000-0000-0000-000000000000	4b140f2a-c007-4a99-a690-cbe6473a45d2	{"action":"token_revoked","actor_id":"eb0bdb87-6685-4dc3-a0d0-e16765c68242","actor_username":"balajid@d2.com","actor_via_sso":false,"log_type":"token"}	2026-02-17 05:23:27.388078+00	
 \.
 
 
@@ -6292,7 +9343,7 @@ COPY auth.instances (id, uuid, raw_base_config, created_at, updated_at) FROM std
 --
 
 COPY auth.mfa_amr_claims (session_id, created_at, updated_at, authentication_method, id) FROM stdin;
-4bdd8562-d581-42bd-b027-d07c38aa4175	2026-02-10 09:48:40.965922+00	2026-02-10 09:48:40.965922+00	password	45a23e7e-0872-471c-b955-e740898c0f70
+7db62eab-3142-471b-acc7-b065a34750f5	2026-02-16 12:57:24.093995+00	2026-02-16 12:57:24.093995+00	password	5f16e487-f684-44d8-9913-fd5024747559
 \.
 
 
@@ -6349,27 +9400,24 @@ COPY auth.one_time_tokens (id, user_id, token_type, token_hash, relates_to, crea
 --
 
 COPY auth.refresh_tokens (instance_id, id, token, user_id, revoked, created_at, updated_at, parent, session_id) FROM stdin;
-00000000-0000-0000-0000-000000000000	126	56zdzknn3hce	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 11:46:13.665248+00	2026-02-10 12:51:31.389373+00	bodasiihlscg	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	127	arhastyxpf5m	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 12:51:31.390234+00	2026-02-10 13:49:51.929778+00	56zdzknn3hce	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	129	3flrwmuxdeha	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 14:48:00.827105+00	2026-02-10 15:46:00.823448+00	r7hnwywrsgst	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	131	4nuskx2swynd	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 16:44:00.825644+00	2026-02-10 17:42:00.825002+00	k3hcq4q4pivd	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	133	fabzfrus7j6p	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 18:40:00.823355+00	2026-02-10 19:38:00.82517+00	oyqalz4ypak7	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	135	ea3so5dzvodw	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 20:36:00.828882+00	2026-02-10 21:34:00.823714+00	jjhlu5vm6y4d	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	137	ui4gkuwmdqgk	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 22:32:00.824575+00	2026-02-10 23:30:00.822737+00	asmrhxnkl5pl	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	139	xqsao7gwvhtg	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-11 00:28:00.825576+00	2026-02-11 01:26:00.825151+00	uocxg72w5ryh	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	141	y5rfvb6nmdzy	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-11 02:24:00.82624+00	2026-02-11 03:22:00.824508+00	2bkfhsyv2wqm	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	143	x7t3eylooelc	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-11 04:20:00.823632+00	2026-02-11 05:18:04.188475+00	2cttrxattgp4	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	124	6g7enwtpdy3j	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 09:48:40.96301+00	2026-02-10 10:47:59.24155+00	\N	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	128	r7hnwywrsgst	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 13:49:51.930734+00	2026-02-10 14:48:00.826326+00	arhastyxpf5m	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	130	k3hcq4q4pivd	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 15:46:00.824423+00	2026-02-10 16:44:00.824379+00	3flrwmuxdeha	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	132	oyqalz4ypak7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 17:42:00.825862+00	2026-02-10 18:40:00.822598+00	4nuskx2swynd	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	134	jjhlu5vm6y4d	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 19:38:00.826101+00	2026-02-10 20:36:00.828135+00	fabzfrus7j6p	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	136	asmrhxnkl5pl	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 21:34:00.824964+00	2026-02-10 22:32:00.823566+00	ea3so5dzvodw	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	138	uocxg72w5ryh	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 23:30:00.823559+00	2026-02-11 00:28:00.8245+00	ui4gkuwmdqgk	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	140	2bkfhsyv2wqm	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-11 01:26:00.826146+00	2026-02-11 02:24:00.825158+00	xqsao7gwvhtg	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	142	2cttrxattgp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-11 03:22:00.825287+00	2026-02-11 04:20:00.822807+00	y5rfvb6nmdzy	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	144	ifj6wael4ix3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	f	2026-02-11 05:18:04.189544+00	2026-02-11 05:18:04.189544+00	x7t3eylooelc	4bdd8562-d581-42bd-b027-d07c38aa4175
-00000000-0000-0000-0000-000000000000	125	bodasiihlscg	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-10 10:47:59.242586+00	2026-02-10 11:46:13.664356+00	6g7enwtpdy3j	4bdd8562-d581-42bd-b027-d07c38aa4175
+00000000-0000-0000-0000-000000000000	276	4c5wdhs4ghqo	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 13:55:27.399141+00	2026-02-16 14:53:27.393744+00	yazh4bbknmzk	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	278	dssltxxam2fv	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 15:51:27.390021+00	2026-02-16 16:49:27.410494+00	6dlwd62rzzg3	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	280	ov5y3uho5d2j	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 17:47:27.394226+00	2026-02-16 18:45:27.396811+00	kepj4pjpbywz	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	282	azwufn5nqllx	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 19:43:27.400749+00	2026-02-16 20:41:27.396251+00	n4zcnmfprd5e	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	284	dju37jx4m7u2	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 21:39:27.388654+00	2026-02-16 22:37:27.401931+00	zp74pd4jyqd6	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	286	byunrvo5zfp5	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 23:35:27.396842+00	2026-02-17 00:33:27.394872+00	4kpckhma5hed	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	288	s7b7ygi2sbsz	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-17 01:31:27.39763+00	2026-02-17 02:29:27.398641+00	sd6enrrnxdrj	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	290	tctl3tbyjoeq	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-17 03:27:27.391408+00	2026-02-17 04:25:27.398328+00	w2vrbeeknq6p	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	292	bw7kgq7uktft	eb0bdb87-6685-4dc3-a0d0-e16765c68242	f	2026-02-17 05:23:27.39022+00	2026-02-17 05:23:27.39022+00	dtzanhygj46t	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	275	yazh4bbknmzk	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 12:57:24.09075+00	2026-02-16 13:55:27.398322+00	\N	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	277	6dlwd62rzzg3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 14:53:27.394783+00	2026-02-16 15:51:27.38899+00	4c5wdhs4ghqo	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	279	kepj4pjpbywz	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 16:49:27.411349+00	2026-02-16 17:47:27.393408+00	dssltxxam2fv	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	281	n4zcnmfprd5e	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 18:45:27.39781+00	2026-02-16 19:43:27.399771+00	ov5y3uho5d2j	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	283	zp74pd4jyqd6	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 20:41:27.39734+00	2026-02-16 21:39:27.387754+00	azwufn5nqllx	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	285	4kpckhma5hed	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-16 22:37:27.403229+00	2026-02-16 23:35:27.395884+00	dju37jx4m7u2	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	287	sd6enrrnxdrj	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-17 00:33:27.395822+00	2026-02-17 01:31:27.396677+00	byunrvo5zfp5	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	289	w2vrbeeknq6p	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-17 02:29:27.399521+00	2026-02-17 03:27:27.390454+00	s7b7ygi2sbsz	7db62eab-3142-471b-acc7-b065a34750f5
+00000000-0000-0000-0000-000000000000	291	dtzanhygj46t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	t	2026-02-17 04:25:27.399331+00	2026-02-17 05:23:27.389051+00	tctl3tbyjoeq	7db62eab-3142-471b-acc7-b065a34750f5
 \.
 
 
@@ -6471,7 +9519,7 @@ COPY auth.schema_migrations (version) FROM stdin;
 --
 
 COPY auth.sessions (id, user_id, created_at, updated_at, factor_id, aal, not_after, refreshed_at, user_agent, ip, tag, oauth_client_id, refresh_token_hmac_key, refresh_token_counter) FROM stdin;
-4bdd8562-d581-42bd-b027-d07c38aa4175	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 09:48:40.959857+00	2026-02-11 05:18:04.193049+00	\N	aal1	\N	2026-02-11 05:18:04.192929	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36	10.244.0.1	\N	\N	\N	\N
+7db62eab-3142-471b-acc7-b065a34750f5	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 12:57:24.087659+00	2026-02-17 05:23:27.394772+00	\N	aal1	\N	2026-02-17 05:23:27.394646	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36	10.244.0.1	\N	\N	\N	\N
 \.
 
 
@@ -6496,8 +9544,8 @@ COPY auth.sso_providers (id, resource_id, created_at, updated_at, disabled) FROM
 --
 
 COPY auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, invited_at, confirmation_token, confirmation_sent_at, recovery_token, recovery_sent_at, email_change_token_new, email_change, email_change_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at, phone, phone_confirmed_at, phone_change, phone_change_token, phone_change_sent_at, email_change_token_current, email_change_confirm_status, banned_until, reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at, is_anonymous) FROM stdin;
-00000000-0000-0000-0000-000000000000	eb0bdb87-6685-4dc3-a0d0-e16765c68242	authenticated	authenticated	balajid@d2.com	$2a$10$yDLD2zx9Wyw2cMbxfewPVOhhUjveKvepE8Q.3FG.yoYft5gk8eo.K	2026-02-03 07:16:17.763702+00	\N		\N		\N			\N	2026-02-10 09:48:40.959735+00	{"provider": "email", "providers": ["email"]}	{"email_verified": true}	\N	2026-02-03 07:16:17.753002+00	2026-02-11 05:18:04.191029+00	\N	\N			\N		0	\N		\N	f	\N	f
 00000000-0000-0000-0000-000000000000	9fb05e6d-0103-4517-aeef-12c6d946df67	authenticated	authenticated	vrmaddala@d2.com	$2a$10$.rZpgJyeEuo5CM9W0ka8k.p93u6ncr6Rfk0yjVVNPJtleVOg.evEm	2026-02-09 11:35:13.74915+00	\N		\N		\N			\N	2026-02-10 09:20:12.96003+00	{"provider": "email", "providers": ["email"]}	{"email_verified": true}	\N	2026-02-09 11:35:13.738782+00	2026-02-10 09:20:12.965334+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	eb0bdb87-6685-4dc3-a0d0-e16765c68242	authenticated	authenticated	balajid@d2.com	$2a$10$yDLD2zx9Wyw2cMbxfewPVOhhUjveKvepE8Q.3FG.yoYft5gk8eo.K	2026-02-03 07:16:17.763702+00	\N		\N		\N			\N	2026-02-16 12:57:24.087501+00	{"provider": "email", "providers": ["email"]}	{"email_verified": true}	\N	2026-02-03 07:16:17.753002+00	2026-02-17 05:23:27.391835+00	\N	\N			\N		0	\N		\N	f	\N	f
 \.
 
 
@@ -6505,17 +9553,34 @@ COPY auth.users (instance_id, id, aud, role, email, encrypted_password, email_co
 -- Data for Name: activity_events; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.activity_events (id, project_id, event_type, entity_type, entity_id, actor_id, metadata, created_at) FROM stdin;
-1	1	task_created	task	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "ip", "task_name": "integ_cam"}	2026-02-05 14:23:21.065133+00
-2	1	note_created	task	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 05:23:22.8039+00
-3	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 06:16:32.596004+00
-4	1	version_uploaded	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"version_code": "pixel art GIF", "version_number": 1}	2026-02-06 06:19:55.84808+00
-5	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 06:46:13.407251+00
-6	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-10 07:01:57.117471+00
-7	1	version_uploaded	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"version_code": "asset", "version_number": 1}	2026-02-10 07:08:29.477243+00
-8	7	task_created	task	4	\N	{"status": "ip", "task_name": "TEST: Matchmove"}	2026-02-10 08:26:24.441322+00
-9	7	version_uploaded	shot	4	\N	{"version_code": "TEST_2560_v001", "version_number": 1}	2026-02-10 08:26:24.441322+00
-10	7	file_published	shot	4	\N	{"file_name": "Test Publish", "file_type": "render"}	2026-02-10 08:26:24.441322+00
+COPY public.activity_events (id, project_id, event_type, entity_type, entity_id, actor_id, metadata, created_at, attribute_name, old_value, new_value, field_data_type, description, session_id) FROM stdin;
+1	1	task_created	task	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "ip", "task_name": "integ_cam"}	2026-02-05 14:23:21.065133+00	\N	\N	\N	\N	\N	\N
+2	1	note_created	task	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 05:23:22.8039+00	\N	\N	\N	\N	\N	\N
+3	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 06:16:32.596004+00	\N	\N	\N	\N	\N	\N
+4	1	version_uploaded	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"version_code": "pixel art GIF", "version_number": 1}	2026-02-06 06:19:55.84808+00	\N	\N	\N	\N	\N	\N
+5	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-06 06:46:13.407251+00	\N	\N	\N	\N	\N	\N
+6	1	note_created	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": true}	2026-02-10 07:01:57.117471+00	\N	\N	\N	\N	\N	\N
+7	1	version_uploaded	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"version_code": "asset", "version_number": 1}	2026-02-10 07:08:29.477243+00	\N	\N	\N	\N	\N	\N
+8	7	task_created	task	4	\N	{"status": "ip", "task_name": "TEST: Matchmove"}	2026-02-10 08:26:24.441322+00	\N	\N	\N	\N	\N	\N
+9	7	version_uploaded	shot	4	\N	{"version_code": "TEST_2560_v001", "version_number": 1}	2026-02-10 08:26:24.441322+00	\N	\N	\N	\N	\N	\N
+10	7	file_published	shot	4	\N	{"file_name": "Test Publish", "file_type": "render"}	2026-02-10 08:26:24.441322+00	\N	\N	\N	\N	\N	\N
+11	1	file_published	shot	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"file_name": "test", "file_type": "maya"}	2026-02-11 09:59:21.018315+00	\N	\N	\N	\N	\N	\N
+12	7	file_published	shot	4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"file_name": "test", "file_type": "maya"}	2026-02-11 11:24:14.896236+00	\N	\N	\N	\N	\N	\N
+13	7	task_created	task	5	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "pending", "task_name": "modeling_mp01"}	2026-02-12 12:26:58.083411+00	\N	\N	\N	\N	\N	\N
+14	1	task_created	task	6	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "pending", "task_name": "test"}	2026-02-13 12:16:07.392634+00	\N	\N	\N	\N	\N	\N
+15	1	task_created	task	7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "pending", "task_name": "model"}	2026-02-13 13:27:58.9293+00	\N	\N	\N	\N	\N	\N
+16	1	note_created	post	44	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": false}	2026-02-16 05:43:28.548496+00	\N	\N	\N	\N	\N	\N
+17	1	note_created	post	44	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": false}	2026-02-16 06:06:43.054936+00	\N	\N	\N	\N	\N	\N
+18	1	note_created	post	45	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": false}	2026-02-16 06:10:02.9414+00	\N	\N	\N	\N	\N	\N
+19	1	note_created	post	45	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": false}	2026-02-16 10:07:47.833196+00	\N	\N	\N	\N	\N	\N
+20	1	asset_created	asset	7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 10:48:13.317213+00	\N	\N	{"cc": [], "id": 7, "code": "amazon", "keep": false, "name": "amazon", "tags": [], "notes": [], "shots": [], "tasks": [], "levels": [], "status": "Waiting to Start", "shot_id": null, "episodes": [], "outsource": false, "sequences": [], "asset_shot": [], "asset_type": "environment", "created_at": "2026-02-16T10:48:13.154016+00:00", "created_by": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "open_notes": [], "project_id": 1, "sub_assets": [], "updated_at": "2026-02-16T10:48:13.154016+00:00", "updated_by": null, "client_name": null, "description": "testing", "mocap_takes": [], "sequence_id": null, "shots_assets": [], "version_link": [], "parent_assets": [], "task_template": "Default Template", "thumbnail_url": null, "vendor_groups": [], "asset_sequence": [], "creative_brief": null, "dd_client_name": null, "publish_status": null, "linked_projects": [], "open_notes_count": 0, "sequences_assets": [], "cached_display_name": null, "image_source_entity": null, "thumbnail_blur_hash": null, "published_file_links": [], "review_versions_link": [], "filmstrip_thumbnail_url": null}	\N	Created Asset "amazon"	\N
+21	1	task_created	task	8	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"status": "pending", "task_name": "model_mp01"}	2026-02-16 10:50:04.197775+00	\N	\N	\N	\N	\N	\N
+22	1	task_created	task	8	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 10:50:04.418084+00	\N	\N	{"cc": null, "id": 8, "bid": null, "link": null, "name": "model_mp01", "tags": [], "notes": null, "pinned": false, "splits": null, "status": "pending", "target": null, "ayon_id": null, "casting": null, "ddna_id": null, "ddna_to": null, "step_id": 1, "ddna_bid": null, "due_date": null, "duration": null, "end_date": null, "implicit": false, "priority": "medium", "reviewer": ["9fb05e6d-0103-4517-aeef-12c6d946df67"], "versions": [], "workload": null, "entity_id": 7, "milestone": null, "created_at": "2026-02-16T10:50:04.197775+00:00", "created_by": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "department": "1", "open_notes": [], "project_id": 1, "sort_order": null, "start_date": null, "updated_at": "2026-02-16T10:50:04.197775+00:00", "updated_by": null, "assigned_to": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "buffer_days": null, "description": null, "entity_type": "asset", "notes_links": [], "time_logged": null, "actual_hours": null, "buffer_days2": null, "milestone_id": null, "bid_breakdown": null, "dept_end_date": null, "prod_comments": null, "sibling_tasks": [], "task_template": null, "template_task": null, "thumbnail_url": null, "ayon_assignees": ["eb0bdb87-6685-4dc3-a0d0-e16765c68242"], "inventory_date": null, "estimated_hours": null, "gantt_bar_color": null, "split_durations": null, "task_complexity": null, "ayon_sync_status": null, "open_notes_count": 0, "task_template_id": null, "time_logged_of_bid": null, "cached_display_name": null, "image_source_entity": null, "pipeline_step_color": null, "proposed_start_date": null, "thumbnail_blur_hash": null, "upstream_dependency": [], "dependency_violation": null, "review_versions_task": [], "downstream_dependency": null, "publish_version_number": null, "filmstrip_thumbnail_url": null, "workload_assignee_count": null, "schedule_change_comments": null, "time_logged_over_under_bid": null}	\N	Created Task "model_mp01"	\N
+23	1	note_created	post	45	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"note_type": "comment", "has_subject": false}	2026-02-16 11:45:21.986715+00	\N	\N	\N	\N	\N	\N
+24	1	status_changed	task	8	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 13:21:14.941389+00	status	"\\"pending\\""	"\\"inactive\\""	string	Changed Status from "pending" to "inactive"	1771248074936-amkbi8x
+25	1	status_changed	task	7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 13:21:15.425025+00	status	"\\"pending\\""	"\\"inactive\\""	string	Changed Status from "pending" to "inactive"	1771248075421-7qi8bb9
+26	1	status_changed	task	6	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 13:21:16.290688+00	status	"\\"pending\\""	"\\"inactive\\""	string	Changed Status from "pending" to "inactive"	1771248076285-5q0u0k9
+27	1	status_changed	task	3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	2026-02-16 13:21:16.810407+00	status	"\\"ip\\""	"\\"inactive\\""	string	Changed Status from "ip" to "inactive"	1771248076806-js0khl9
 \.
 
 
@@ -6529,12 +9594,25 @@ balajid@d2.com	t	2026-02-03 07:31:34.522429+00
 
 
 --
+-- Data for Name: annotations; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.annotations (id, post_media_id, version_id, author_id, frame_number, timecode, annotation_data, annotation_text, status, created_at, updated_at) FROM stdin;
+19	12	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	25	\N	{"x": 810, "y": 173.31736526946108, "type": "rectangle", "color": "#ef4444", "width": 355.20000000000005, "height": 298.7784431137725, "strokeWidth": 3}	rrrr	active	2026-02-16 06:10:02.609024+00	2026-02-16 06:10:02.609024+00
+20	12	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	21	\N	{"x": 468, "y": 168.1437125748503, "type": "rectangle", "color": "#ef4444", "width": 195.60000000000002, "height": 302.65868263473055, "strokeWidth": 3}	ggg	active	2026-02-16 10:07:47.477012+00	2026-02-16 10:07:47.477012+00
+21	12	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	20	\N	{"x": 859.1999999999999, "y": 346.63473053892216, "type": "rectangle", "color": "#ef4444", "width": 111.60000000000002, "height": 253.5089820359281, "strokeWidth": 3}	hceck	active	2026-02-16 11:45:20.50641+00	2026-02-16 11:45:20.50641+00
+22	12	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	20	\N	{"type": "freehand", "color": "#ef4444", "points": [[735.6, 274.8502994011976], [735.6, 286.49101796407183], [735.6, 302.01197604790417], [735.6, 311.065868263473], [735.6, 339.52095808383234], [727.1999999999999, 406.7784431137724], [717.6, 466.2754491017964], [715.1999999999999, 508.9580838323353], [711.6, 545.1736526946107], [708, 571.0419161676647], [708, 578.8023952095808], [708, 590.443113772455], [708, 605.9640718562874], [708, 611.1377245508982]], "strokeWidth": 3}	hceck	active	2026-02-16 11:45:21.232668+00	2026-02-16 11:45:21.232668+00
+\.
+
+
+--
 -- Data for Name: assets; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.assets (id, project_id, code, name, description, asset_type, status, thumbnail_url, created_by, created_at, updated_at, client_name, dd_client_name, keep, outsource, sequence_id, shot_id, shots, vendor_groups, sub_assets, tags, task_template, parent_assets, sequences, asset_sequence, asset_shot, cached_display_name, cc, creative_brief, episodes, filmstrip_thumbnail_url, image_source_entity, levels, linked_projects, mocap_takes, notes, open_notes, open_notes_count, published_file_links, review_versions_link, sequences_assets, shots_assets, tasks, thumbnail_blur_hash, updated_by, version_link) FROM stdin;
-5	1	tree	tree	test	prop	pending	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-09 08:43:44.496692+00	2026-02-10 08:17:04.405557+00			f	f	\N	\N	{}	{gh}	{}	{}	\N	{}	{}	{}	{}	\N	{}	\N	{}	\N	\N	{}	{}	{}	{}	{}	0	{}	{}	{}	{}	{}	\N	\N	{}
-6	7	prop_demo	prop_demo	Test asset	prop	pending	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	Client A	DD Client A	t	f	5	4	{2560}	{"Vendor Group A"}	{sub_asset_01}	{test,asset}	Default Template	{parent_asset_01}	{RND}	{}	{}	\N	{}	\N	{}	\N	\N	{}	{}	{}	{}	{}	0	{}	{}	{}	{}	{}	\N	\N	{}
+COPY public.assets (id, project_id, code, name, description, asset_type, status, thumbnail_url, created_by, created_at, updated_at, client_name, dd_client_name, keep, outsource, sequence_id, shot_id, shots, vendor_groups, sub_assets, tags, task_template, parent_assets, sequences, asset_sequence, asset_shot, cached_display_name, cc, creative_brief, episodes, filmstrip_thumbnail_url, image_source_entity, levels, linked_projects, mocap_takes, notes, open_notes, open_notes_count, published_file_links, review_versions_link, sequences_assets, shots_assets, tasks, thumbnail_blur_hash, updated_by, version_link, publish_status) FROM stdin;
+5	1	tree	tree	test	prop	pending	data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUEBAQEAwUEBAQGBQUGCA0ICAcHCBALDAkNExAUExIQEhIUFx0ZFBYcFhISGiMaHB4fISEhFBkkJyQgJh0gISD/2wBDAQUGBggHCA8ICA8gFRIVICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCACKAQADASIAAhEBAxEB/8QAGwABAAEFAQAAAAAAAAAAAAAAAAcBAwQFBgL/xABHEAABAwIDAgsGAQgIBwAAAAABAAIDBBEFEiETMRQVQVFSU3GRkpPRBiIyVWHSgQcWIzVCobHBFyQ0VHKy4fAlM0Njc4Px/8QAGAEBAQEBAQAAAAAAAAAAAAAAAAEEAgP/xAAkEQEAAgICAQQCAwAAAAAAAAAAAQIREwMUBBJBUWExcULR8P/aAAwDAQACEQMRAD8AmjCqRs2I4jhlH7QcMqy7avikqXONOHEkBn6LQbxy2tZbh+D4hS0oZPVQtaSBtXzm4sL6nJYbjv5+xd86GISFoopXAG2YPFjoDf4r/T8Oxe3U0Ld1M93uk6O5uTfvP8lojyLxGIZ48ekRiEcspZW1I/4hRuLm3DXVJyuFzqDk1tYjQ9u9e+LKujleJ66lzOtZs1VbLvtb3Poe5SE2nhLmg0r2g3uS74e3VVdTQte1opnvBBJcHaC3Ibm+qvZuuiqOJMJq6eZ4mxOCJ5u7LJVWsCLaAs3C1+26vuoKqSFkjamj2b3ENfHUEgkAki+T6HuUhNpKctBMRaSNxcbj96rwOn6s+Ip2Lrpqjl1FURRMD6ukY2dpcyR1Q4CwtuJZa+o/3dVqMJrmRGmfWU9O97bh/CCHWBF7Est/97FIvA6fqz4inA6fqz4inZumiqO3YdVRl0ElVSNfmDPeqSCC65AHub7buxY89JLTkNmxKlizRl7XuqDbK5wAcDktoTp/NSZwOn6s+IpwOn6s+Ip2bmiqOmYbWUsUbZKqmkHvNzyVBNy34iSGWFrG6vPoqtjM7pKINByl23cQDa+vuaaa6ru34dSSG7mvH+GVzf4FVZh9LHfKx5v0pHO/iVezZNFUfGGRri11Xh7SDa5qSBfmvl36blktwrEXtzM4I4XIuJnHUGxHwc67vgdP1Z8RTgdP1Z8RTs3XRVw3E+KdGl8532JxPinRpfOd9i7ngdP1Z8RTgdP1Z8RU7NzRVw3E+KdGl8532JxPinRpfOd9i7ngdP1Z8RTgdP1Z8RTs3NFXDcT4p0aXznfYnE+KdGl8532LueB0/VnxFOB0/VnxFOzc0VcNxPinRpfOd9icT4p0aXznfYu54HT9WfEU4HT9WfEU7NzRVw3E+KdGl8532JxPinRpfOd9i7ngdP1Z8RTgdP1Z8RTs3NFXDcT4p0aXznfYkWD4nHK9+WndntoZ3WHZ7mi7ngdP1Z8RTgdP1Z8RTs3NNXEcUYnlc39Dq4G+3Nxu0/5e71V7gGJf3ek8532LseB0/VnxFWpKYNzbOma/dlvKRfnvzfvXO+zrVVyRw/EiCBT0f4zO+xamb2Trp8ZpcUkkbtKVjmRxCre2L3t7i0N94201uBzX1XZ47NPhdC2fD8EmxSQvymKKTKQOdcxB7S+1M2F1VR/RrWNq4m3jpX1rW7X3gNHkWGhJ/D8V71vy+n1xjH++2e2qL+ic5/U/0wzQVMbTA7EKUSMeXuzVPv2BzEEZN1tN27vWYKCtmhbFG+gJa/NmZOcxvbQ+7u9V2dTE6OJppcPdPI5+WzpQ1rRYnM433aW0BNyNLXIyOCU97bI9uY+q8Z57z+XvprH4cnjU5GM1LeF4jH7jmAQ1eza3M2PUNy6EZNP8b999L9L7SOpqVkBgknyC20mmzPPacuqwcd/XlT2j/KF7waCGaaR0rA8sALb7lnezZu9p5mNa5+GlrXfCS8gHs0Xn863f3EeZ/otzTtp6imdBK1kgJ1YdVw9ZG2KvqImCzGSOaBzAFB2+FYicSpXzmLZZX5LZr8gP81kwSzSNO2pnQPGhu4OB7CDu7QD9FqPZf9Vy/wDmP+ULMpaaWmeHR0UcZNw+1Q4gC9wQCLX7u0oNitc/EZYnMY+j2ji54dsZ2EMAvlJzFpubDQDQnfYXWxWk4hhmqah8+0YDJdhbIDmBAJJGXTW4troAb62AbbhNP18fiCcJp+vj8QWr/Nyh62fxD0T83KHrZ/EPRBtOE0/Xx+IL02aF7srJWOPMHArU/m5Q9bP4h6LIpMHpaKoE8UkrnAEWcRb+CDYoiICIiAiIgIiICIiAiIgIiICIiAiIgIiIORxfC8QqMWnmhpnPjcRYgjXQLGhw7HKZxdBRk30Ic4WK699W2OZ8RgnJaL3bESD2Efw+nYrj5WsiEmV7gbaNaSe7eg5VzMeyjZ4YGP6W1v8AyWE7B8Xke6SSkeXuN3HMNSu0NSwMa/ZzEOdlH6J1+0i2g+quOkDZGsLHHMCcwFwLch/3yINX7P0tRSUEkdTEY3GQuAPNYLbq3LKYwwiKSQOdlOQD3fqfp2X3rxFVxSzCJrJg4xiW74XtFjewuRa+nw7xyjVBfRWG1IdLPGYZmbJ1sxjNn+6Ddtt4963aDzK4+QMfG0se7ObXa24GhOvNuQe0VqKcStDtnKy5tZ7CDuv/AKdqoahrZ3QmOW4bmzCMlpHaOXXcgvIrU84gjc8xySWaXWjYXE25NOVe2Pa/Nlv7pym4I1/FB6REQEREBERAREQEREBERAREQEREBERAREQc3hVbi1Kyem9p8TwvhvCXSRNpXltqb9nMHC+bQ3tp9VzVRT/lLqa+qqMN9paB2HyVD302R8ekOY5W/wBndqBbW5/mpHyM6De5MjOg3uXvxc2r+MT+4yzc/BHNiJtMfqcItqqT8rEZaW+1WHQNLnD9K6M3v8IH9WGo5ef6LuYcTHFVIX43h+3dGxrpXAPbJIRqRZzb3sbAWW5yM6De5MjOg3uV5ueeWIj0xGPiMJweNHDMzFrTn5nK0+U3Zs5GWv7+YHUfT6rzDLIG2qJonuAGsbC0HQXNiTbW+lzyaq/kZ0G9yZGdBvcs7UxW1JjqGsqK2ntJcMYIy1xNydCXG+luTkJ5bC1FiVNPX7KDFKOUZGybFmsmU3s64duOljbkWfkZ0G9yZGdBvcgpto+krclbSQ5dtURx5iA3O61zcCw/EjvV3IzoN7kyM6De5BZZX0UkzoY6qJ8rBdzGuBcBu1Cu7aPpKuRnQb3JkZ0G9yCm2j6SptoumvWRnQb3JkZ0G9yDDOM4SKdtQcSphC8XbJtW5XC9tDu3kD8VfirKWduaGoZI3fdhuP3K7kZ0G9yZGdBvcgpto+km2j6SrkZ0G9yZGdBvcgpto+km2j6SrkZ0G9yZGdBvcgszVtLTRGWedscbdS52gCxePsGzws4zp884vE3OLyaX93n010WwMcZFjG09oVNjD1TPCF1GPdzPq9mO7EqFgu6pa0XAubhe6GupMTw6mxGgnbPSVUbZoZW7nscLgjtBV3Yw9UzwhUiggghbDBCyKNgs1jGhoaPoApOPYjPu9uz6Btu08n4cqsQtrGQjhM0c0otcwxFgOgvoXHlud/Nv5b+VvMEyt5go6Y5fV3GWMAZje4BuLG37W+9v3r22Sb9qA/gR6q7lbzBMreYIPO0d1L+8eqbR3Uv7x6r1lbzBMreYIMeeOrkkp309S2BrXEysfHn2jcpsAQRlIdlN9dARbUEXYxML7WRjtT8LC3Tk5SveVvMEyt5ggqiIgIiICIiAiIgIiICIiDAkoKt80skeM1kQebiMMhLWe6Rpdl/rqTqByXBuS0k8joCzE6mERkZgxsZ2uo+K7Dvtb3bbz9FlophctdLSTRTcMlx6rip4o3Z43CER7j75OzuLb94GmoWDDiuDxVUkz/bCGZjgAIX1FPkbY7xZoOu7UlbXEqGHFMJrMMqHPbDVwvge5hAcGuaWki99bFR8PyLey4Y1vD8SIaQRcwHd/wCrVbOGnBaJnmtMT9QweRfyaTEcFItH3OHXMxbBm05i/O2BziSdo6ogzC57Ladi2TKaobNtOMp3sLg7I5sdgLbgQ0G3LylR878ivsu/4sRxQ6W+KH6/9r6/w5gpLaA1oaNwFlzz04K402mfnMYdeNfyL530ivxicsOooqmYuMeL1dNmtYRthOWxO7Mw778vMPrdT0VRBViZ+LVdRGI8mwlbFkvp792sDr6c9tTpuWaizNgiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiiU4tit/1nV+c71VON8V+Z1fnO9UEtoo1ocSxF8Di/EKlxzbzK48g+qyRiFfb+3VHmu9UEgoo8OI4hsr8OqL5etd6r0cQr7t/r1R8Q/6ruftVTKQUUeYjiOIMpMzK6oacw1Erh/NafjfFfmdX5zvVWYxKVt6oyltFEnG+K/M6vzneqcb4r8zq/Od6rl0ltFEnG+K/M6vzneqcb4r8zq/Od6oJbRRJxvivzOr853qnG+K/M6vzneqCW0UScb4r8zq/Od6pxvivzOr853qgltFEnG+K/M6vzneqcb4r8zq/Od6oJbRRJxvivzOr853qnG+K/M6vzneqCW0UScb4r8zq/Od6pxvivzOr853qgltFEnG+K/M6vzneqcb4r8zq/Od6oJbRRJxvivzOr853qnG+K/M6vzneqCW0UScb4r8zq/Od6pxvivzOr853qgltFEnG+K/M6vzneqcb4r8zq/Od6oJazsDwwvGY7hfUqqhyasq6knhFVNNbT9I8u005+wdyt01TUw10s0VRLHKWi72vIcdXcv4q4TL/2Q==	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-09 08:43:44.496692+00	2026-02-13 12:22:36.835552+00	\N	\N	f	f	4	\N	{RND2600}	{gh}	{}	{}	\N	{}	{}	{}	{}	\N	{}	\N	{}		\N	{}	{}	{}	{}	{}	0	{}	{}	{}	{}	{}	\N	\N	{}	\N
+7	1	amazon	amazon	testing	environment	Waiting to Start	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 10:48:13.154016+00	2026-02-16 10:48:13.154016+00	\N	\N	f	f	\N	\N	{}	{}	{}	{}	Default Template	{}	{}	{}	{}	\N	{}	\N	{}	\N	\N	{}	{}	{}	{}	{}	0	{}	{}	{}	{}	{}	\N	\N	{}	\N
+6	7	prop_demo	prop_demo	Test asset	prop	pending	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-12 12:23:58.420136+00	Client A	DD Client A	t	f	5	4	{RND2560}	{"Vendor Group A"}	{sub_asset_01}	{main}	Default Template	{parent_asset_01}	{RND}	{}	{}		{}		{}	\N	\N	{}	{}	{}	{}	{gvbfgg}	0	{}	{}	{}	{}	{}	\N	\N	{}	\N
 \.
 
 
@@ -6545,6 +9623,9 @@ COPY public.assets (id, project_id, code, name, description, asset_type, status,
 COPY public.attachments (id, note_id, file_name, file_size, file_type, storage_path, thumbnail_url, created_by, created_at) FROM stdin;
 1	10	Pixel Art GIF.gif	361422	image/gif	10/1770360373768_Pixel Art GIF.gif	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 06:46:13.887874+00
 2	13	asset_activity.png	70724	image/png	13/1770706917495_asset_activity.png	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:01:57.602979+00
+3	33	frame-25.png	1152227	image/png	33/1771222203205_frame-25.png	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 06:10:03.507555+00
+4	34	frame-21.png	1152676	image/png	34/1771236468094_frame-21.png	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 10:07:48.363012+00
+5	35	frame-20.png	1152622	image/png	35/1771242322443_frame-20.png	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 11:45:23.480968+00
 \.
 
 
@@ -6555,7 +9636,7 @@ COPY public.attachments (id, note_id, file_name, file_size, file_type, storage_p
 COPY public.conversation_members (id, conversation_id, user_id, role, last_read_at, joined_at) FROM stdin;
 3	2	eb0bdb87-6685-4dc3-a0d0-e16765c68242	owner	\N	2026-02-10 07:00:29.418498+00
 2	1	9fb05e6d-0103-4517-aeef-12c6d946df67	member	2026-02-10 09:47:31.895+00	2026-02-09 11:39:50.39236+00
-1	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	owner	2026-02-10 10:07:05.925+00	2026-02-09 11:39:50.39236+00
+1	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	owner	2026-02-16 12:24:21.628+00	2026-02-09 11:39:50.39236+00
 \.
 
 
@@ -6565,7 +9646,7 @@ COPY public.conversation_members (id, conversation_id, user_id, role, last_read_
 
 COPY public.conversations (id, type, name, project_id, created_by, created_at, updated_at) FROM stdin;
 2	channel	test	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:00:29.390746+00	2026-02-10 07:00:29.390746+00
-1	dm	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-09 11:39:50.374236+00	2026-02-10 09:13:22.94449+00
+1	dm	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-09 11:39:50.374236+00	2026-02-16 11:45:55.133798+00
 \.
 
 
@@ -6589,20 +9670,20 @@ COPY public.delivery_items (delivery_id, entity_type, entity_id, notes, created_
 -- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.departments (id, code, name, description, color, created_at) FROM stdin;
-1	modeling	Modeling	3D modeling and sculpting	#3B82F6	2026-02-05 10:29:30.062559+00
-2	rigging	Rigging	Character and asset rigging	#EC4899	2026-02-05 10:29:30.062559+00
-3	animation	Animation	Character animation	#EF4444	2026-02-05 10:29:30.062559+00
-4	lighting	Lighting	Lighting and rendering	#F59E0B	2026-02-05 10:29:30.062559+00
-5	fx	FX	Visual effects and simulations	#6366F1	2026-02-05 10:29:30.062559+00
-6	comp	Compositing	Compositing and finishing	#14B8A6	2026-02-05 10:29:30.062559+00
-7	concept	Concept Art	Concept and design	#8B5CF6	2026-02-05 10:29:30.062559+00
-8	texture	Texturing	Texture and lookdev	#10B981	2026-02-05 10:29:30.062559+00
-9	layout	Layout	Layout and previz	#6B7280	2026-02-05 10:29:30.062559+00
-10	editorial	Editorial	Editorial and conform	#F43F5E	2026-02-05 10:29:30.062559+00
-11	production	Production	Production management	#6366F1	2026-02-05 10:29:30.062559+00
-12	tech	Technical	Technical direction and pipeline	#64748B	2026-02-05 10:29:30.062559+00
-25	pipeline	Pipeline	\N	\N	2026-02-09 11:34:57.815672+00
+COPY public.departments (id, code, name, description, color, created_at, department_type, status, "order", tags, people, thumbnail_url, image_source_entity, created_by, updated_by, updated_at) FROM stdin;
+1	modeling	Modeling	3D modeling and sculpting	#3B82F6	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+2	rigging	Rigging	Character and asset rigging	#EC4899	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+4	lighting	Lighting	Lighting and rendering	#F59E0B	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+5	fx	FX	Visual effects and simulations	#6366F1	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+6	comp	Compositing	Compositing and finishing	#14B8A6	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+7	concept	Concept Art	Concept and design	#8B5CF6	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+8	texture	Texturing	Texture and lookdev	#10B981	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+9	layout	Layout	Layout and previz	#6B7280	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+10	editorial	Editorial	Editorial and conform	#F43F5E	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+11	production	Production	Production management	#6366F1	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+12	tech	Technical	Technical direction and pipeline	#64748B	2026-02-05 10:29:30.062559+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+25	pipeline	Pipeline	\N	#a23f3f	2026-02-09 11:34:57.815672+00	\N	Active	\N	{}	{}	\N	\N	\N	\N	2026-02-11 13:26:28.635803+00
+3	animations	Animation	Character animation	#EF4444	2026-02-05 10:29:30.062559+00	\N	Active	0	{main}	{}	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 11:03:51.070794+00
 \.
 
 
@@ -6638,6 +9719,8 @@ COPY public.messages (id, conversation_id, author_id, content, created_at, updat
 6	2	eb0bdb87-6685-4dc3-a0d0-e16765c68242	hey	2026-02-10 07:00:35.838118+00	2026-02-10 07:00:35.838118+00
 7	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	hai	2026-02-10 09:13:22.921668+00	2026-02-10 09:13:22.921668+00
 2	1	9fb05e6d-0103-4517-aeef-12c6d946df67	hai there	2026-02-09 11:42:44.886004+00	2026-02-10 09:42:35.080171+00
+10	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	http://localhost:3000/pulse/post/45	2026-02-16 10:08:12.389268+00	2026-02-16 10:08:12.389268+00
+11	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	http://localhost:3000/pulse/post/45	2026-02-16 11:45:55.116124+00	2026-02-16 11:45:55.116124+00
 \.
 
 
@@ -6663,8 +9746,23 @@ COPY public.note_mentions (note_id, user_id, mention_type, read_at, created_at) 
 
 COPY public.notes (id, project_id, entity_type, entity_id, parent_note_id, author_id, subject, content, note_type, read_by_default, created_at, updated_at, created_by, status, task_id, attachments, ayon_id, ayon_sync_status, cached_display_name, cc, client_approved, client_note, client_note_id, composition, filmstrip_thumbnail_url, image_source_entity, links, notes_app_context_entity, otio_playable, playlist, publish_status, read_unread, replies, reply_content, suppress_email_notification, tags, tasks, thumbnail_url, thumbnail_blur_hash, f_to, updated_by) FROM stdin;
 9	1	shot	3	\N	\N	test	testing	comment	t	2026-02-06 06:16:32.596004+00	2026-02-06 06:16:32.596004+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	3	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
-10	1	shot	3	\N	\N	test	testing	comment	t	2026-02-06 06:46:13.407251+00	2026-02-06 06:46:13.407251+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	3	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
-13	1	shot	3	\N	\N	test	tesing	comment	t	2026-02-10 07:01:57.117471+00	2026-02-10 07:01:57.117471+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	3	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+10	1	shot	3	\N	\N	test	testing	comment	t	2026-02-06 06:46:13.407251+00	2026-02-16 05:33:51.759694+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	3	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+13	1	shot	3	\N	\N	test	tesing	comment	t	2026-02-10 07:01:57.117471+00	2026-02-16 05:35:13.487121+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	3	{"[object Object]"}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+31	1	post	44	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	[Frame 26] ok	comment	t	2026-02-16 05:43:28.548496+00	2026-02-16 05:43:28.548496+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	\N	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+32	1	post	44	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	[Frame 27] '''	comment	t	2026-02-16 06:06:43.054936+00	2026-02-16 06:06:43.054936+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	\N	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+33	1	post	45	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	[Frame 25] rrrr	comment	t	2026-02-16 06:10:02.9414+00	2026-02-16 06:10:02.9414+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	\N	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+34	1	post	45	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	[Frame 21] ggg	comment	t	2026-02-16 10:07:47.833196+00	2026-02-16 10:07:47.833196+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	\N	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+35	1	post	45	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	[Frame 20] hceck	comment	t	2026-02-16 11:45:21.986715+00	2026-02-16 11:45:21.986715+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	open	\N	{}	\N	\N	\N	{}	f	f	\N	\N	\N	\N	{}	\N	\N	\N	\N	\N	{}	\N	f	{}	{}	\N	\N	{}	\N
+\.
+
+
+--
+-- Data for Name: notifications; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.notifications (id, user_id, project_id, type, title, body, entity_type, entity_id, actor_id, metadata, read_at, created_at) FROM stdin;
+1	9fb05e6d-0103-4517-aeef-12c6d946df67	1	status_changed	Task "model" status changed from "pending" to "inactive"	\N	task	7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"task_name": "model", "new_status": "inactive", "old_status": "pending"}	\N	2026-02-16 13:21:15.363482+00
+2	9fb05e6d-0103-4517-aeef-12c6d946df67	1	status_changed	Task "test" status changed from "pending" to "inactive"	\N	task	6	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"task_name": "test", "new_status": "inactive", "old_status": "pending"}	\N	2026-02-16 13:21:16.244404+00
 \.
 
 
@@ -6701,12 +9799,82 @@ COPY public.playlists (id, project_id, code, name, description, locked, created_
 
 
 --
+-- Data for Name: post_media; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_media (id, post_id, storage_path, file_name, file_size, mime_type, media_type, thumbnail_url, width, height, duration_seconds, frame_count, fps, sort_order, created_at) FROM stdin;
+12	45	45/1771222188950-0.mp4	file_example_MP4_1920_18MG.mp4	17839845	video/mp4	video	\N	\N	\N	\N	\N	\N	0	2026-02-16 06:09:49.507527+00
+\.
+
+
+--
+-- Data for Name: post_projects; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_projects (id, post_id, project_id, created_at) FROM stdin;
+11	45	1	2026-02-16 06:09:48.811206+00
+\.
+
+
+--
+-- Data for Name: post_reactions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_reactions (id, user_id, post_id, comment_id, reaction_type, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: post_sequences; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_sequences (id, post_id, sequence_id, created_at) FROM stdin;
+8	45	4	2026-02-16 06:09:48.826973+00
+\.
+
+
+--
+-- Data for Name: post_shots; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_shots (id, post_id, shot_id, created_at) FROM stdin;
+7	45	5	2026-02-16 06:09:48.845092+00
+\.
+
+
+--
+-- Data for Name: post_tasks; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_tasks (id, post_id, task_id, created_at) FROM stdin;
+10	45	6	2026-02-16 06:09:48.860654+00
+\.
+
+
+--
+-- Data for Name: post_users; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.post_users (id, post_id, user_id, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.posts (id, author_id, project_id, content, content_html, media_count, comment_count, reaction_count, visibility, created_at, updated_at, project_count, sequence_count, shot_count, task_count, mentioned_user_count) FROM stdin;
+45	eb0bdb87-6685-4dc3-a0d0-e16765c68242	\N	Shared media	\N	1	3	0	project	2026-02-16 06:09:48.788352+00	2026-02-16 11:45:22.042538+00	1	1	1	1	0
+\.
+
+
+--
 -- Data for Name: profiles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.profiles (id, email, display_name, firstname, lastname, avatar_url, role, department_id, active, login_enabled, created_at, updated_at, full_name) FROM stdin;
-eb0bdb87-6685-4dc3-a0d0-e16765c68242	balajid@d2.com	Balaji D	\N	\N	\N	alpha	\N	t	t	2026-02-05 10:37:31.609092+00	2026-02-05 10:37:31.609092+00	\N
-9fb05e6d-0103-4517-aeef-12c6d946df67	vrmaddala@d2.com	vrmaddala	venkateswar rao	Maddala	\N	alpha	25	t	t	2026-02-09 11:35:13.775738+00	2026-02-09 11:35:13.775738+00	\N
+COPY public.profiles (id, email, display_name, firstname, lastname, avatar_url, role, department_id, active, login_enabled, created_at, updated_at, full_name, login, password_set, password_strength, projects, tags, status, created_by, updated_by) FROM stdin;
+9fb05e6d-0103-4517-aeef-12c6d946df67	vrmaddala@d2.com	vrmaddala	venkateswar rao	Maddala	\N	alpha	10	t	t	2026-02-09 11:35:13.775738+00	2026-02-11 13:29:56.113172+00	\N	vrmaddala@d2.com	f	\N	{}	{}	Active	\N	\N
+eb0bdb87-6685-4dc3-a0d0-e16765c68242	balajid@d2.com	Balaji D	\N	\N	data:image/jpeg;base64,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	alpha	10	t	t	2026-02-05 10:37:31.609092+00	2026-02-12 07:12:20.851944+00	\N	balajid@d2.com	f	\N	{}	{}	Active	\N	\N
 \.
 
 
@@ -6715,7 +9883,10 @@ eb0bdb87-6685-4dc3-a0d0-e16765c68242	balajid@d2.com	Balaji D	\N	\N	\N	alpha	\N	t
 --
 
 COPY public.project_members (project_id, user_id, role, created_at) FROM stdin;
-1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	lead	2026-02-06 05:23:18.789398+00
+1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	lead	2026-02-16 10:10:32.479212+00
+3	eb0bdb87-6685-4dc3-a0d0-e16765c68242	member	2026-02-16 10:10:32.479212+00
+4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	member	2026-02-16 10:10:32.479212+00
+7	eb0bdb87-6685-4dc3-a0d0-e16765c68242	member	2026-02-16 10:10:32.479212+00
 \.
 
 
@@ -6729,8 +9900,8 @@ COPY public.projects (id, code, name, description, status, color, start_date, en
 3	PRO1	PRO1	\N	active	\N	\N	\N	\N	f	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 12:14:05.764448+00	2026-02-06 12:14:05.764448+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
 4	PRO2	PRO2	\N	active	\N	\N	\N	\N	f	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 12:14:15.46625+00	2026-02-06 12:14:15.46625+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
 5	PRO3	PRO3	\N	active	\N	\N	\N	\N	f	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 12:14:23.605916+00	2026-02-06 12:14:23.605916+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
-6	PRO6	PRO6	\N	active	\N	\N	\N	\N	f	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 12:14:34.053769+00	2026-02-06 12:14:34.053769+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
-7	JIA_TEST	JIA Test	Seed data for UI checks	active	\N	\N	\N	\N	f	f	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
+7	JIA_TEST	JIA Test	Seed data for UI checks	inactive	\N	\N	\N	data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfoAAADoCAIAAACIHrE6AAAAA3NCSVQICAjb4U/gAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAgAElEQVR4nOy9d5xcxZU/ek5V3dthch6NRjmHkVBOBAVQAGEhkYRAYAz2j/XitY39Nnh3f7tv93ntn/e9tRfv2vvzYhvb2GQQYKLJCEko5yyhMBppcurp7ntvVZ3fH6e71TMascIg4bee87mf/szcvl23wqnvCXXqFI4fOhg+WyJAwAt7kC7swYtXAbjQClxwTT9moy78UbrwQj9OsRfj7R+j1M+YVS6ULAAAEpGwUhkrZSiCbphAAiKBAIRPq4uICDHV1EQiQUQAEIlEMjf/S5JSRiIR13UxTQBgrf1UqvfpEgKlP5AAKd2JmLoIiMedLtrw9xi1Hm8RWX//IXag+qwr0Ed91EefJRGREEJKSVkkhPivf3nJCc9+YDbUpuH+7EMXQYM5f416//ezVDfOR38QcE8XSRn8TCtwsfTb/z8V++nTZ84q/y3JdV02CwCAtftso+EPh+gs4NO5xnbW/xev5h9d8h+iRp9NfwBw/5kz1cWowGfeqP+W1NerfZRFfezwcekP0WTroz7qoz7qo0+d+uC+j/qoj/roj4L64L6P+qiP+uiPgvrgvo/6qI/66I+C+uC+j/qoj/roj4LOwr21VkqptUZEa20mMOtik7VWKWWMCYIAAPjtfwhBYFwH3ngihLDWGmPOfUwIwZVHRMdxfN9HxI/oPQ5xk1Jyq3stkx8zxvQIj8v+VmttjPnk8dH8CiLKdPtHb7HRWltrhRAcnX3J+ATSYwEAxhhmVA4Sv2QVAIBMZHrmDo8gMwlzLyCStdZarQ0C8Bhd4nr2UR+dS6lATJ5Fvu+HQiHP8xzHgUvFoIiYSCRycnKSySQAMAISkZTyErz9fMRCSAjh+z4DtFIKeusTxtxQKBSPx33fj0QiWutey8wAvbU2mUwiouu6juN4nnfuw5mdL4zCDDGe53GtpJSO4xBRMplUSn1y6cjAzcjFLT0X9LkmoVAIAIIgCILAcZxLuR/H932tdU5OjhBCCJFIJKSU3EuXrA7ZxO/lCrD4YcRHBKFkoH3XjfjGBIYkSqncPwAdpo/+qEmWFxWyLp+BM6UUz/xLM5MZ/ljSsHmRk5MDn7U2JIQIgoCR1HEcKWXG+Dj3YUQ0xriuq5TyfR8APkJWMYzyw9zwc/uZ2y6EYFU68xbXdTMqpNY6M2qfsKX8uow1w3bMubXKSB0WxuFwmOtwyRA/FAoVFhY2NzfztqBLrBBkeokpw58sfbn3pJSsIlhtcnJzgsBookgk1wmFCRCFTG3//FRxP8OTGT3DcZwL1wAQMRKJnFvaH4KF3UefLsnyosKMs4Jvaa0z7HsJiJ1I7AYxxkgpMwr1palAr8RvTyaTOTk5XV1dDPq9SiDGO4ZIx3GCIMjeo3husRmHCffz+VrKMlgIwRo0a9b8K0hrlNx1n7Cl1lounMtnxRnOL9hYPLMyCx8p2D51YpNCCMGSkgXPJeaTzAhmk+d5zMNBEBhjIpGQFDLpJYgECaENGQLphgBFH9z30WdIAgCstTyLeP6EQiFE7NXDcDEo5e4EYIUxk8Hj0rz9fMTOnFAo5Ps+a/ee5/UK4kopnu0iTedzxzNlNHd23/f6DCvyjGg91gyUUoz1jHqf3AZiiZLpcK31RzijMs4lBhS2Pz5hBT5WVbn5rBbApRU256sSi0AA4PWbUCgUBDrpeeFwGBHDoVBKV7iE62F91Ee9koD0LLLWlpaWLlq0qKysTGsdDocvTQ1YRTXGMHjNmDFjwoQJn3lCPsdxbr/99urqaoYz1tl79Vow/DFodnR08Pw/nx2QrRsymp9PNrD6zCYFEbmuyzXpsU74ydcquQK82syWxPn8M9l2DKsIn4q8uXBiycqQOnPmzLFjx35WfJIts1euXDl48GBIq8M8cEop3w/y8vKmTJkycuRIlk+IfYFwffRZkgIgAgICIUReXu6CBfPP1J+ura11HGXMuXPpY9l3FgCBc5aeJep+E1kjZi9wv379li5d+sQTT3zmhiRnhWVdktE8E4DR40kiYpS87bbb9u/fv2nTpo/w5DDiDxs2bObMmcUlRadq6z744INTp071WgGOvQGAESNGzJkzJz8/v6GhYd26dR9++CFXjG2y3vqK0p+9ftWt/6WUY8eOnTp1anFxcWtr67p16w4ePPgRKzdKqZEjR86ePTsajZ4+fXrt2rX19fXn7cdPlRg0iWjYsGELFix4/PHHWVG4lNyS/S7W6/Py8jK+0LRPzDhSeIE3dNiQefPmPf7kGiklARBZ6EP8PvrsSAQ2ALQWrAVjQIMEbQMLhoQFAb7xCK0FgxK01SDIkkWBgJD+AwkABPo6QCkCowlISEloQZAFCwIIrSZNaC1YbQMQgBIsGC7ZgiFBTkh1dnVcv2zpqdO1O3fvAEEoASRYtIZ0YHzpiMAEhqwFIgCUAhACo1GgIUsIFsiSJYRwJOz5PgFYIBSojUYphJTaGktkyfLzhqwhCwgWSEjJ5YBAC2TIJrzkk08/VVt3SiplgYy1hACCCK10BKE1pA1pC8YNO0OHD/nCvXfPWzB38NBBgQ0C4wMCwxAiWquVEgQWkEBQ/wFVt6y8mQRt3LShpKz49jtXFRTlB8Y3oFGCJi0cwU0WjghsMGjIwJtvvQklbN2+JZoXXbnq1uLSIhBkSCtHWSCUghBAgiENgixaA1oo4Wsv3eGkbUBotdXKlYREgggJFRDasTVjb7zlxq5kbMv2LYRw8623DBw8yJA11oAQgGiIpFIWwAIR0vgJ426+9aZYvHPnnp2VVRU33XpTJDdswZh0zYUjLBhmDEtWOsqSZfYgoMBoQ9YS8XgJKaSjAqMtkTbaWCOUBAQeaKGkBdLWELA6DYZ0Tl50zhWzj5348MPjRw1pSPOJtoEBIxSCIF/7nPLeAjFPEkJgNI+7tgalAJGqoSUiBCfkJryk47r8K/4Jv9fXASCiFBxuSQgohSULCAkv+djjjzU2NzFTUSoZO1rSubk5V1xx+Ycffnj8+Id0NjE7pP84m6T9k1yYubLzAH/MErqVky7tE1as77rQ6xKS/MmPHuzo7GhqapRKhkLhGTOmHziwv77hzNChQ7/6ta92dcUaGxscR10196p7v3jPzTffPG7cuJO1p1paW4UQKMScOXO+8mdfWbRokVKqsLDwzJkzlmjChJo777rzjtW3T7xsYktLc1NTo+MoApo1e+a9X7z3lltvnj5jejKZOHzkcDQa4Zng+/6w4cOWr1j+nw/9Z9JLAoCxpqam5p577rnnnnumTJ3S1t7W2NiIKGbPnr3g6gUffvih53mlpaVfuOcepdTJkyeJaObMmatWrVq+YsXlV1ze0NDQ3NzM/oe5c+d+8UtfXLZsmZBi/vz5UsqGhoZZs2Zdd911R44eDYIgHAl/8YtfRMQTJ05UVlbef//9d91117XXXrt///7a2lohhOM6iEhABBQEASBIJZVSKPCmm29auHDh6dOnQ+HQ6TOnDx06pBylA62Uk1qPVSKeiCsllVIENG/+vGhO9KWXfnvw4MFTp2qnTJnS2dl5+sxpNnEQkcimV1BACHHFlVdEIpHnnn9u3/59HR2tkydPiscTx44dAwAhpBCZkCHinlywYP4111w9dNiQ+++/f+HChV3x2Mnak4MGD7r7C3cT2VN1pxLJeEFBwdy5V82fP2///n1lZaUtLS1vv/32oUOH4l2JqVOnHjt2rK2tjd302hgpZTyRUEo5jvIDb/HixcaYF1988cCBAx0dHZMnT2psbGxqajLWaK0Z0Kyx2hjXdY21vu9fNXfuF77whdtvv33CxIlNTU2tra1CCsdxrlm48Itf+hKPyHVLr0MhztTXa60XLVr0la98Ze7cudbaJUuWaK2bm5sDHRijHdepqqpaunTprx75VcZ1NnPmjNWrV9/1+bsmTpzY0tpypv6M64auuWbh9OnT6+vrk8lkSWkpj29tbS0izpo16+67777pppsmTJjQ0NjY0trCgfzLli279957586bFw6HFy5a5Pt+Q0PDokWL5s+ff/DQQc/zqqqqVt+5urOzs6GhoX///t/45jfvuOOOOXPm7Nmzp6OjAwCICAUSWjJ61OhRV1511aOPPRFPeAZQSAUos7BeAHDedsJu8P/xLsheqg00wwevrFxoIYjR8yzVfpKK9V0XcqXY4VKRWLPmudWr7xoxYlQ8nszLy1fK6ezsKiur+NKX7nvzzbe2b98Zi8XHjauZNm3GU0898/WvP9Dc0vz5u+9EQVLhZZMmfG7Z0mfXPP13f/+3I0YOy8vPQUHTZ0y98aYVmzdv/trXHnjvvbV3333P4MFDg0APHDh47tz5r7zy2gMPfPPJJ5+eM+eKYcNGeF4QBJqDL2+99dZ33nmnvr7e8zyt9aRJk26//fatW7fed999b7311qpVq0aOGklgQmGnvKI0mhNOenFt/OoBVUICCpo2fcqSaxet3/D+3/ztt15/47V77r17wMD+BGb2nJmLlyx8/oU13/rrvxw2fOjkKZe5IeUHyVDYiURD4Yjr+340Gi0rK8vNzXUcp7W19fvf//7Xv/71ZDJZUFDAUd7JZNIYQ9by4ir78XmLwKOPPvqd73znF7/4BbtW4vG4McZYm5l10Uiuo0IAYKxVSlVUVDQ3N8disaKioiAIOjo6Ro0alfHU8zqK67qe53H5/fv3b2lp8TyvpKSkpaWlvr5hyJAhUiglXWvPhnsr6Uqh+OcTJ04UQv71X//tiy++dPPNtw4bNuLYsRONjc1TpkwLh6N5eQVKudOmzWhqakkkvO3bd7zxxhsAUFJSUjNhnDb+iZPH2tvbAEAphQjRaMRxFEBqGZ/jZROJRBAE9fX1kUhk0KBB7Mdn9xciKkeFwo4fJKXCOZfPuva6xa++9vL/uO+LGzdtuGP1qoGDqhPJromX1Sy9/tpf/+ZX3/6nf5wyddKIkcOMDQDtnMtnLV688Gc/f+jBH/5gytRJ48aPycmNeH7CDalINAIAK1eu3LhxIwt4Y8ykSZOWL1++du3aBx54YOPGjbfddtuIESP8wFOOqB5Q1dHZRmDy8nOKigv8IBlob/qMqbeuvPn5F9b8+V98c9v2Lffce/egwQOkwvkL5l59zfzHn3j0Xx/8/pixo0aOGh6OuPze0rJiz08ICUJCWXlJcUkhoK09deKfvvP/PPCNr1X2Ky8ozJMKtfGlQuUIY7TjOCtWrNi0adOJkyd93xeIBD1iiyn7r9//wvNcl7KEvuv3vS4xiQMHDjz44IMtLS2O43R1dRFR//79v/GNb6xbt+69994LgiAaje7ateuRRx5pb2/v169fbe3JioqK/Pw83/eGDBlcW1t75MiRtrbW559/PggCIho8eHAQ+PxwV1dXV1fXrFmzrCUppeu6BQUFJSUlJ06c+Jd/+ZeTJ09yCIqUsqampqqq6sUXX+QgByFETU3NqVOntm7d6vv+unXrfvKTn7S2tgKA6zq+71trCwryOVpGKWmMqampicViHR3t/ftXtbW1tra2TJs2VSlVUVF+/PjxQ4cOJRKJF1543lrjOMpaGw6HXdcxRhNZIquUTCQTWgee5zEKR3Oivu95niekcBxlyeYX5A8ZMmTUqFEDBw6MRCIcvYOIXV1dWmuOZYpGo1prRyneFaW17urqUkoBAYeK5+TkxGKx2bPnfPvb3+7fv39HR0coFOIwf8Z3ay3vdDPGRCKRaDSaTCZnzZr1ne98Z8CAAcbozAaFvLy8UaNGjRs3rrq6Wkrp+Z61FoCSyeR7763t6OjYvn376dOna2pqlFLbtm0bMmTIwIEDk8nk0KFDI5HIu+++y00IAn/evLl/93d/N2XKlBdffLG9vZ1DpHhbU6r+ACyZd+3alZ+fP2fOnIkTJy5YsCA/Pz8cDmeEH6/BeJ6XDu6E8ePHNzY2WmtHjx7V3NxsjJ44cUIkEqmpqdm1a9fRo0c7OzuffvqpTLzAsGHDDh85XFt7srb25JNPPmmM0TpwXScI/GQyOX369PLy8ueee477n4imT59eW1u7c+fO9vb2devWPfzww01NTVJK/klOTlRK4fs+AOXm5kaj0QkTJhw/fkwIUVXVr62tLRbrrKmpsdYOGjTowIEDhw4dOnr0yMsvv0RkhRDRaMQYnUwm8/LyOKaAiJLJhJTCdd2urq729rZYrBMRPM9zXTcIgmQyGQq5c+bMzsvLe+WV13Jzc7XRBN1XfbK0u/Oi7YVdcPYMv7Na40eB+HlgnWuTXc4nrFjfdYHXpSTl+/7Ro0fZy8zcvHjx4vLy8h07dnBguDFmwIABCxYsKC0t9TwvLy9HSgyHQ4iQl5cbj8e6ujoRob29VYiBQkBhYf7AgQOuv34pEVhrY7FYXV0dABw/fnzt2rUzZ86cMmVKXV3drl279u7dy0piYWHh/Pnz33nnnXg8nonzC4fDXV1d8Xicwxz37dsHQHzSjpSotZ9IxIuLi4PAs9YIAY4jx48fW1CQx2H7WgfNzU1a+8XFRVr7WvtB4LW0NHV0tGsdhEJOEHhB4ANQKOwG2kcBrquERCJCQUJCEHiOq6TCIPAAQClZU1Nz+eWXl5WV1dfXv/baazt37szE1USjUe5DjsZTjtK+QcRoNMobqYwhR0oGRCFEXd3pTZu2xGJxpRyO9eSvOHabI154AZADcurq6jZu3BiLxZRytDZJLxkJR8eNGz937txwOJxMJp97bs3BgwcsGSFkc3Mz53JIo09Ia71v374TJ07U1NQcO3Zs5syZR48ebWlpEUJoHQDQ22+/tW3b1smTJy9fvsz3/d27d/u+LyRGQ2HfCxjNXdfRJti5c2dubu7kyZMnTpx48uTJU6dO8V5f3/e55tbaSCSsdSClsNbk5eXU1IzLz8/loJp4vKuxsUFr33VVMpkgMojU1RVrbm6UEo0JCgry2tpau7piSkljglisw3Udz0sqpfLy8pctW7ZmzRrWSzgAJhwO19XVxeNx13UTicS+ffscxyGyxmjmliDwiQwi+H7S95NFRQXDhw/Pz89jaZFMJlpamgBsYWF+a2trPB4rLCzo6Gjv7OwIAs/zkuFwSAiwVvOFSEKg1oEQgnenhMMhYzQiERnHkUQUjUYXLlz44osvxWIxK1QmChN5oas70SfLW0VAmEZqC6nyCcSF+wgIBIFgoCegTCGf8u6APuqdWOBeIlIAwGo4Ox+NMQcPHjx+/PiNN9740EMPtbe3CyHmzJnTr1+/Rx999NChQzNmTPvCF77AENzV1VVWVhaJRDo7OzkfAOPLjh07Hn/8ybq6Otd1Q6EQo4DW+q233tq+fXv//v3ZAE8kEvv37weAadOmI4gPPtiotXEcx2jte0Hg60g0gigikagQsn//6mQy3t7exq7qUCjEITGsGkspk8nk5s2bH3nkkcbGxmg0mnGFx+PxgoICbm1OTk5ubi57pXn6ZR7jemY0ONd1WbcFyIRb2K1bt+3ft99aay0lEnGyhEIQEaLwPJ8IEEUQ6JDr6sAQpX5YUlLC3WiMRYEdHZ2FhYUHDhzYvn17YWFhcXHxoUOHAz+QSnEJebn5fuCzkNCB7uyIFeQXHj50ZMeOHaWlJaFQuKHhpBQyCIKtW7ceOnSI26h1oLVGAUopx3EZ63nrQDKZ5GQDW7ZsWbJkybZt24YPH/4f//EfvKlq7NixSsl9+/Y1Nze3tbWNGDFyxIjhW7du5R5L1b+jXfCiN4qQG961a/d7774HiKUlpffff39DfYPvBW4oZI11lCOVDAIPETP9v27dumeffbaxsVEIEY1Gedua1poHkS2MwsJCro/neTk5OTwc7D7KhAldfvkVnudv3LhJSmWNRYFEoAMTjeQ4yk0k4kLIgQMGdXXF2tpbgyDgHWEcxZQ5erurq2vbtm2PPPJILBbL7O/LpKMIh8OdnZ1KqYz8zuy34PQVXA6LN8dx2BTjLBr8BxHNmTNHG7Nx4yYpZNLzVCgqpEib79kYmpnnfcDaR5eCxMCBA2+66ab+/ftndlRu2LDhiSeeyMvLu/baa3mDqOu6bW1tbW1thYWFM2bMYE+IlLKlpaW0tLSoqCgajU6bNo0n2NGjR8vLywcPHpSbmzts2LBrr722f//+RDR06NB58+YppbZv3/76669LKfPz84moorxyyuSpH3ywsaW5lc0bIRQRHDt2vLioZPiwEVKoYUOH37DshsrKSmNsV1dXXl4eu8VHjBjBVjYRHT9+vKKiYuTIkdFotKqq6vrrr+/Xrx8iNjc3l5aWlpSUhMPhadOmMXAYY5LJZG5uLkuLMWPGsI+e05YxTHCeA94/xZ2VTCRbWtpaW9vb2tqDwCBKsiCFCrnhcCgihUIQOdFcRMkygl0Tq1atKi4uVkoBoNb24MGD1dXVNTU1hYWFEyZMKCgo3LtnHxFaQwLlyBGj7rrr80WFxQKlQGkMHTp0uLp6wNix4/LzC8aPryktLd27dy/LJN/3mpubm5qaEolEPB4XQggUvh9UVFQOGzYsEolUVlay6wwAtNY7duwwxixdurShoeH48eMcGDpq1KgbbrhhyJAh5eXlQ4cOLS4uam1t4dQvxpjhw4evuv22oqJC5UgEQBD9+lXdsGz50KHDXSe0YMHVnucfPnxUCGkNAeDw4SPuuvPzRUXFRMAge+jQocGDB/fr18913aFDhy5ZsqSyspJXy6uqqgoLC13XnTJlCpsFiFhfX19RUcH3Z86cGYlE2NCprKycMnnKa6/+zvcCHRghJFkgCwcPHurfv3rQoMGOExo1avTnPresuKSEs1Pk5eUppZRSQ4cOzc/PZ3fKkSNHqqqqhg8fzveXLFlSVlYmpWxsbKyuri4uLnZdd+rUqewxA4BYLJafn88oP3jw4Pz8fHZbMec4jsMOvQzzVFZWzpw5843XX4/FYtpox3WttQiIgL1uxrh0c72P/uhJLbpmYXtrW+3JWnYBkrVkbWtzy3Nr1tx++x3HPzy2fv36Pbt2L16y5O67Pt/c0rJn957hw4YvWbz4ueee37N7z/ix426+6abW1rbm5uauzhgS7Ny+o19l5by58xYsuDoej7e0tCQSCdaeBg4cOHHiRKVUPB7fuXPngQMHAGDS5Eme5x06dCiZTLquy/nREHHbtm2lpaULFy5ctGhREASnT9edOlUnpTp27FhTU9Py5ctbWlqMMS0tLQBgjOHn582bd8UVVwgh6urqYrEYEe3YsWPEiBGrVq06c+ZMPB7v6uoCAGvt4cOHp06deuONN7a0tPp+0Nrayqr9lVdeOXXqVCFEcXHxihUr5s2bt2/fvpdeeikIAmssAGZycvHn7NmzL7/8cmvtiBEjysvLhwwZsmPHjt+99rtkIimEHDhw0IwZM1555dWOjg5jDCDu3LGzX2W/efPmLViwgDXfY8eOZfKxVFdXz5kz5/XXX29sbOS4+23btpWXly9YsGD+/Pna+Bs3bjx06DARKOUYYxDBWsugwwskRNDS0jJu3LjZs2eHw+Fdu3YdPHiQEbOrq2v9+vWrV69+8MEHuXBE3LRpU0FB/ooVK3gn1549e3bs2Mmbt6SUgwYNmjZtxssvv9rZEdNkhcD6+vp4PL5y5cp4PE5EL730UktLS2bDLdf/jTd/19jYqLVvjNm6dWtFRcXixYuvueYaYwyHymitt2/fPmLEiDvvvLOhoQEA2traWDXm+6tWrers7EwkEk1NTQCglJo1a1ZLa+vhw4d5OxgvjLN2UlZWtnTpUjZoTp482VDfQAT79x+YOHHibbfdxovnDQ0NLN42b95cVFS0cOHCa665JplMNjY28krDpk2bBgwYcOedd54+fdr3/dbWVm7U0aNHJ06cuHLlyo6ODq11U1OT67oAsGTJktGjR0spc3NzV6xYsXjx4i1btrz99ttXXnllU1PT7t17UvuqUBBIa4lVBiIgTIWVZrD+E0I+pnMZsYbxe+eMw6ykSZcy890fNyGRzfQ5XuR8wHj91Vd1dHQ0NjayvV9dXd3c3JxMJoMgGDhwoDHmxIkTrutWV1ezfX36dF15eZnjOLW1tfF4vKioqKqqivdkFhQU7Ny5EwAikUhRcUlRcXE8Hm9oaGhra2MrobCwsLCwkGdpc3MzI3VFeSWiOHPmDHuuea2SUwhEIpGqqio28Ds6OpqaGoUEa01ZWVlpaSnHXxYXF3d0dLS0tPCSb2VlZTgcTiQSLS0tPD/D4TCbINyVd95555NPPsl6bkVFRW5urlJuY2Njfn5+U1NTLBarrKysrKzkbDnxeFwpFYvFjhw5opQCwnPt7vLy8oqKiiAI2EWulOrs7Dxy+IhAYa0tLCwcNWrUpk2b2BkCiACQl5fXr19FJBqJx+O1tacS8WQmG0FxcfHQoUP37dvH+UE5X2ZOTk51dTUA+EHyzJn6rlhcKQcAeBmAVwgBwBjjOGrxkkU1NeNfeOEF3/eVUs3NzfX19ZkMbtOmTbv11lu/9a1v8aAgou/7ZWUlbH9Ya0+fPtPZGcvYQEVFRSNHjt68aTMvJvP9kpKSfv36+b7v+35tbS1Xg+tfUlIyeMjg/fv2JZJxIUApxVbUgAEDiEhr3djYmEgkeFNSVVUVL9IAwKpVq5555pkdO3YQUWVlZU5OjjEmJydn5cqVjz322N69e8vKypV0a2tPMWMkk0meHkEQVFRU8PhqrRsaGpLJpFQikegaMKCajb+mpqb8/PzW1lZ2+ufn55eWljJfNTc3swYgpSwvL8/Ly/M8r7Cw8JZbbvn1r3+9Z88eRGQrhBfwmR+am5uHDh3KoVwsbhOJRGtr6+nTp6uqqnzfb21stgSE0gASuuiGpRsGoSxhj9W5tN/8E8zhdBYmdj9yZNeFQwZrNtmlffKt2n104SSRMjmg+PPipQbB0QP7S6mIrDE2Go3EYl2sYgshCEhJxT5WrXUQBG5I8R56IopEIiUlxXfcsXr79u3r1q2bM2f23r376urqrLWOo4wBSmeeIUR0HroAACAASURBVCICClI5LxWv7HE5bP9mojKYWdmNwK7ncDjMTCyEACA35PBOepaBWmshMAg0AITDId8PWE6wRGE1sKys7LbbVq5fv37Tps3z589fvHjR9773vcbGJkZA3/eNIYECEYSQROQHvpKpaMtkMglAjuMgiiDwz7cJPpOoi9FHShlyQzpILXRzzIaU0liDIrVaYKwha6VSRhv+lhGQI3xyc3M5EJMVSe5Gay2Bcd0QWQiCAAAd5aIQvucba8Jh1xittV56/XXjx4/71S8fqTt9WknFNlMo5BpjKiv7/dlX/+y3L/x27dq1vJoipdAmtbJijHYc11pLFqRU1lophTHW83yuIashmSz8nFiCE8OdU/8cz092r7+0lhc5jTFaKaesrOzLX/7yW2+9tWHD+htuuGHChIk/+tGP6urqysvL77vvvrfffmvHjp1XX331jBkzvvvd77JOrQNrreWcTizMMisEbKmEw2FOoyalUI40xvi+z9jHHG6tFQKlVCz7mf2YYSoqKu66664NGzZs2LBh8eLFU6dO+cEP/rWxsZGTgcfjcaWkEFIpyUhorSWyWhspZRD4oVCYuY4rJgkJgUhoECSUdCMiFLEkeC303Gn4CaZwRq8n3/dYZwqFPkYGFCllcXERsOVBJKRAQKLPOIvJHwkRQOD7rGpzskJeibxI2UFk//JyRCTidLsmJycnI2Ec5QBAxrsihABAIZBX2IIgiMVinuctWrRoxYoVxcXFzzzzDAISpw0RAlIbNVIlsMzgiJFMRvWMKGP9NAWFxkipWNNnjZIzGSCKZDKZSCYQUSnHaCNVKtJcKZVJTxv4ASL6qU+/o6MDAD/3uWW33nJrXl7ez37+8LFjx4ksEHCsSDgUSSaTrC9zHAs3MxaLRSIRgFQieCmVSKeKzCYeKqUUwx/7GaSQLKUY71hoZfKLIaJAoZRSUkmprE0d7eJ5XiQSiUQiQRBEIpHs9DUsCKUUQRBYQyyZgkAbbfg+ILBVNGBAdVFR0Y7tO72kx85lFkJLly69884733vvvbVr1wZBwAORysNjSUiBiF7SM4aEkKz5GmNcN5SpPwBYaxCFUoq1cnYdcP4crn80Gg2FwkEQRCJRITBVfwKdyonEeWaUQJH0ku3t7cuWLbvjjtW+7z/5xJNHjh5hBojH44sWLV6+fIW19Mgjv66vP8NBSlJIpZTWhk8LgHT2Vl5f4chRDu0NAg2UagjvVuMoANdJJT5i/ZWIEAFR6EDzkuyiRYtuu+02IHjsscdO1Z4SUrKqoZQKhyNGGwQMUsmLrOuGmAF4yDhbtRQSgPdhkzEQGGssWECLSIA2jars/cpUAywRnP0E6vZv5pPO/YoICBCBgEygtdYShZACUglDey8q+6YAiEQjSMDp+MhaY03m5+cSXPDN3+/5Cy/kv8HzPLkonU0rO3jkYrh0cOzggezs40gb9gKzayKRSPB6FGtAGR2T70Sj0Xg8nu1+AQA+qMRaSwDGGpZRPBUzmn7qxRwlRwQAnJyH1ahMXpSUhUHEejoAOI7KOLl4EhJRdkJgtu55GY2IWK3mbs3gAmMEEWUAmjPpZvqX68x6H2N3Jh1KpvLdehCRwzEzsT2c10yiYNDkenLbLaTOKsl0IyIyKnErGGRZ3eYO4UZprRGBwFprleT8+9oaYg++EMISBxEBIhirHRXinVwsdTCdrocFJxGx8cRNyDKwziZB40AULxmk6y9Tb0+n6efu4kpiOhlyuv6yt/ojywPurkyf87/soskcU8U2XDgc5nXRtIcBuBv5gcxhAJmfUPqALUQESJnG3LcinZcp46zIZPm26cO5WDSyBy8zZMw5GZ7hOnM5XHOtdSQS4Q5hwaO1VgggkEhqQpJKOGERChNIQs5Q0I2RermV/W1vX2H3sB5EtGQ9zw8CX0nlhkI9nO8fXX5xSbFAAQhkifUG1tt6/ArToUXnq88f2/MXUsh/8TyCtZS9LSPDXRcD7mVFcVHmkArW1zKQmolRy8wl1qPZgE0kEkIIntgyrQSxIqm1tkCZEBcG2YxGn5kn3DAhUtpZJjiSrYFsfmUzGSC1iVRKZYxmE9h1XaVk2pfCZwml8sIz3FhrtU55FYyxvu+7bkikzvTgDk39rbUBIkQhhbSWADCZTDrKAUSRPpgidVpRd+KqMg5yW3zPZwWcUYxBP7WtJp1MkSUKpnaqQwYEudqZTL8ZkAI+PQPRGKu1EUIomRKfvAsMAFzXSQsSyxjEB2xxxbjDM+DIL2VYh6xzxBDQMixasJYikajneUJIIAI4e+JVRjxzsd3rj0pJKaUxNp0hGQEgFMpYCdZ1Q5mB5lVNz0sKIY2xSqXkveuGkkmP+Up0TwbHteXfMmE6kzYAALCmL5SSiCL7aAEeIClVmouAf6u1AUBjNO9u47+DQLsu545HDgllHTsItJSsi0jXDcXjiWg0h7V1YywAkbUERBYtIqEAoUAIIqS0Sp9W1Ant2Vu/B7GhYlNkrLGIKNKcdiEkhAiHQ2zvplCGLWVAOGfHf+bz3GQA53713/75Cynko5/nPnZcNzMRbHrr/sUgHD90MGR5hzPehgzysoaL6UV/RJEBLABgJTHjeGKEAgChBLsy2JfaGYvxxNTGKInGpHSrIPABAEGgEIymAKB1AMDuY8MszZYAACqpiCyvCiAACqmU9L2kkKkzQLTWUiIRa3+BFBKFINKOcj3fB6BwOOJ5PiKwBxkIhJC8nACQwu4g8KVURGSNTyjZWBZCElkC20NMpwWMsdYKKZRyEcFqXnkxiKCUGwS+lBJQEFgEtNZqEyglrEXHcYHIGGOJXVtKKeV7SSkVqwQE3HywxrKKQCwtpCKCIGCfu8PmPBEh8m9EWqySEArIGGuFkAAQCoW6urpCoVDKek+5C1OWE1kLgIiCv0REpULsDQceBcqYpiCFAAREYXvW35NSputPaSWapBRaB7wEIoXwfY7WN9Zqxw1ZYyyRkgIAAUXge+FI1PMSjqOIhO8nlXQwbSkSkRSAKI3lnW5IRAiWUqfGCgASKHgUjLFSKWRFXqbPolForFBSWrKc5IBXL4wOACVZg4hCSiIIgkBKVMolIqO1kFKkdhEHSjpCSt/3BCIBuq7j+4GUgliQozCAFgUJhY5EVASYGs70btbMzqjuXHXOTKXebmYeptSo2HQ67gvXDYUQ0ZyI0VxhFAI5Au0Cf95Hn4zQEgilgkAXFpUUFZfw4t9FelnqwEJmXyLKgD4jeFoLPntCmzEmBXxkOVYPAHzfl1IIgbz6Zy3rLny8Dia9YFzN2GuXLgAkApKgLEkAPw3iwB5UZlfEVLIBzgYvhCJAMkYqYS0gCEQkQLJWCLAWeJNtKk8mAABICcYAICCvlhEpB40BsoAIlgRZVrmQTVciAuDzvFLKDq9JIqBSGATM+EhAiDY97TKTIZWYjCcXIlojMn4qKYgAyWL6SQBIW3yChACTOhLqrF1OAJDeWU0ASJjGAyAAgWm8T/8m8ySk/xWSU4MCALFBaAlFqkqY6W4AypRsjBZCAkgdBFIqFAhgOSwXhSRCa3nQ2eRERCBrAJEtUZG1gs2bMxEs47wlEqiYVYRUCAaRLIFAAEBKB6kIBEupPpIS2cwTgqxFIVjtICEY09ItRUipoUT8BwEIAeya5koCIVEqZ2tGanItEUFIyBzNws8gpPbGWWt4yQEQrSUAkkJoQ4BoTSCVshqIQDmSrAZg9mFbwSAiECJKsAFxYmSBBGiRG5re74o21cmAQAIge0M9dRcCmGIK5B2YZMgKFAjCEvNHynmFANpqJRwLJr0nNlNmr/CdKl9IYTPZztPafW/Elcz69qzLB1M7fM/eTz9GKUUBASwRpiKRrLWkpDLWCJEaGTZypFCWDBAIgQTWkpUoLFgEAcTTn9JwQQAgUGijlXSILE9nIhIoe9at97b32jMfLXuzy+ze6rMPZ3KK9ij4nHfxY8LduHH7xi27CwryEQURT/TsRf2Uw+8TCmEFcDbeNmMOZzlAU+ALadsQ8eyqfXr+kJSp5S9enWPek0IyI1rCyyaP//o37zE2KYREyjEWBCaF4HmIgR8oJ4SIxiSEEEQCkdIWBssbgSiAiADZG8ybKrlSomcfZE0bODupCBCAQ5IlgAEwAABogZTv+6FQhMgCkNaBQCGVTJeSPnAOLIBJj7FIl5+5IP2YAo6xRkqDpkq9KDW3MetfkVXPzLsyHonMez9CteuVbHdxINPvzfBipmeAgKxl1zYJ5MSfRqCBNETycQiILpAlFqMCrQlQSABDRKKnIikIbJpfhDEohBQoEQnRZDUnDXOYNfFStSYgAWjTn5iGj15h6Nz7CN2yCHxUkINNOTRkEPCRZGmeJoK0XYmIRICgCAyQATTWOgJDBBpRI0hjrJRhS77AAFACCGOsFMKSTgExCiIBmOEcALCQ6g0BJAEEgEjzBp1lttQcFywTAVPrHIiSzUTEVBwnkZECLVmBKjAcepA1LtRrUBllMeGFkOwOndQT+HpMPTY0U7+yiEAWOOwDwPK6PdujvPLEoyZQEpl0r1siKxCNDYRwiYRASaQBmaUNM6e1oLUvpHRSS1kKBXQH+nM4B9NcQbL7pMv6KvW7Hv0jztNq7D67zz22CKHnLGZpYQFDP/3Zk5u3bEdh0SgCxr+UDkuIDF/Ya0M+Dl0sJ1FWR2cUUMupwlEIsAYFEnCmASGVQqQgSCpHApGlQAlFkIplQGCvvcdeeyJDxG4fdjtQFl5AFvuKHnCPgEScXtiKFDcYBEwkY6FQjjGeMYFSSggi0AA2Lc2yXW09hrAH3AOASAfapdkdAMAHyBjtWeONkGayTAmZA2Eo3QToXv6FE6Wg5CxHZnHbWdUS0h55lNK1RgshEVgl1qyCIyEgap3kJWUiA8T+GF6AyVbl0r1ExhgjpeP7SQAHAUhYROym0mbDcYpHMmlaCFAA8GEgnMr9I3rgfIobdv+39xJS+EqWzVNE4XkJ1w2xj14Kh4ibKQAskLagMaUxaJFKDG+EZG40vo4jSKWiQggC3gQXsJ2qlCNQIYqUDDvLmRaQQV+kDz8hAMPIDtzFJABEGkRQCgAwDJeQEpKGVWYpiMhXAgSYc0Y8S95365mPOmuzW1eRSfOkTcvpTN+KNL9lyKaVXJNBA0ophY7WnhACQCICkcF0FB+ANSaA1CF37JQzACCFANCIkgMdWPe3pFmLZ6EshDDG54O304pFDx7otVmUxgroZa71VNJ7tDfLhGJ1CtOwg2eXrLKou+QgLsQSqCwo6PZy6iZEezVTPgZdPLjvTaVCDHRggkQ4FAXQRAIAreWFJqOUa42WUiIYIuIto1IqAEVkhZBCKExBJNvvlDEvznm1SIll7NFZiCDP1gYRwITDuWxDCBFBJG08wboD9Cg8C9PPadg5X1Faf+8x4vSRanoPbvu9Y2/PZdAejGuz7qMQDgAAOFIRkLGEUggd+IgkJbv7OLe+k9HjESVRkFlnznpRSroIKQDBdSOIDgCQtYASSKdxJ4swrWN2gw86pxU9hMTZ3/9XvfFRk4TIGpOJM1YAJrX5gEBKBwDZ9AEga42USiICGAAHQFrrCxRBkER0hHCsJdeJAKQNXBBaB0q5HGiGqM7CStq/kdW67LGm7taMyNI3+ZB6NqZRCMUKoCXElMdOax04TigNRr2pkxfWM+d21Tl6FXXnqMznucWm/uUZTWSUCrH5wsnshHB4YclaEkIiKilTshBREhlEiQjWCmutEAqAkskkkQ2HQ1pbKaWUDpFVytE6yDqv/r9sXaaLelgn5+mBnu3NsGs6Tx2xILRZP4HzGpq8v/pj2e2fjC4e3EMK8ijTmwJBOtIJPHnmTJM1SRTsrEdAUVycK4QV6HoeR76TEIDoAghjPCk5+VprNBqRkiU8MhP0PqIpE4y9fKkKECGAItIcte2GFK8cGqObm5vLyooRrRAohTxHE8/Gmo9AHNG9Lj3mxrmw+BEkuvPWJ6dz0TP9SRyyoshqz9OJRFIqjEZcIQUn/zEmkDLk+4GXbItGc6WSvCLKcS5ZJWdPcmkNEFkAbGluzMnJUUo5jpWcd6dHu6iHoZNdw49zfCZlf5txW0HPO93JWujsiKOQubkRpTCR8MPhHA7WbW5qDoWcvPwCRMkJKgA0kUZErf1E3ATaj0RkOJyTiCdisY7Corw0HEtmPClVIpHo7IwVFRYBGqXg7E49QgCZVu17VJW6yePMXUqzGSuDhEGgW5qbhZAFBfmWPKWUlI5SyK6k9Akq53JRjz78WGx2ISpItjl11sq3lq0iQ0QtLc0FBcVSIqIjBALIIDAIKJUiwq5YJ6IMh8MEJKVDxB0iOaeW0RqFCIVyiKi9vcX3qbAgl4/6IQKlwsZ4mJn3vVAPFRu6d0jK3stqwrlN6/5w6n5Gt8Nzeul8PXwhUPBp0sXPjJHlmSUSvu8/8fjjY8dcdsUV18+ff9PVV69csOCWhdfctHvXfiFcPwgcJ2KMtZYQFaIEAiChNa199/2f/fSRzs4YAKS3NVLaLSi6XZRm9G4+XARAsratPfbII4+++uobAEprrZT7ztvvXD5nxem6RgDOSemSlVku+6yLBJBMj93ZdqW/ytQhPfZ88+xYZzmUU8+nSyAJpFKiMfUrmfWvApJZ5V/IBVlNgKxWQI+mkSVEaY1FdOtOnb77859/+OGHpXKQPQ9AAML3zFtvvv3II4/GujqBLMfpWUup3iBu/tl3pUIVhXvyxMl77/n6b379DKCTzhXdzdjqPkDd+Oacf9Pe7fMmDj+3gRkdtFchDQBQV3f6m9/8669/7S9PHD9pDIXDeWQtgPPeu2uvu27Z88//lqNRW1uaiaw1rGwigvzJ//7Pz991Z3t7p+fFn3762S998f66U3XGaCFco621VgcGwfnda+tvveVLW7ftVMrJipbh5sizKz3skjlbW9GtwoRAgggoxQMS0QEQiXj8iSeefeCBb52pbwiFcq0BY7QxIIQLkObhHrnVe/ab+BhXryPS7cJuLJdi2hTDC3TSVrvzj//wvU0bN2cYDJEQOe5DxLtiTz/97JNPPi2klMIFAiEcxLDWJggCIZWQDq//xzo7fvjgv1937XLe1GksR4ex9dNb9XpvlOjOini203qHx2xM6NH2jC/uHOg4r6Z4Seniafe9KKeWtOtGXCeUm5v7ne/85cCB/fmEPyFg9JiRAOQ6UV5ysVYrpYwmRCkE+b6/d+/RN17/4OZblhcVFgMCgCCLRBKyPL5ZlPFZQ/ZAEkGss+udd94fPnzUsmXXayusVUqFpIAgsNag47hkCdEFMOdUP3vATLqNkGLrHmOJkJ7PCBBAytublgQI6a80AG9sVGkD36YhgNdmDIAESquBH0MPOx+npnkxlRIPhZDsqgFLjhMKAk2WEABQGuMhCimcpPZ27zq0adO2FSuWFaaySRNZIInp8B8ASGf+QosoXCektfY8k4ojtqRcF0Cn7a3sQJSMqKC0q4fOfp5VvrLl1kdQtgGR5Vs7Owm7aV5V/frNmjXrF7/4TW3tmQEDBiFKshiPd23ZvKuoaOBll02RyjE6KCkptzYQUgFYRFY50RhLRK4bGTNmzLx5sfz8IiJhjFVOSOtAOS57KTnUBVPmZpYxdHZJP6PsZ7QBPNtihiSSCBYArbUgLACicIhEZ6dnjaOEImuFkFKo1FvOhkudo4H2svZ4IZSOiIGMRtzrQFC6k/FskAIhgCRS1gBHWKxZ835NzYSZM2ey5x1RSQEEiGQTCX/9+k3a4OrVq1NxOIQoUAillEPWGGM46UlefhGicF1EENZax3G10WiMlKq3+ZvV0p5hCz06ClN9xVtzuj2QFsOE3X+SaXiG+3rrnG7uys+ALqYzp5sViQDAPnE/CKx1Z8yYOXBQNaC0xiCQUNZa/523329pbRk6tHrnzj1BoAcPHjZr5uXRHHHw0MH33tt89MO6nz70ZHFx0RVXzhg/fgyAs2HDxn179yUSuryiaObMmVVVVQLFqbpTL7305uxZl+3bt7+jo2PO5dNHjhyOqBBEoPXate8fOniytSXxwx/+NBIVyz53HZDyA2hpie3e/Xp9fV1pacn0GVOr+lVyIH9jY+OmzZvqTjUIIcaOHTFx4mU5OXywJ49cSuX0fbNp0+YDBw4kEqakJDJp8sQRI0YiyIaGpvfXv3m6rjUnGhk9elTNhAk5OQ5Z89ab7yaTflX/0u3bdxgja8aPHze25tiJg9u2bY3Hzfix42bMmIEShIC33twAJHLznD17dwcBjB8/evKkSUeOHNm8ZbvRwejRI6dPny6lSnqJ48eP7969p6WlTQjs37/qiisuj0YiiOLDDz/ctWtnRUVFfX39ydqmior82bNn9e9fBQAE1NDQtGnTlhMnGgvyI/2qqo0lAEEg0iIKrYW9e/at37Dt6NHjD/30sfz8wgVXzx4zenQi6W989/0jR44CyEGDKidPnlRaWsphiLytWjkhpVxLEOtKvPXW2ydqa5WCSZPGTbxsAiIiCCDct3//ls1bOjuTBQXRqdMmjxw5wlqLQgpMxZ/E412bN+1IJL2cHPfI4Q8t6ZUrV77xxuu5uXlzr7qKgBDF2vfWNrc0L136ua5Y5/r1GxBFXl7O3r0HAUxNzbhp06aiQLKQCZIBsKmYFrJSqYkTxziOs2Xr7qlTpwjhSOk2NJx45913x44ZWVHRb/OmzYcOHWpri0ejaszYsZMmTZAShJAEaC1xYGVObn5V/6GAQqmQ7+v9+/du37a1szM5eHD/rq6ktcCxN9YEQgoAgyCamtrWrdtQWFDo6/iHHx4fNGjQvLnz2traN23afOz4SddRw0cOnDplam5uTiLhrX1/XTzmlZWX7tt/MPCTY8aOnDljtlRCSBdACCGFdFDIgwcO7Nu7p7mlVQhn8OCBUyZPLiwsYEQjsps2bd6/f38sFuTnRyZOHD9q1BjHcX3PW7t23fETtUFgBg6omjptallZORFt3bJlz579s2ZP/2DDpkQyOWrU8MmTJjU2nV637v1kUg8ZMnDGjFk50Rye5AcPHNy6dUtrW1dBfnjy5EmjR48GlNbap596obq6X2A6Dh44omTOpEmXjRkzWqJ49NE1sVj8rTc3dnbqflVlV101raKiHxuF1tpNm7bs2X3Ekvy3f/uZlHDd0iUDq6s6OzveeuvN02eahJCjRw2dMPGy3NwcJPR8ba2wJB3HaWysf/e9jQUF0Zkzp+ZEcw8cPLThg42JhFeQnzdp8mXDhg1zlPI871ePPD5xwpimppYTx0/l5edMnzF5yJCBUiht7MED+3fs3NXR3iUEDBjQ74orrwyFlaMcIsOclkz4W7duP3z4sJfUkUh4zJixEy+bqKSyZN979532jvbBgwdu2bI1FMqfP+/y/IKCvXv27N23vyvmlZUVXHHF5eWVZUAAkNoBY4wWQiGZS6b0X1Tffa9kHcdBpGTSi8eTvAIjJID1HEc999xvX37ljRtvujoazWtpaXvh+de8JF2zaE7S8zpjXUGgW9tilqCrKxkE9Morr/z4xz+vrCiNRPIaGus2bNj6J/f9ydBhw/buOfznf/6Pt9w8r6KiPBwJx+MJIrDWSiGspUQ8aS3E48mG+sbcPGmMJZCdnbFf/fI32mjPi3947MTCg0f/x333FBUVNzad+d4/f//Agf3V1UMSicTzz7+6evWtN9xwneMKImOsUVIQge/5j/zqsccff6q6ul9efnEy2eoH3pAhI+vPNDz44I+373xv8ODRne2dTz31/J13rb7hhiWOo375y8f27T0wfdYErc3puubnn3tp/vxr6huOdcVjZ063PfXki3//9389c9ZU348//sSaXTv3jB03OBx2amsbn3/+t4sWXlN7qrary6urq/31b577l//vnyZMnBjv6ti8eceGDRukcAIdrFnz29279j/wjW8abfbuO/Td//X9AQOqx40bY23o3Xdff3/dtn/8h7+JRqNtba0PP/z4Sy/9dtiw0dGo09jwYntHh5DSWCIyUgiez54fdHR0en7Q1tZuLMViMa3NL37xq6ee+u2gQVUA4plnz1x15eVfuGd1eVm5JSsw5UjlEM5XXnllZ1VZNJpbd/rUyy+//LWv/ymfZ/n+++sefPBnUvplZf0aG8+8/sa7X/7TL102cSKHb/GO31jMf+bZl9et+2DWrAnFxSVuSCST3q9/85uKisqr5s61lpDg2TXPHThwYPHiz3V0dj38i98cO1a78JorHCfc0HD6mWde/d4//89xY8dZE0ipCEjrgB27jP4AMGz48AkTx69f//4NN1w3ePCwrnjX8ROnTp9uuOOO2xJJ7+133j1+/LhS0USi/eWXf7fytpuv/9y1HC2kDREIPwi2bt3x8589NX1GTX5B7q7d+/71B//R0nxq+PDRu3fvOF3XjKAoZflwRD8Ya0+fPv3Qf/6yqysxZdr4SCTHdSNt7bEf/OuPtm7ZXl09wA+Szzz721WrbrrpphVJzzzyyBPbt+1etGhefkFhW1vzb1984777vIULrwbuqNR2BHz//XU7d+5wHDcWS7722huzZh1avfrW4uIiALvmuWd//ONHSkoixcWVWscTya5+VdW5OXkPPfSzZ599oX9VdSic89qrb+7ec+SuO28vKy9/7Xdv/e//eOjWlTd1dHQ2NjY99dQLy5ZdV1t7uDPW3t4e//VvTt7/p19ZseJGANyw/oMHH/wJ2XhJaUVTU93vXn/7y1/+k2nTplhLP/j+f4YjMOeKiSE351Tt4TfffPdP7//ylKnjW9vajbGdMb+xsTWa6+rAAAAf+AUgOjo6YrE4gNvS3OY4IhFPdHUlfvjgv7/y6sujx4zvisfXrHnuxhtvuuWWFeGwDIWifoAAor6h6Ze//M2mTTuWr1gCIDdt3va9//Xv2nRV9x94qq729dff+epX/2zcuHGeb7/5zX+45uqZY8eOABKAJgAAIABJREFUUcp9+513N25c/1ff+svy8vKjR4/903f+2ZigsnJAEHh79u6ecNll5aEyIghSu7Kh7nTDO++sPXOmwVpMJhKvvPLm6tWrr77mGkT14kuv/e53b02fPqFfv/6lpdDSEnvnnQ8ee+zRaDRaWFR68uSR99ft+Ku/+mpZWXnSi69Z82Lgxz+37Nq83Bx18R3qGbqkcI+IZElK2dbW+Y1v/M9IJMwb+QYOLP3KV+8ZOLBaa2utmj59+pVXXu555v/6xv/93Jrnr7hy8tgxYxYunOv7+r77Pt+/qkpI2drS9t3v/nj2rCn33nt3bm7uzp27/u3ffrJhw9bqAYMAJFkqLSm994v3FBYWcPZvDllzlLpq7lWvvvr60KHD/+Iv/4xI5+TmH9hfa41xnPB9f3J3KOQ88cQTL7300rIbbohG81968bV33930jQfunz5jZhAEP33o4R//6KeXXzGzX78ybXwp+BgTsW3rjh/96JfLli1ZdfstOTlOZ2ench2l3Ndee+uZp9f86w+/PWnShObmxM9/+quf//RXI0YMnjR5AqJz9Gj9t7+zfPCQgbUn6v7ff/73xx59+sv3r54+Y1Lgu1/+k68988xzs2ZPA0QlZf2Zpq997cszZk46dar+7//+2489/vw9X7hj/oIFTY2N99//tWeeWTN27PjcvMLL51w5bdqMvLwCrfUHGz74m7/5pxU33jp48BAi2dTYetVVcz//+XuLiwvXr19/331/cfuqW6ZMmbJ587aXXnp5+fLly5ff6Pveww//csMHmz0vKYX4P8y9d5hlVZX/vdbae59zQ+VcXdVV3V1V3V2dcyA2dNMkERBFRVHAML9xHEbRccYwvxnTgAGdUcRhUFCCCkoUEZAgApKDpG460DlUV1e8dcM5e++1fn/sWz2/d57nfZ/3feY3Pu99+Ku7mrrn3HPXXuG7vh83bTCQWr9s2bLTT9/4hyee/tjHP9DV1R2ZaM+ePT/84S3nnXfWpZdeTER33HHnr+64b+mypZtP24gE3vsgLgy2FiNHR/7mU3+1ZPGSt3dt/+53v//zn927cMESa+21194Umeizn/1Me0f7jh07rr32R/f9+nfz5w1mcxkAJRIW31Arba097riTNm48OYoVCFAYNgCFelHryJi4VCppnQHQ2WzdqaduXL58WWGq8IGLLrnjV78a+PyAMUagulMSFFkiHkBYuLaubtWqpd/97h937Njd29tfKacPPfhwa2vHccef0NTUeM4552pNdXV1o6Ojt99296233H3iiSfU1zcT6Ww2HxwpAMh7cc475+779X379u770j98buHC+W+8tuV737uOGQl1WOh1rkxkgkrHO6nJ15/7zgsWLhpEwLvuuvc39z32t3/71yeeeEIlKd9886033njTySefUl/fRBgjZk88acMJJ6xNkuTKK6++6qrvnH765tBbQIBwo0488eQTTzypoaG+UnEPP/z7+3/z26VLF27YcNLePfu+8Y3rVqxY8IlPfLS+vrZcqhgT1+Rrn3/+he997yef+9zlJ520QSt9//2//fWv71u1csXJLW3eQZKowfmLTjr5pMLk5Fe+8s0fXHPd5X/z8dM2n1oqlq666ur77nt006YzS8XSv193s3fy2c9+rqe3a8eOHf9+3fV33/2befPmZ7NZzzAxUbzoog92dc3Y/taBr3/t23986vnlyxdceukHvvHP/7b5tI0Xf/g9StkoCnqb6lTs5JM33P+b3xqT/exnP0lEJsr85r5f/+hHt/3zlZ9fvWYlM19//U9vueXmpUsXLV++ir0oouHho9ddd/0bb2y95JL3n3LKCVqbb33ru5WKfO1rX2lpad21a9e//us1d955b09vHwg467PZ3CWXXNrc3PT447+/8qrvvPHG1ubmtjfe2LJt276rrvrH+fMHmXl8fCSbzZKisHMXNica6pvPO++CbCYfxZmRoyO3337n7bfft3r1upraGmEaHj56yimbTjttYxznXnt1689/ftvg4MIPfvCDtbX5Xbt3f+Yzn1u0aODDH/5wmrgHHnikUh475dST6mrrANz/Y9T8P/n67wz38r+3var9SutSm6Y1NXrduqVtbS0i4py0tjfV1dYVS1P5fG1ba8spp5xSX1cLoBYsGHziD3+01iuttDZa6XyuJpevAcDf/vGBnTv23XrL9XPm9AGqhsaWBx743YsvvLBp40ZhrKnJbd68eebMmYjEnCAKsydCpY0xmkiZKKqtq/MuJTKVpJLP15x33nkLFi4CsatWrfjVr+4ZH5tEVHfddfes3p7zzrvARAZRvev883730MMH9h9sbKyJ4whRvHeI+uGHH3Oucsmll3W0N5lYdXRY5z0zPPboH5ctXXHCicfX1uRmdNZu3nz6Sy+9+PbbO5ctX+I9Dw7O37BhI5FvamwZGBhsaBg96cQNXTObQWqXLV26Y/suRBTx1vpFi5auW7euc0ZTTU3j4Pz5u3cf2LTptJ7e3pnd3QsXztu+fbvSmpjTNL333l8//9yLIyOF4lR66ODIjm07Z/XOAoHOzvY1q9d0d89ktmvXrieqvPnG1mXLVr3++s5MJrtp08YZnZ1amwsvvPC+++7V2gCIImLx4p2iOKxEZDOmvq4+jmKt9RNPPDk2Vrr88k+0t7d7z2eeefojjz7zysuvrVu3qrGxDqpKQfLesecNG05Zt/a4ODYrm1afffY5P/vZL/fvP7B//4GtW7ZeeeVXli1b6b1tamp+/vmXnn32md27dw0ODjIHB0303jLD4kVL161d39zc4n2lUnHec/gviFXK5bIIxHGcJCmCGuifv3Llmmw2rm9oGFzQt2XLFkXaplYbBVWfCXDOGROLoLAg4KpVK1taup5++vn169YnSfK73z30jne8o2tGl/d2ZGTkt7+9/7nn3rQ2PTo8XleX27dvX2NjexpMNxUBgLPBwYnGxyZf/dPO007bvHrVyrr6mppc7ebTdv3yl3dP947ScG+tTVikXElOPeXklStXkhKtM/fe++v+/t53vevdmUwGwL/jHWfec8+DO3fsXrq0AQRn9faccPxJdXUZRDjzzI133XX/8JHhOM4iYMg5EKm2tvbWW2959tlnJyb8+HihMDl++PCwCD755FN79hy49dZr58zpC77Nwkikf/Ob++MY3nvhe/M1tYhq02kbH3nkiS1bdqxduyaO45qa3HnnnZfP50ipgYHekZEDGzac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Ne973zt/+pMbX33thRmdnWPjh1asXP7e977/ggvOffXVN/7hH/7nypXrJsenXn9964c+9IElSxZ5x8agsxyMwxQaAfCcevHCxOwFLCIqrawTETBGjNEMPjImFElEQMSISEoQvUA6o6tl3rxZd911T2GydPjwoa1b32RmIo/otEalgrWkeGczmbhUrqRphQiOO27tiy++9stf/mp0dII5eeyxRxoaVKk0ZbQRcNNKEsxk4tlzeqamij/84fV9ff1nnL5p/vzBj3zk3T//+c93796JpN54Y8tJJ61evGi+IoWC1jmldEBsEYGIv+WWn7a2du7ZvfvIkeFPf+avWloafSN/7OMXf+97133zm//cPbPH+3SqOLZk8eJ3v+fdtaZGV80b2NoE0SdJkiRlgLy1SZzJbt686cknnr/mmu/PmdP39s4d5cpEJlPvfWKMMlqJeCTxLkVCFpfNZrxPFeH99z/yk5/cdPXV/7h23RoACKJMpQwzCnBtbe3JG9ZceeV19XU1Z599uoBHgNWrlz337B/uvuue11598+23t1eSAqIgsNbofBkxWOaBgEcSIq81vPs97/zWN//lxht/Onfu/KnCxK7dbxOpkNAFswr2iIDep0laYki1ZudSAH3BBee+8vJL3/jm1+fPW1BbW1cuT42NjX75y1/J1zQw+1Kp8NBDD7z88osHDu7fumXX31x+eRybqakpREEU5nTJkoXr16+69tpr33H2O/bu3fvUH5/q7KxDdCK2v3/O5X99yQ+uvWXo8ME5c+ZOFsbmz5t77rnnnvPOM1966dmvfe2rq1etrq9vSm15dPToZZddtnz5cgDnvfeuorRRikUsi4XAwWLBqmU6dnS0XnrJu3/wg3//p3/6h4ULF3nvjo4MLV2y6P0XvU9rDSDGYKRjEUBgQlaECFqENp12wsMPP2hi7unpPOWU49rbZxARACGqODbLly974flbvvPd73V3d5555uZTTjnpvPNP/dpXv7J23fpSqbh9+54L3/veBQsHEb1wks1iNhe/5z3niiS/uO12Ef+Biy764hc/f9VVV3/pi383Z86A1jgyMrR8+fILLjjfi0dEY7QxJqjvCaFcLjuXPvHE4/fcc++s3jnZbHbbtq2trfHatSuJMKy2sU8V6uOPX/Pii8/94hc/n9k9e8vW18vlAlGExIElUZwqKDKECsQvX7Hk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o0+3NNfffNMdq1YvPe/cc2688bqOjg5S+Morry1evPD00zc9++zTr7/+5oEDI62t9StXLl+/fm0URcz4+9///plnnjn33HMffPDh0dHJxYsHTzvttEOH9j/66CNDR8YHB2efccZZjQ2Nwef98KEjDzzwwLZtB/M1eu2alevXr6ury4VecEi+RkdG7rjjV/PmD5544okgeOMNN+/YsfPv//6KXL7mwP5DDzz48KJFi1evXn306NjERAGA7rvvty+88EY2s+fvPveVfE186SUXh4bP4UNHHn3ksV2798+Y0XrmWZtmzOgk0lrH3nulIhFBlG3btz/z9LO7dh0icrNmzTx144be3pksKSLFqrrEIIyvv/7mE08809szY+fb2w8fHu2dNeP8885tbW0FVHv37XnqySd37d5jU1ffUHP65tMHFyx0NlX6f7F33nF2VVXfX2vtvc+5986d3mumZFrapHcSWgKBQCihSpEiRaWo+NhBH+ARHhBBBBEUpYgUaVKEhFBCQjohhXTSk0kyaVPvvefsvdf7x74TQtFHxUd9H13J537m1jlz7jnr7L32b31/XhiauXPnv/HGPK27Bwzon+hJIQpCxZYSqeTs2W8uXrwkCGDggOZkMgXMwNIa2Lfv4IED7QDY05N46825e/bsrawqWbRoaXt7x6CWujNOPwWJEFVnR9e8efPnvfOeseHQoQMz4vEN67dcdtn5DK6ADp4X0aFltjt37Z45Y8aGDdukVIMGNR876ThPyYWLFtz3s4e3bds/c8Y727ftPve80+vqapxKjRkIJTOuXLHy1Vde/dznznv//ZWIkllaDgXT3xMk8E8Wf9elWnn2WeesW7v+vXeX6cCsXL7y+OOnXHDehR0dHWtXr2tqaJ5y3AkvvPACWJSk2LBAqYTHBiQpSerdxUurq2rOnH5WT0/Pjh07ujq6lFDL31tRkF8wbtz40aPHWi33tLX19CTYGmvdpMkedkFDAPz971947tk3kgmzZMk6HT757HOvrl612o94H3yw5cyzTjz++ElEoBRpHRgDv3/+5ddnvXHxxeeNHz9BqmhPVxeiAOYwtN2dCWsDP6JSqZRSkTDQQqYBcG4iphRkZmZZ65TgMPedxbm5WVNPOmHR4gUvvviHL37pMkffUlIi0aBBA958c9arr772uc+ds2HDB62tOwYPHr5t+26lpA5DRKG1AeYwDMIw0EYrJcLQxGIxG5gXX3z10UeeT3QnV61aec89v3z8iReWLF6Uk5O5cdMVJ598zJlnnqitVkohIglptCYSghRbBhAIqHUgpBP2ptUO7opCqDo6e2bMeONz553er18jkmU2gIaI8gpyrOFVq1c/99zz+fnFQ4YMlxKTyeRzz/9+9OjRk449rv1g5/PP/2H//l0TJozp27cxOzu+ffvuW35497hxLUOHDqgoL41EorNnz73xxh9XVxeXllatWPH+ooWLr/v6dSOGj2g/2PWj2+9ftHDRhCNG1VTXvPbarKXvLr39jjtzsrL71tb6nigoyGlqqsvLyxQSAYGI2epIJFpZWZaTk5uREetTXVFaUmwMP/bYb5WSI0YOr69vKCjI6+zsmD17jiBZkJ+/c+e2BQsW7N7dNn36aZ6nli1b8cADD23fvjMazTh4sHPO2wtWrlx/8GBrZlZGZ0fy7p+8nOhJXXrpZcz8/vurfvSj+w4e3N3Q0H/f3oN33XnPzp27L7jgHCllItHjeRFmEwTh3LkLP/hg17ixR3R2dD76yLNL3l1y0kknjho15oONWx977LdXX10IAPPmzVu2bNm5516Ql5uXlRmPx7Pr6qqVomg06nleV1fPz37281JETokAACAASURBVKKiQgD6/fOvbN269aqrrygrKyESWoeuEA9Iy5etWLtmfUZGrrUw49W3li3b8PX/uKK4uEBKYrZS+qlUSkp/w4ZNt9xy94Qjho0dN7y2ts8LLzy3ds3qO+74sdZm+7bWNWvWAqDvR1avWjvrtSW3335DTW0NMc2aNfPOO+8pKipraqybOeO1jRu3eV6mMUxCPf/ck/f+7IHm5rqysopXXpmxetXGur71RIKEXLhw4dKlSy655OJUKpz99txnnn7h2Eljhg4dKgT87N77BcL0M85M9CRnzHjt5/fdX1PTVFFR9vxzL27atMnzs6+88iIGcC6bWodEXkdHz8033bJu3aYhQwbu2bP79dffXr9hy+WXXVJUWFBZUeapSE11ZUNDbcT3iJBBIFpgMMZ0diaeeuqZ2rr6cePGEUrXnpmeRfyDzPz+1UI+9eRT27ZtSyaSSqo1q9fu3NGalZWltd6+ffsHGz5g5v379i9ZvGTV+6va2trYckd7xy8e+EVbW5s1dlfrrmeefiYrK0sptXPnzjAMdWi6Tfes12YtXfpuRkZWokfv3r17/759JJDSFSz86PwFG+objjlGL1q4tLQ078ILz9m2bevGD9acccbJNTWVDY11lkNPxZAsEcydM/eBBx6YOHHiKaeeFovGdailVGxh7drN11z93ezsDGZgwKefub+0rMzzlDG6q7szmUq0te356U/visbs8ccfB2iEwE2bNq5YsWrUqFHl5cXnn3/uVVd9e8H8xRMmTgSbXsOJZfhnnX3Kbx59/Kwzz1mxfF0kkjVoUPNLL70GAEJSKpVQKvLCC28sXz5NSGuMFQIv/Py0Cy74nO+r+r6VJ02d+MasOfX1fU444fhkMvn27DnXXXdlXn52vwH1JCRAGIYhADlr3F6TUiZ0igsf0aIANLanp8v3FZFk1oDY3dWVSoXl5cVCCssBoiUEY5LGsFIxYON5nqc8q5kEWsuCJKFwAjVEmZdXeNpp0wcNGqrD4I033lLSjBg+4tJLL4plRADgBz+4pE9Vn29+81v5eYU7dmy/8cYfPvvMCw31jQCoJFT3qbrwwosyYpHq6upvfOOmdWvWjxs/bty4sY8/8djQoQMvuPAcEiAFGpNSioBEVnbGEUeMmznz7fLysvPPPycrMx5qG4Y2Es264oorKirKXPH08suviEQyfC/S3dPzyCMPvfbarLFjxtbU1gCInh4xZvT4SZOPSyYSP/zhnY88/Jub/+u7xx57ZCoV3HEHvfzy7NNPPzMez3r66efWr1t9663/1dDQmEoFTz7x1HPPvtgyqN+Qof193wlYbWZW1sCBLe8uWbmrdc+2bVsRw37Nfd96a86wYaM3b9qemZnf2NhERFprAPA8OXr06NraF/Pziy+66DxAFESpVEoprKmp/cIXLo1Eo08//bvHHnvo1FOnlpWVu2VAJCkAwkAfeeSxEyZOyohlW6OXL1925513vPXmnDPOON0aZGAhhFIxZggCbU04cuTwCy64yPPl0KEt06dfeuyxr5w49eT+/QdWVVbGMuJSeR0HD3zhC1966slnvv3d7+zb2/bCC7NKSyuvuury6uqajR9suuqqa30/W0q5dcuWp59+cfjwoZdfflFpadmSJUu/eu132AIzW2t6erqdhIkoJSUVFuVOPXHqhIlHMOutWz944IGHzzzrc7t3b3/pxdf69Rt6zbVX5eRk79u7d9KkSfUNA5nZ8ZkByCmy5sx5++23l1x3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oygypMg5a50Vke9973utrS2IauvWrcx8/PEnnHnmrGw2hxi8Y9DU1FhfXzty5PAjjzzSucQYEPCkKCJTXW0GtbVUVEQdHUOOPHKSiCoUilWV1R+45OJ3n38eAhGpTCZ73XVf7esrWGunTp2xe/e+J598Ytq0o3K5ChEcO3bsl7/8lREjRljr1q+/5JFHHn755ZcaG5u3bdtaKKTr1m06ePDg9u3b7r338X/+52suueQSdjJz5szrr//G88+/OnXakZmMDr42reItW7YsWLDwtNNO+sK1n21sbD71Had++lOfu//+x2eddU7H0KGNjVXZrDpi0sSamoo0LSKCMVmbWqXMXXfdvWfPvpdffrG6umbAf4DeWwDZurV//vzfNzW1pEmay9W++sqSreduGTp0iDGxNrEEq6MHIm2tB1FpmhKp9vYhX/jCF4YOHSKCy5Ytf+aZ319wwQXVVdVaR6WSX7Ro8c9/Mae+vuJHd3x9UFsLCKepPbzc/++osKslCADe+yQpMYugAucBHJZpNCQQrKnwN0rOdNC9hRY+qCrDsq6UKpVKURQFeE44JRgThF8Suvtisbhy5cply5YxcxRFuVyuUCjkcjkRDq2iCCqlo9iQAs+WJTU6ZgEWr7QRdt5zY2NzfZ3Zt3f/0UfPHDV63PLlq6uqGk84/sSauuqgHUySpLIy+8lPXnXGGacBJoLJoEEtURyJ91Fk5i94esWqlb29aU/33is+dPnQocNEQJHeunnzxg3rTjjh6Jqa2tra2kmTOubOnff5z1+TzeYAkQjTNDlq6uSW1uannvpdZ+emyZNHtbUNIiJmzyICoEh3dDTeffdPEMkYLeKbmqqbmhqZbRjRiniAoBYXRDN69OgFC55ctHjxotcWL1q08qYb71y79o1rv/iZlpZmARJhz17AA4LRsTAniX3m6efq65uPnjEzKaXHH3/C/fc/8uyzC6dPPzrORJlsvqur98c/vnfOnCeSUmHHjq233Pqdmpp69l7piL2IiPdhEg9aGQEnYmtqamqq61aufL2ltWbatCm79+6x1h13/LEjR44E8AMBZWxtQqRKpeT1Net27dptIpPL6enTp7/66isHD5YQqaoqN378uMrKSudSrSMiJFLeu2nTj/j0pz/aNriZyGSzkfcsAsHRFry7o0ePqK6uDrrAQYNam5pa77tvzsaNnePHjxs7dvTQoUONiaMoAJO5VCpmMrGA8y4xWrF4UqaiokJEI0JqS5k4n81nWwe1jRgxgihkpsu+fd0//vFdr736inOSprBp0/YpU8akiY9jFoG6urrhw0eKSBzHtbXR9OlTqqoqnUtzuVxtbUN3d3+xWHrh+Zf6evsrKmqfX/gaiBMhpc3rr7++f//+oUPbEUmEAWT37t1bt2w59ZRTGhqbC/19FRVVs2adcccdd61cseLY445n1kRa2ItgFGWYrXOpUto5u3TJujPOOD2KjPc2eFxFgEgR0cyZY+rr69O0FMfZurrK3r4DxUJidGx03HuwH0AZrUBHihQpEhFjYgCoyOdaWwcjErOrr6/r7u4GACSdpsm6dRu+9a3vTzpy4pe+9JlBgwYLexaOo9zbJEU9XH/nkvAfi0jAeQkLIxulEAGBpWxA/ztBFIgoNO9EVFFRkSRJeXOJOSRbaa3DyWBgmytKrVVK9/f1h71K9qy1TlNrtI5MlJQSATFGBauhNhECMosirTH2nAojEVprRfyOHduWLl17sMf+/vfPTJx45K/uvfff//35vr6e3zy+YOSo9smTj4hjoxTGsR41auTEIyYAJJ5LRMGqE4n4s89518ev/khPT88jjzwxZ87DEycecdY5p4rgs//+/IEDhY0bt91zz/2eHUBm8+aul1566eSTT2G2Al5rymbj00479cEH5+7dt/+mm75jjBERJGL23lkijON46tRpA2EAnrlERIhBginMAY9MCErYa00mqjzhhBOOO+743p7CTTfd/OBDD330o1c0N7ewd4AqiqOwjgCgZxBQDzzwaH+ffe215StWvN5f6EuS0iOPPHrVVR+NojphbmysnT37srPPPmf7tu133vmTb37zhmnTJo4dNyZstCIiUdg1dkwAAN1dXYuXrNm1Y/8f/vC0UplH5z22adOWrdu6Fi9e1dPTO+WoCfV1NYGmQIRKqT17dj467/Eli9cA4OjRzRMnTJo7d9769bvZ4/gJQ+vqaiorq7TSh5g0IlBVWT1q1Mhx40eLkNaqv7An6FWUouBIyOdzSobJxzUAACAASURBVCnvEyIzduy4z3720wsWLFi27PVnn302k8lde+3npk2bnqZJSETJZDIBlaGNFvEChMLBaEqERpOIOGeN0VoTIjCzc3L//fc/8cTvv3r9tZMnTzFGf/3r39qzZxcgOuuN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5dmyTCYTpdM6k0kDQpLEZWW5TLYsmy0bcfjI+vqGtWs3gkSIGkF9sXXnp6s+/va3J40ceehfXnmltaVVq5SzDkExqzGjj06lyhd9uNA5LBbN++9/UFdbO3BAf0IwiSkU8pl0Op1SmUy2oqKipqZDdXVNKhW135iNnyQTkdahsYnHhabSUXl5ZXmuorq6uqqqMpvNAKAzhgh79Og24eSTZ8+es2jhomJbMdChMJWVlRMpETCJiaJURUVlZVVVfX39oEEDL7/8QnbxvPcWOt8ZcdY62bunce2aDb169f3ii52bN+/s3//gxMTWidYhMztntdYeYICoQLyKEb1+3J9kfROgfegAiBDokFABIFIIqJ3ztPcEQB6Z8sgpp5w6aOCRQwYfcduP/mnH9t1xsSBAe/bsvekHNw0fPqp37xFjxx790AMPtbUWbrzx9g8/XDBlyvNDh446ctQp8+bNQyQiErGEdOEFF9x11/0bN24aMeL4K79z3dtz3r7owu/+6pf3Xn/9jUOHjL7k4kv27W168YUXzz7rnEGDjhx5+Nhrr75m86atOsiKqBmvzbzowkt/d+8fzj///IGDRp5/wcWfr1772eerL774kkMGjzj7nAsWL17snBCFSWLeeWfued++sF/fYWOOPO6uu+7Zs2evs85aESERDIKM1iFRtGHD+vPOPW/QwKFDhoy5/vobP/tstbXy4IMPn3P2ZY37GiedccXEiWe/8cabOgiVUsYURVjrqLUteeD+R449dsLQoWPGHT3+vj/c29aWT6WzALB+/forr7hy0IDBp5565puz3zJJYo1Zv37T6adNeunFlxG1NZxvK4waedqT054GwEULl02adNYvf3H3ZZdddsghhx899pi5c+exUKGQKJUq5FkgAgZj3JQpjx8+4viXXnoF8Bs/nO2vv+36xh8g/OMfH3jo4T/v2tXS2tp68813xHHc2tpUlqt8/ImXbv3hd88/72xjrXN27dp1y5evCBSjsp07H1BZmc63tJTlyoxJCJGBNqxf09racsjBw3QQgKhC0X780Rprw5EjR3XoUH/HHXetW7ehsqqcKCAMFekOHTrkyjJz5rx18sTjW1qa574z78QTT1i9eqO1orROpzNEqqWluGzp8jAKjUkEbE11tnPnTo6LYZCy1nPznYANtAYApdTePa0LFy4Mw5RSAGCrqjMNENkcHgAAIABJREFUDR2TJHGOU6n0MeNGL1++eO7cBQcfMsyVmiXaGtseY1ACGHgFUecu3fr3H7hm7abt23d16Xzg735738MPPb+vsbWtrXXx4tU/vOXnxbjw7rsLf/nLe6+79oILLvh2rjwn4nxQCYAAKEBCFIS/Gs62t3S/srCJQJJYBA7DqNCWj6IKL/ZHpDiOEfGCCy7s03vQls3bpk2bfvNNt9/7u3+uqCy74yc/W7p0yc9//rO6urrPP1vjXWA/vu37n6xcNXBgj0suufjATnWptI8G9Lwgdfc9d//u3j+89tr7r732pyiKGhv3NTbm779/yi23TJ48+bpMJgOgROi0b51+4+Tue/Y2PvXkk1dffeNLL70QBDou8oqPP9+6ZeeZZ086//yLbrvt9rPO/vbw4cOGDTt84sRvPfLI9Pvue/iuu3rW1dUvWrTwxhtvHj582G9+8/OdO3b84Q9P7Ny555d3/VyrVBIX0um0tQaQdu/aceak83Nl2V/880+bW5offezJn/zTr+688/Zzzzn/wIbO11xz00MP/mrQoAE1tVXWJEQYBGnnisWC+dmdv5o5c+5550088sgjdu3e4ZxxNm5tbdy7d8e0qU+efvqkU04544XnX7z1lh8///wzPXp3T2Lb0tKGqNiR1ikdZFpbW1tbis6hSezqz7fs2tn6ox/dePvt//jUU09deunkOXNe6dylm7MuCEBrbG4t/P7e3zz/whv33HPbMePH/8e9LPtrf/2b9Y0v93DhhReffvoFjz/x5JtvvjllypTFixc/9NAD/3Dbzd26d6mtrUKCdCZdyBcee+zJP//5NQIm4p/cceMx446JorBYzK9evXbmzNn5tvzMma9nUuqss85Kp8tAzPZt215//fVBgwb1P+igjh071tU9+swzzwwbNhSArGUiAXBHHz32Rz/68a5duzdt2pzPu2HDRqxatVEpBFCOuampedu2vZMn35IYUUoQcfz4YTfccGVZLttONbBaRyLEzEgUhtGXX+6ZPPlW5xCEkeDYYw+bfON3qyob2DkA6NW791FHjX3ttRljRo/u0rkHISSJVTr0jBpXwuwTgJBSYRhUVFRs2LS3UCgI4MUXX3ryhEkvvzJr5ow3f/f7u954c/bixQvOPfesnr2613eozpVXOhcDiFIKwDFbZx2A8oxGr7oREURBQiIvIvFHfAzDFIBiB5mycmbbTjPFVCoz6cyzvtiyo6mxUF1VO/rIsa/NeHnlylXDhh22Z3fTIQcf2rNnnwPq6w8dfBiLiEAqkwvDjNZRv/4DtHaCsbVGqRBBiUiH+gPCMKysDDp16uyY9+zZgygTJkw488yzqqpzLAyCxx13/JbNWxubWioq6iacdNqtt965+vM1gw4+OAjTzOFll3/3/PPPUVrHhq+44vsDBw2+4qqrCVVzS/7ue37d2hans/lHHpvatXuff/rJTzvWH4AIqVTq9tvv/P73Jzc0HBCGkTcwIKoXXnh5z+7iKy+/VH9Ag3Ocy1X+5Cd3Ll689IwzTu/UqbNzumevngd2OhC8ykUYAIxx27bteu65V2+5+carr71aOEFiAedcEjY1a50+9dSJ3/v+TQi6vsOBl19+w+er13Xv2Q1BsUNFYWm+zZLEAKC0TjmGIMALLzxn/PjjgiC44frJjz06feGHizp36qpUIEKbNm76xc9/unDhR48+8usBAwYKg4Dbn1myv/4r9bUu917j4eUQRAoAQLCysrKqKrN927YhQ4Z269p94cJFNTX1Q4YMrajIeuKNSZKyXPqKKy+ccOKJILFI8cBODaSUMMVxvGrV6gceeDyfz2/ZtHHCSSdXVVUhkLW8adPW9evXn3DC+Iry8mwmdcghvWfPntPU1FxZWaWUdg6dk+EjhnXq1Pm5557btGnj0KGDevbqjQhBoBBEEaVSUefOtQ9PuVcptNZpjbnyVHlFWaBDFoOofA4Ms0XUIK65ualbt7pHH/0DKc3OErmq6kx1dY0zFgkFIAz0cceNeeedOe+88+5553ZhRlIkJdA0KuVzMNhjyJwxPi0yDAIAqKgoz2arduzYNnjwgF69+8ya9UaHDh0PHTK0Y8f6JG4FQA+yF3EisnnzpnnvfZTPmygK+vbt0tDQccGCJY2NrUTYr3/XoUMPSacz7Qg8NMYAsDEGxAeICxED4L59zVOfeGb5suXFglOU2rFjz959jXv37gvD6Nhjj37mmWfvvOPOIUNG9O7dbeDAgQ0NB0rJMkrClpAss1Lam7PYsieOJYmXh3vaGvbu3SedzgAAITU1N7/88l/mvDXXGONsYK1zzmzcuOngwYc64zoeUNfQUI+IAty5c5d0OnvIwQcTKmaura0DSDknzLJq1adlZVVvvDFXESDIpo1ftrbKti+3d2zoqJQSdqSUMHzyycru3WtqamqctUGU7tatW3191x079gqQB/Fb67y5HRCYmRCjKLVkydKybM1RR4111iIKeQEuIQDkcplevXsTIQI1NByYzaZ3794lIizgHDsWQI0IAqIUEGlrLaGqra2tqanVQcgg2bIyIti1azcp7ZitdVOnPpkk8f0P3Ddo0CBvMSOlAZKv8wO7v/7Hyyul/1pJhf+DA5qvdbkvBbY4h0DWGKVw1aefzJmzqK2N3377/R49e/zs57/68MP5e/fuuv/+Rw45pM+oUSPKyrJKo9LU8YADevfpTZAIxIjIzjFTOh2OO+bw7/3guuam5ldenv3sn14ZMuTQc8+fFMfx22/P3b27bcGCZTt33mOd2bGzcePGXR98MG/8+OO85FspIgUTTj7moYenFgut9957t7Mxom134TMiZLNRnz59PG9LhJVikcTLSESEWRBFKWJhwiiVitKZsG/fvkSe92wc55VScdGEUUDEzLZvv17jjx37wvOvDx0yHJGttUTknHPOlcaniIhkrWtqaVm3bl2PXt0rKys/+WTFW28szrcV58x5r2PHDr/85a/nzn030PLQQ48PHdp//DFjAXzjXnka6a5du5cu/ailpYjIQWBz5bnlyz/asWMfC6czOGTIYAD0jX4EJEQiFBBhBtAggKRFZOGHC5955rnLLr3kqLHjK8qqFiz48K5f/bOHC5919tmdu3RbvGjJypWfzpjx6siRR1511eU1tTVEoDWJMKAX+bBPhkHSCoSZibz7FK21ztlsNuOnvszJmjVrpk9/eszosZPOnFRRXrlr5+7jjjsTEEGYCKMoVEoLCAEGIYUhtvOLQAdahFgcOzbG7t3btGjxEhJHiNbymWeelMuVfeU2YOZ2MT0IoFbEzlK7Xh2AkyTR2ivuBQRAmJQ3GDutlXcveDyyYwPIJfwrqGw2w8wINgw1gI8MAkQgInbs0yNMkjhXEnF6M2AQBP6exSypVGCsYecQgEjV19fv2bP3s88+HTFiOAAg4f5mzt9nCQCgAFhr84UCO8dASgDBwr+EF1K74uIbYOb8J8vnsXlGu7cnCYhzZsXKlYVia9++Pfft271ixfJjxo8tFltZLKAjBBEngjpQCOC8+QUsYuh1cOXluW5du4hIhw4Nq1dvmPLII+OOHaW1fv31WQMH9q6pqWxta2RnBwzos3nzhqem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Ojo6KysrNm3aJOp69uyhSitXthJaAFNZWVFTU2EjYrJt27evXbOpobFm65bNbdsL1nBzc69MNva+ENmsOL98eWt7e6dhU1WdLxTSqqqKfD6PwES4ecvmLZvbCoXOfD7T2NioUZg9RhG1NuNcUqq0d1mXfcwURL2oJyJrjSo7AQMIiKheARRLSWkSwE+UcANehZk/VG8uW/gx1BFDR/nn6u6tiVR9oVDMZbqpKqB6l3zwwYr33luJEL/15gf779fx+BPPzJk9p6qqYvr014YO7d/YWAcAxmgxSbwXBee8QwBjYmszkbWIzGREpLa2rqIit3Hjxmw2770jskuXtC55/92LL7l45ow50+5/6Lzzzm1qqivPT9Gee+759sLFL02fOXJUS1tbx/PPv9S3z6CKyhpQRGCmCIFAsVDoYMOikiSOCJjQe5/LwcaNGzdv2lhZVYmISVK01oCGRkZhpjjOhm763r17p46TYmKjGIDS1HvvRUTEGUPE7JybO2/+smXvX3DhNX379E6LHVEcFQrtFZW5bt2HBC2YhQsXrVmzpVB0b7+9ZM3qjU8++fzSD5ZXVlY8+8yMUaOG9uhRT6RJmjIpEYGKqigAs1qbC9Qzw3HQEjcmg0YAjPgEEZmZ2TjnRDQpFohJ1S1ZuuS73732oIP2+8pXzvYi4uWGG36xfNnqe+6505idHJaWnL4qICgitre353LZFatW/+D7U99/f9m6tY/OmjXnoou/sHnz+it/9NOLLjrntddmA2TPPffkpqae99133/z589vaUmPcgQceePbZZzc1NanSlVf+rK1tQ//+PV99db737YMGDT7jjCmvvvrqSy/N2LRp3fARu1xz9ZW1tbUAZuGCBXfeecebby5KEja24/jjj/3iF8+LIrKRVVARb23U2dl5ww0/e+KJp4877si35i/s2bPpggu+OG/evCeffGr1qk1pKn369DrppBPGH7JvNpt7792lxx9//qWXnbpo0aJVqzbHEUyYcNipp55cW1vjvH/yyaduvPEX7e1pQ0P98OEDn3pq1pe/fNYZZ0whNnPnzrv77ntff22eKlbXxBMmjD/rrNOrqysQUdWpelWvarr0sLrs44YAwAjIhJlsVFNTQ5RNPbAqoIY+CEVSIEUItKpPPoZICS4bUCg7dpBE5JwLwWscx0mSfM65e3Q+jaIIVNMkieKI2b71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EUpcilB/EsAQeXhmyOawd+9mY9hLogIvvvjC7bffWVVV3adPXyJTXV21dWva2dmRy+VVdciQwZlMhChxnKmsrKiv1549e4YZ3e7da1evXuud37Bh8/Jla++//+GXX54dmpfef395oaBJkkSRLVWuMYiFQU1N3NzcS1VAoFAo/PrXt8yb98awoSNyudqKigrv/NatW8PHRAF69+5DaEExm81HNrd9e6cILFr0TmVVPGDAgFB3bWrqWVvbnYhU5N13l6xfv/2BaY/PeHm2c56IFix4r6EhKhaL+XylqgSJG6KuMm2XfZohIQR9BVAAkfABCpOaAUWiAKrlj9gnH0BVjKGgIB2iCu9dLpdrb2+PooiZkiQREWvt50vEBBLwCp6ARZSNeemlF39zyz0bNxTfeOOturruM2bOXbVyRUfHtuOPP/Oww/c/7bQTqqryREAM+Ypc7969vBQAyLugq0cAOm7cmG9845LOQsczzzxzww2/+vOfH/nSl76oSk8//dyK5et//as77r3nv0R07bpVa9dufeIvfznnnLMDEp2Z4zg66ujDv/PtH6nid777HQBFlDRNRITIFIvFqqpsc3NvVQkt5KpFRA8QIZC13K//wH79B+y5116tK5fdfvv9xWIhk630Ph00uN+FF57T0FgXRVEmkw2INgA1hqqqKnr0aALwCikhp64TNOrbr/nBB1tXrlo9ctQwYkKMRRNCRkBmfujBR6bd9/jmTR2vvT53zZqt997/5w8+WGosz5u7cMppR59w/NGZjGFmInUuRaT6+oYRLYM62xNroh49euSymVGjhoTOme7da6yNANC5IhIycXDT3bp1a27umclkAD2Arl+/xlpb1iInQCgUCsaEnODHGttDOkjDLDGREUlLQE0QIghjtM4lkRXDxktKZLZ3bH/uuZlxXPmVr1zQv39/7+W666bOm7coTRPEHBEECWLvXVkIHpkBIGDm2KWOjbFRJpfPjxgxbNiwYWFIYq+9d62szLOxQQwZUQnJgxaLnXGM4fMAgPPnz3/4z0994+sXH3zw+Hy+at7cea+++hKiCUqQYTggrGoi4iUhQuddRb6iWAjje0YEVMG7MO1McRxls7ndd9+1qakpDPHtuefouvpMFMUBnOd9YPl9uNHusi4LhlAaVA9uOjRc7DSagjtqs1TqEP704T6icHlTSGMeeuihgwYN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lJXkstlHH1328G8fHTZ06IxZM5mBHW/evPXcc88tKS274/a7br31F3PmHHLqqafV1Fbdc/evfvGLBxctWjRkyJDfPfzIfb/69ac/c9rCBYdFcXTLzbf+/Gd3jRo1etDg/n7mx1pLaDZs3HjbbXdOO2Ta6aefKiD33vPL71xz3SFTp82cNf2iC8+9+abbP3feOfMXTKusKip0lkAqKyqPPubo559/edGi+aefcXJpWSqVyoC809y811o+5+xzS8tK7rzjjhtuuPXkU04tyhQte/L3jz327EknH7dwwWHM7sc//sn1190yZcqksvISv4tSyvg5qMJcAjChAgJEMiaVy0ULFx5eW1tbVlaxv2X/jTf+/Jf33j969JiysvJjjzn8+edfPfPM1uqq6uaWfc/9/pXjj1tSUlyya/eeH11/Y21t/RVXXF5ZUbHilRXf+971U6dOX7BgIQju37+/pLj47HPOqa4ur6gqT5Ickukp5uAHXbX34YMVTvrQh78KWOjI+vlmr31MiICEftQe6S/cYz0zfgXN2J4xFmaWMNRJkvig70PNR0CzstYaFTIzEYrg/PmHzZgx/8c/uiGdom9c8dWXV6w8sH/fFVd8qb6hprg4bYxO4jwBGhU466TAAEIAJNK7dzeuWPH6Kaec3K9/3ezZ02+/vfKZZ34/Y9b0VGjqGxqOP+HYP760csbMaXPnzjRGISGgY7FEFIYkECsiEbHWam2ShEVg/bp3rv72tSUlJa2tbTt3brjhxh9XVtayyyPB1KmHjBk15dnfv7xy5atXf+fKN99cm821nnPuWXPnzjIG00UpAFJIwIwEgiqbzQOAUsTswjD0zluIaIwh1TuY5/zGzQlbtmEquOCi80468YxlTz09dtxoTxgmChFp0ODhTz7xxMaNG7q6cjt3NG/bvqVx2/bpM2YrHQLqE086edac2UEQbti4ftlTTyw9Yum8+XMB+eRTPvHoYy80Nm4vLat48cXXJ02adMonT6usqEHikz/R8d3vfu+NtesGDmpQSkVRZHQqSeJ1b24A0aeccvzkqVMQpF+/+rvufuTpZ5ZdNObioqKUUlBSWlxZWaGUBbBEIMJIKpPJKKVTqVR5RWUqjewYSGrrao865qjZc2Yj0amf+tS9v3xse+P2mrq6P760cszYiaeddkZZWak2wcUXffGkk89Yu3bd/MPmIlr2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WTJ/ztyZccI6EOucAKxbt27X7h0XXvS5qpoqAIekCWTylImTp0x75ZXXTjhh+/Dho5KEUSnmxLE90Nm5/q11pWU6ndFAIgJr1775wAOPdnZkX3rp1T2797fsa1v25DOZTPrb3/ruxMljTjrpOPCcNgAR7hkwJ2ZWpJgFSYE4QCU98vhag/K8JwEQN2jAgMWLlj7x5BPr1m2YNXs2oFIKBAiA9u5teXLZM027diMEnZ1tDz306CUXf3HmrBmI8vjjz//ud4+NnzBUKTjQau+9+/5TTzt127ZNbe0H9u5p6erKX/ZPX5o3b66AeeWVVbfecuuBtvaamtrm5qaHf/fMt6+6bPjwIQLCLAIMwCLUtKv5n//52rc3bhg2fERra4t+6JHzzvuHBQsX7tnbundvK2CyZctWrTm2ecAi73iezXY27dplnd21u9kEmdLSksSK0uHOnduvv/56RNy370B0f3TJFy5esGCeUmr79l3f+c6/79m9q65uQFdX1yOPLDv/gnPnzplBypOz/PSMdiwAYExKBPe3tt1w409XrnytqqreJq6treuMMz556mmfACTHbsvWTffe+0sR6O6Oduzc8rnP7T/99E/52X7HMSH9icNU4aaiAlEAC5nQf42K0lev78NHBp/FgyAgFTcMq56yNKHigmQHMoETQIbCfc9IDKCEtTAJoyAACSoHlGHWKRMnEaFoRC2aEycojEgQMMWMeQUfrlctAll2RoU+VpJCdk4ro7XZuGGjMXrcuDHN+/a0tu5bunRpUVE6CAIEIkJ24JwTkT17WjOZovr6GqUMcwxoRaCqqnLUqJEP//aRAwfaSClr3c6dLeed9wUkyuU6d+3acsopxw8fMcTHQWMMIu/ZsysMYciQAdYmmzbt+IfPn5kpSqfCQIRJaWsj5sQYjWg87wax4EPCzvnsVesCT8e5BFCBCCllrS0uLl+wcP6zv3/umWf+MG7cOGFUBCIkAlVVdccff3I6nQqDsK2945abb/3+93/8wIP3AFil1I7tO84446QlSxc7q778pa/97Gd3f+YzJ5119pnZ7uQbV3z7oYcenjlzZmd31x133tl6oPUf//GrQ4cO2bWr6RtXXPmLX9x1+eVfN0aBv/6omeHOO+54+qlnb7rpJyNGDt+xo/GGG26+4467R4wYddppn9q+ffsjj7R/85v/SOTClHEuQSRF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BugaAK21npfatKm5rKzUGssM6Uy2tbU1CqN0OtXe3laSzSB1cscJIdbV1s2ceeLiJQufXPjUueeeozW2t7cLICrdsr31jjt/+tzyZR+05Nt3201btq1+880+/eqZoaKq2+hxE/r07a+Ipk2deeMNP58+bUZD7wYEHDJk0D33LMjnWXuppU8t69ev74wZn1FaI8LsWbPvufvhLVu2+YEuLS1FVAAoTEufXlpbmznuuEllpaWpVGbihOMeWvDE66++NeX4yakgjYiplO/5zuhwuTEqn28vKa1gFqW9ktIyBArDvIlCpeSiL15UVVlFSg8fMXLRoid3teaEYcGCxTOmnzRm7HjPD0B42tRpS5c+s2XLB4OHKIgJ7jH2RiLMnHnclBPGRZHJZrP9+/fNhxEATJs+Y9CgwUopa4019r1337/rrrtefvm1lpb2HR+0b92ybdeu1praWhFo6N00ccJxPXt0z4e7Jx1//IMPPHHuued2r68nnRoydMia/3krDNkKLHho4RVfumDMmAnGRII8bca0G264acfO3XV1dYm6T3CIgQieL8wWLKMhHflIUdSuFWgxCM6Z49S9dsEzRNqLysVtBwJkiDMg9qwABLhY/sioe4mPEvK5/K5d1pr8ihUvjhkzbueu3SuWr6ioKCvJlubz+ZKSFBGE+fZs1pswYeyZZ56mPQAMHX2ZsEmnvdNOP+miL35+w4YNv/jFf9991y+nHH/i5BPHhmH44so/trba+vr65ubmXK599OiRP/rxHWvWvDV48CBEDUBB4NfV1UyZMun223++efOmK6+8MpVKMwOicxExoK3vXjJnzhmuwktpxLhk1Fv//no23urVb3teNp0pXbVqUX19fXtbWyqtgzQhotaaGRC176tdu3bOnHnmrl0CgGedOfOCC87+4Q9v/f3vX2KGvn17L1nyq3gujvOuGJABwdpwxIihsz4zfeGTj48cMZwZPM8DwddfX33td673g+hvv351Q6/B21vy5557kTAgIYOprKyuKK9ksARYWlqilKqsrEJAQMpkS5mVIJl8tHbtu++//4enB40mAmtBaWlrM2vXrh08ZBBzHoGYgUh90LK9vLykvLI6nfIRobKqqrKyYvfu3ah0GIYALv1fRAwRAkTW2MDP5NvbOno9ioCfSnu+V1KCge+RVmxMKghEMJ+PWlvb2tra77774d/+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	f	f	\N	2026-02-10 08:26:24.441322+00	2026-02-16 09:28:27.668943+00	\N	\N	{main}	\N	\N	\N	\N	f	\N	\N	\N	[]
+6	PRO6	PRO6	\N	active	\N	\N	\N	data:image/png;base64,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FMqfP+/y/IKCvXv27N23vyvmlZUVXHHF5eWVZUAAkNoBY4wWQiGZS6b0X1Tffa9kHcdBpGTSi8eTvAIjJID1HEc999xvX37ljRtvujoazWtpaXvh+de8JF2zaE7S8zpjXUGgW9tilqCrKxkE9Morr/z4xz+vrCiNRPIaGus2bNj6J/f9ydBhw/buOfznf/6Pt9w8r6KiPBwJx+MJIrDWSiGspUQ8aS3E48mG+sbcPGmMJZCdnbFf/fI32mjPi3947MTCg0f/x333FBUVNzad+d4/f//Agf3V1UMSicTzz7+6evWtN9xwneMKImOsUVIQge/5j/zqsccff6q6ul9efnEy2eoH3pAhI+vPNDz44I+373xv8ODRne2dTz31/J13rb7hhiWOo375y8f27T0wfdYErc3puubnn3tp/vxr6huOdcVjZ063PfXki3//9389c9ZU348//sSaXTv3jB03OBx2amsbn3/+t4sWXlN7qrary6urq/31b577l//vnyZMnBjv6ti8eceGDRukcAIdrFnz29279j/wjW8abfbuO/Td//X9AQOqx40bY23o3Xdff3/dtn/8h7+JRqNtba0PP/z4Sy/9dtiw0dGo09jwYntHh5DSWCIyUgiez54fdHR0en7Q1tZuLMViMa3NL37xq6ee+u2gQVUA4plnz1x15eVfuGd1eVm5JSsw5UjlEM5XXnllZ1VZNJpbd/rUyy+//LWv/ymfZ/n+++sefPBnUvplZf0aG8+8/sa7X/7TL102cSKHb/GO31jMf+bZl9et+2DWrAnFxSVuSCST3q9/85uKisqr5s61lpDg2TXPHThwYPHiz3V0dj38i98cO1a78JorHCfc0HD6mWde/d4//89xY8dZE0ipCEjrgB27jP4AMGz48AkTx69f//4NN1w3ePCwrnjX8ROnTp9uuOOO2xJJ7+133j1+/LhS0USi/eWXf7fytpuv/9y1HC2kDREIPwi2bt3x8589NX1GTX5B7q7d+/71B//R0nxq+PDRu3fvOF3XjKAoZflwRD8Ya0+fPv3Qf/6yqysxZdr4SCTHdSNt7bEf/OuPtm7ZXl09wA+Szzz721WrbrrpphVJzzzyyBPbt+1etGhefkFhW1vzb1984777vIULrwbuqNR2BHz//XU7d+5wHDcWS7722huzZh1avfrW4uIiALvmuWd//ONHSkoixcWVWscTya5+VdW5OXkPPfSzZ599oX9VdSic89qrb+7ec+SuO28vKy9/7Xdv/e//eOjWlTd1dHQ2NjY99dQLy5ZdV1t7uDPW3t4e//VvTt7/p19ZseJGANyw/oMHH/wJ2XhJaUVTU93vXn/7y1/+k2nTplhLP/j+f4YjMOeKiSE351Tt4TfffPdP7//ylKnjW9vajbGdMb+xsTWa6+rAAAAf+AUgOjo6YrE4gNvS3OY4IhFPdHUlfvjgv7/y6sujx4zvisfXrHnuxhtvuuWWFeGwDIWifoAAor6h6Ze//M2mTTuWr1gCIDdt3va9//Xv2nRV9x94qq729dff+epX/2zcuHGeb7/5zX+45uqZY8eOABKAJgAAIABJREFUUcp9+513N25c/1ff+svy8vKjR4/903f+2ZigsnJAEHh79u6ecNll5aEyIghSu7Kh7nTDO++sPXOmwVpMJhKvvPLm6tWrr77mGkT14kuv/e53b02fPqFfv/6lpdDSEnvnnQ8ee+zRaDRaWFR68uSR99ft+Ku/+mpZWXnSi69Z82Lgxz+37Nq83Bx18R3qGbqkcI+IZElK2dbW+Y1v/M9IJMwb+QYOLP3KV+8ZOLBaa2utmj59+pVXXu555v/6xv/93Jrnr7hy8tgxYxYunOv7+r77Pt+/qkpI2drS9t3v/nj2rCn33nt3bm7uzp27/u3ffrJhw9bqAYMAJFkqLSm994v3FBYWcPZvDllzlLpq7lWvvvr60KHD/+Iv/4xI5+TmH9hfa41xnPB9f3J3KOQ88cQTL7300rIbbohG81968bV33930jQfunz5jZhAEP33o4R//6KeXXzGzX78ybXwp+BgTsW3rjh/96JfLli1ZdfstOTlOZ2ench2l3Ndee+uZp9f86w+/PWnShObmxM9/+quf//RXI0YMnjR5AqJz9Gj9t7+zfPCQgbUn6v7ff/73xx59+sv3r54+Y1Lgu1/+k68988xzs2ZPA0QlZf2Zpq997cszZk46dar+7//+2489/vw9X7hj/oIFTY2N99//tWeeWTN27PjcvMLL51w5bdqMvLwCrfUHGz74m7/5pxU33jp48BAi2dTYetVVcz//+XuLiwvXr19/331/cfuqW6ZMmbJ587aXXnp5+fLly5ff6Pveww//csMHmz0vKYX4P8y9d5hlVZX/vdbae59zQ+VcXdVV3V1V3V2dcyA2dNMkERBFRVHAML9xHEbRccYwvxnTgAGdUcRhUFCCCkoUEZAgApKDpG460DlUV1e8dcM5e++1fn/sWz2/d57nfZ/3feY3Pu99+Ku7mrrn3HPXXuG7vh83bTCQWr9s2bLTT9/4hyee/tjHP9DV1R2ZaM+ePT/84S3nnXfWpZdeTER33HHnr+64b+mypZtP24gE3vsgLgy2FiNHR/7mU3+1ZPGSt3dt/+53v//zn927cMESa+21194Umeizn/1Me0f7jh07rr32R/f9+nfz5w1mcxkAJRIW31Arba097riTNm48OYoVCFAYNgCFelHryJi4VCppnQHQ2WzdqaduXL58WWGq8IGLLrnjV78a+PyAMUagulMSFFkiHkBYuLaubtWqpd/97h937Njd29tfKacPPfhwa2vHccef0NTUeM4552pNdXV1o6Ojt99296233H3iiSfU1zcT6Ww2HxwpAMh7cc475+779X379u770j98buHC+W+8tuV737uOGQl1WOh1rkxkgkrHO6nJ15/7zgsWLhpEwLvuuvc39z32t3/71yeeeEIlKd9886033njTySefUl/fRBgjZk88acMJJ6xNkuTKK6++6qrvnH765tBbQIBwo0488eQTTzypoaG+UnEPP/z7+3/z26VLF27YcNLePfu+8Y3rVqxY8IlPfLS+vrZcqhgT1+Rrn3/+he997yef+9zlJ520QSt9//2//fWv71u1csXJLW3eQZKowfmLTjr5pMLk5Fe+8s0fXHPd5X/z8dM2n1oqlq666ur77nt006YzS8XSv193s3fy2c9+rqe3a8eOHf9+3fV33/2befPmZ7NZzzAxUbzoog92dc3Y/taBr3/t23986vnlyxdceukHvvHP/7b5tI0Xf/g9StkoCnqb6lTs5JM33P+b3xqT/exnP0lEJsr85r5f/+hHt/3zlZ9fvWYlM19//U9vueXmpUsXLV++ir0oouHho9ddd/0bb2y95JL3n3LKCVqbb33ru5WKfO1rX2lpad21a9e//us1d955b09vHwg467PZ3CWXXNrc3PT447+/8qrvvPHG1ubmtjfe2LJt276rrvrH+fMHmXl8fCSbzZKisHMXNica6pvPO++CbCYfxZmRoyO3337n7bfft3r1upraGmEaHj56yimbTjttYxznXnt1689/ftvg4MIPfvCDtbX5Xbt3f+Yzn1u0aODDH/5wmrgHHnikUh475dST6mrrANz/Y9T8P/n67wz38r+3var9SutSm6Y1NXrduqVtbS0i4py0tjfV1dYVS1P5fG1ba8spp5xSX1cLoBYsGHziD3+01iuttDZa6XyuJpevAcDf/vGBnTv23XrL9XPm9AGqhsaWBx743YsvvLBp40ZhrKnJbd68eebMmYjEnCAKsydCpY0xmkiZKKqtq/MuJTKVpJLP15x33nkLFi4CsatWrfjVr+4ZH5tEVHfddfes3p7zzrvARAZRvev883730MMH9h9sbKyJ4whRvHeI+uGHH3Oucsmll3W0N5lYdXRY5z0zPPboH5ctXXHCicfX1uRmdNZu3nz6Sy+9+PbbO5ctX+I9Dw7O37BhI5FvamwZGBhsaBg96cQNXTObQWqXLV26Y/suRBTx1vpFi5auW7euc0ZTTU3j4Pz5u3cf2LTptJ7e3pnd3QsXztu+fbvSmpjTNL333l8//9yLIyOF4lR66ODIjm07Z/XOAoHOzvY1q9d0d89ktmvXrieqvPnG1mXLVr3++s5MJrtp08YZnZ1amwsvvPC+++7V2gCIImLx4p2iOKxEZDOmvq4+jmKt9RNPPDk2Vrr88k+0t7d7z2eeefojjz7zysuvrVu3qrGxDqpKQfLesecNG05Zt/a4ODYrm1afffY5P/vZL/fvP7B//4GtW7ZeeeVXli1b6b1tamp+/vmXnn32md27dw0ODjIHB0303jLD4kVL161d39zc4n2lUnHec/gviFXK5bIIxHGcJCmCGuifv3Llmmw2rm9oGFzQt2XLFkXaplYbBVWfCXDOGROLoLAg4KpVK1taup5++vn169YnSfK73z30jne8o2tGl/d2ZGTkt7+9/7nn3rQ2PTo8XleX27dvX2NjexpMNxUBgLPBwYnGxyZf/dPO007bvHrVyrr6mppc7ebTdv3yl3dP947ScG+tTVikXElOPeXklStXkhKtM/fe++v+/t53vevdmUwGwL/jHWfec8+DO3fsXrq0AQRn9faccPxJdXUZRDjzzI133XX/8JHhOM4iYMg5EKm2tvbWW2959tlnJyb8+HihMDl++PCwCD755FN79hy49dZr58zpC77Nwkikf/Ob++MY3nvhe/M1tYhq02kbH3nkiS1bdqxduyaO45qa3HnnnZfP50ipgYHekZEDGzac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Ne973zt/+pMbX33thRmdnWPjh1asXP7e977/ggvOffXVN/7hH/7nypXrJsenXn9964c+9IElSxZ5x8agsxyMwxQaAfCcevHCxOwFLCIqrawTETBGjNEMPjImFElEQMSISEoQvUA6o6tl3rxZd911T2GydPjwoa1b32RmIo/otEalgrWkeGczmbhUrqRphQiOO27tiy++9stf/mp0dII5eeyxRxoaVKk0ZbQRcNNKEsxk4tlzeqamij/84fV9ff1nnL5p/vzBj3zk3T//+c93796JpN54Y8tJJ61evGi+IoWC1jmldEBsEYGIv+WWn7a2du7ZvfvIkeFPf+avWloafSN/7OMXf+97133zm//cPbPH+3SqOLZk8eJ3v+fdtaZGV80b2NoE0SdJkiRlgLy1SZzJbt686cknnr/mmu/PmdP39s4d5cpEJlPvfWKMMlqJeCTxLkVCFpfNZrxPFeH99z/yk5/cdPXV/7h23RoACKJMpQwzCnBtbe3JG9ZceeV19XU1Z599uoBHgNWrlz337B/uvuue11598+23t1eSAqIgsNbofBkxWOaBgEcSIq81vPs97/zWN//lxht/Onfu/KnCxK7dbxOpkNAFswr2iIDep0laYki1ZudSAH3BBee+8vJL3/jm1+fPW1BbW1cuT42NjX75y1/J1zQw+1Kp8NBDD7z88osHDu7fumXX31x+eRybqakpREEU5nTJkoXr16+69tpr33H2O/bu3fvUH5/q7KxDdCK2v3/O5X99yQ+uvWXo8ME5c+ZOFsbmz5t77rnnnvPOM1966dmvfe2rq1etrq9vSm15dPToZZddtnz5cgDnvfeuorRRikUsi4XAwWLBqmU6dnS0XnrJu3/wg3//p3/6h4ULF3nvjo4MLV2y6P0XvU9rDSDGYKRjEUBgQlaECFqENp12wsMPP2hi7unpPOWU49rbZxARACGqODbLly974flbvvPd73V3d5555uZTTjnpvPNP/dpXv7J23fpSqbh9+54L3/veBQsHEb1wks1iNhe/5z3niiS/uO12Ef+Biy764hc/f9VVV3/pi383Z86A1jgyMrR8+fILLjjfi0dEY7QxJqjvCaFcLjuXPvHE4/fcc++s3jnZbHbbtq2trfHatSuJMKy2sU8V6uOPX/Pii8/94hc/n9k9e8vW18vlAlGExIElUZwqKDKECsQvX7HkXe86/5577tq5c/uMGT2I6cjIkVNO2XDOO8+ZKhauuur7xeLov3z3mzNmdMCfUYip2uobmJmo6hxKRITI3h8zuD/mjlltxk9Do6r/Xime5l2EClFEUCGzI00I2jsR9gsWztt02slhOylNUqMzmWyDiGJBBA2glixe2NHRXZya6u7uXLlyhbAnAmtLbW0Nq1ev1trU1zd0tLdMFcrjY1OzZ8/s7p6xfNnS3pndpXKlOJXkcvHChQvWrF3V2FiXJMVcLnP88auiOEMUHO01khJ2zqfZbNzZ2aoUjY0XS8XiypWrctlcHNHxJ6ysyWcA2FlvTG758mUtzQ35fLx69cq62prx0QJ7aWqu3XTaybNm9Qa67zEAi9a0bMWS2XO6R46OWgfd3e0rV67o7OhsaKxfsWxRTU3d8JFSe1vThReef/bZm3O5LIKaKhQG5g4sWrgQUYtwmiSzZ3fNnz8QRRlFqlIudXd3rVq1CAGTStrX1z137pw4ipgxTdKe3p7FiwaUQgCpVErd3V0rVqysydfMnTu/OFXZu/dgbW3thy6+KJfPnHjimra2VmuTfD67dOnS5qZmAACEUnFizdp1PT0z87nM3Ll93ru3d+6rlMcvePf5c+b0LF68YNasXhEGESLN3iFiQ31NR0fzxHipMFmaPbtnZnfX+vVr8vkoSSta0YYN6y+66L1dXV1huhU0S0EJIyznn3dOR0frkSNH2tpbPvCBd2/YcBIiI/i+vlmLFg1MTU2WiolWqr9v1vHHH9/e1hbmMcw+tG6d9bNnzVqwYEApJBSlVFNT/czutqGh4fGxiTVrV65YsXTu3IHly5cACHs/e07v/Pn9SJ6IyqVSR0fb2nXrRThNXX193cqVy+sb6kNwqeJKqmtl0tzcmMvmN25cteGUkxEYUdrbW2bO7D50aGjfvkP9/b3vec/5dfU1q1cvr2+otbbU0tq8fNmyTGxAuKamZtny+fl8prOjtb+/9+DBoYMHRru62s46+6y2tuaVqxbXN9QGdkhw1wER0rhw4byZMzuIkDnN5/NrVq+qqcmPj096L62tjaecckp/X79z7tFHHmloqL/0kg8dPHC4rrb2gnedfdbZZxujvLMI0trSuHjxYFNj04IFA+NjY3v3Hczn4rPO2jw4OLBo8fyeni5EWbJ4yazeziThqUKlo711xYrlPT1dUazWrlvd0tRWKJQqFVdTk12/bs2SJYvz+WylUp7R2bZu3WoARvTlcqlrRueSJUuMiRCVd76+rnbF8sX5mlx//5zBwQFmPzk5JQID/bNPOP6ktrYOrXSpWFy6bP6cOX3eswizl64ZXXPnDmTimsHBQWtLY+NFRbpvzuz6ukYRUFTF6s3o6ohjc3SkkCbFwcH+7plda9etieNoaqpSX193zjmnn3veOxob6kVckpbb29vXrF2RyZiBgb7amtrJyYkFC+bNmz+wZOkC793EZIlIBgZmrV+/vr2jXStVKpaOP25NW1undy64ii5aOHfOnNnZTGRtUqmU0jTp65v1oYs/OH/ePAEm0oiEgESqs7Oza8aM/QcOHTgwtHBh/3nnn1dfX7Nq1dK62ppKudjb07t8+TJSWkQysRmY29fX11sslicny3V18YIF89etXdfY2AwsaWL7+2YvWrQoiiJCANQvvfzmE08+X9/UIqKnfcarzunTNoTV7cT/SrjHwZ6Zwfc1rMaibpMKAAAgAElEQVQrIs8cQFTHDGC99+HPA6pQTbMDA8kz+OBn4ri5pWXfvn1KKRbvOFXKsFMANFWcvPAD53/j218CqACwiGavQ+ObxYIAkXLWahM5a4kQENinqJgQiVSactCuESKAeLaEAMBpmsSZfJpao+NgV0sKPSdKAYsH0UrpsAFPRGFSF4ivAMKM3guhIVJSNZsNhD8AIUBNZJgtQED0BaNtLcKIDAjMTsQDMJEmQu+ZyDhnERSpSNiSIhEvEtzHKLiiI4rzlggRxVk2Ud6mqdIagyWkBDtiICTrUq1VAOQG1l6apsZEiGGTnhGDL78DAGb0nkMHmRmEgZRCEOctM0dR5J1DwuCOi4jOuWBhHbBOzCQsSkfWVoiACEW8CIcZGmLwnBKjM5458AZYHBGx90or5qp1LSJ654iQVCxiw5InCyMqRGTPpBAEPVc9gUHYs0MkrePwuTC7EOWPdd44mCoSgSApBeJh2qYbgQBpmsEESJrZigCzgECAtQTzxaRS0doE0T0zA3CY2COC9y5oWgJ6DCBsCoAI6kBcqGaAOpAQAYXZIyoiZO9IGWFHSof7yWwDGpcZECLnPCEpo71Lg620iGitkiSJIhO834PlH6Jidt47rTNhr01R1ZkOgMbGRr/w+S95luuv/3eRwA5zSErEIVZNn7SOwuaOMJLS4lMBT0p5nwb3tzR1cVwjjKE0BwJhC2gBSJgANSEwewAOn46AECGzAwhi6eB4g9YmUZRL07IxMSGFZJ+UCp0xrIJxBBFYqq6fRMjsvRdEAlEhdKIiEU8U1iCMiAg7bTIAjCCISiT07T0SKtKAyN4hEUwThsOXxXsO71dpM92ZYAD0zmqTEXGBmcDeIxGR8t5hNZhWmayBNe+8i0wUjJenCR86EDiIlHdWAnDJOyJy3hsTsffh8lV1Do9K6zDL4UC9IBXQENOQNWEWbQyAiICzVmsj4BWyYOZHN/zq61f9oKdvHvtYkEgA0QWOgyABEFfD/X8JWU6AQIo8V/lpx2J9IE8ZY0KOr7QOrDgiQiIWIaWm2XtgrSWlenp6tNYBjkpExgSwLSpFwk7YhdY9kSYCaxMAEGERy1xRSkQSJGS23ieAPgS11CZEoJRCcCKOxbFPWVIk0EYB+KoPqkLS4HyCKBD2+om9T1kcUjBZ8ABCCtK0yGJFUqXIswuW5QJWhKz1AEgKACupHUNMiSIEhVDtAztfsi5htoiiFB7bz5x+rCFcYMCDIDKRgHjvE+/TaT9kJ5ICiDYokpBCEcsS/JYDGpEBgSgAVJX3jpkRtVIqEAaZ0+lPKQUQgMCwD2sgLOKQGJGdS0MYY3akSMSxMCKlaUKEQf8AEGINK6WSSikwIEPbYXoBFQC81kYpw+JEPCm2rhTeBhKAOESc7iwxKUUKRVIAz+JTWyYC5yrMTsABeM82ZLIiFgnC6QLVwMZB3QxVaTyHbimpICepQpqm/atx+mAI8RmsrQBIGDNoE9wTGQBFvDEGSYWvGxEGdFdowgTTYwGfJEVmC+ABQ/HKLBbQEzGgeJ8EtDiz894jCgArrZ1LgyUAAHhvw2HMzCEbI0XBBBCAkeQYgFMpmnYSDbEVvLdEqFSEiIiiFLA4AfDehl9kbeKcZ7GAzJyEm4nIIimiIxIAh+iFLSkAsAIeCaytOJdOlxQokgI6QM9gRSwSC3jE0IaC8FQTKRYvwIjgvVWKlKqSfwCqTBhEDgzNgGUTcMxOxE67koU/tyDhA2UAC+CVAiIkEiIkTTYtKyUAPoAvFZE2MQKHpMezA4TwABOSczawKIQZqcpmRKIkqShCBFBKC3tAcC4VAfZOaYPgEQCJEIQIEcTZBJGINATX5eDSg4hYNUY8VlY6Z5ldOEi8D4IuBcKhOUwYds6lqoGtsjXJ2pSqIRIREcSHdxUiEilDSrN3IuCcC/+M+f+l+/T/mZe2bCNlCDF4mzjvhVkZMzVVqKmpqaTl4G5ivc/mM6VyMYoix14ZQgXsvYki5xyQZHKx9WklLWujidD5dGqqkInqkySZXq5EFgYQBEcUQcAUALNYAkXV0x6k2kQiFuu9U0REytqS1llnrdKRNlkA8c4qna2US1GcQyBnPZJSKkaENJ0iAq01VDcnQ6fRhy6n1gZRUCnvnHNO64zzJaMjAIMYwmuqNGvNiBYkjHkB0CJYpUPricOkTintXALThKjQHxCxzjqlkQgCFY+IAoPL+VSC3AUFBK0rG50N2aL3KREFoYi1ZWNimO6bEelKpRRFMQCEY4Y5MGYjZlYKmH0cZxGd9yFtJ++BVAQSUmYJWhSRwB8PiaRorYPxLIAAsIlMiN2IxnvrXBLKdudSpQyRCrmYiNeaiBBAmK3nEDRVwBwSRSHFVsoohaFQCAy06dPFBdmJCLOkwS+FOSVF025ZEvDyIiziAyI4IKa8T4k0ETEHTELwTBVmQVLgedobS7y3xkQBWqgUIUVJUslkciAeRFiYSMINBADPVgSMMWHhNnw6iCxC3qdKEaIJTTskUagCojaAE0LHFoBFPCIxO6UMVNHHTiny3oM4paqcEyKwNjUm470VAa2jarKJwWLaMFsRVspUDwatETgTmy988fMAQiQAHihcpnU+VUoTISATMoAjRcwVgMBcFETQRidpyRijtRFJEWMkBOFpE/8wI3VVDhSAiAvBC6oe43SMahByfI2YpEWtNIsIO0VRNdEWL+LlGCqJEJE8V0CcUpqF07SUy9aBILNlH3I1AXCAQhjORfHhBgo4l4QFBUDwVcdjT4ognJ2IgIDIcRwqDPA+VUpNn1hVG6ckKZFSIWGF4E+KiIjeVxCQlE4qZSJUoJRSWoV6womI0ppEIzCzRdIIXCWNCDjvQFibTKVSzMQ5AQ+C1iVEGgk1AiIlSTETZwRCKBcETUqLuDRNFRGLaDr2FQicwv9Swv7/Ldz/+Mc/uu222x577DEAsM5u2rRp8+bN9fX1hw8fvv766w8cOAAAJ5xwQn9/v7W2v7+/vr7+/vvv/93vfmedNZHZsOHkjRs35nK5Rx99dHh4OIojABgcnH/uuef09fUd2Dd8++2/fOHFF8JxSsAAxGxFRKnYeYcARkcCITswhcJkbW1DOPARAEgT6kplSqkIEYyJQ23PPiWlASDOZEEASSsBQPLOkmJE0tpMp044/Q2H8KsJ0TlntCKSTCYr4rTSqS0joNYZQkdKOV/RVLX2ZQ6G6KnSnr0QIVGktRJx3qfVClo4VOXMFQAyUTDZYMLw5XdhMU8rAoiYUwZLqIyOQz3ufapUsJ+ESqUUx1kAz8zMonXM7KIoJlLMKREgEnP4vUgUe2+D8rpSKUdRhKgDtZtIAYSOAVubZDJ5ZlssTmYyuXBzAEjrYC0LlaQURVkBYW+JlFJVHUJoqgCIiGNmpXTIBz27oFUA4FARE0Xh2EBEZuecd86bKGJmBAznaOgdee+mLzaY83hCAtDM3ntLROGWIipED6Cds9a6TCYzHZ6EqGocLxL45KGUjJxL07RiTOx9pVxOoyhjTMxsESmOI2bvndXGhCqJyItYAQltExZHQMpkANi6xOhMMOkTAQBnrTMmRqxazIuEoKwAtPcJMxsTbJTQ+4DgQETlXEXrjPep9YmZbhSEt6QUMWOlUlIqMkaJMGL42ksoyJglPPMAog3Mmj2DSImkAe6BqABAqcjasgjHUdZ5B+C1iokwfOjMAS7vjTaKFIDznrUOfxWcqAFABFIAEvFKxcc81JxLQjJBFNDzVap7JZnMZrKRiQE8YniKqsATRJz2dmYAYfYABMKkkDlFgGymJjxsSCE7186VSYkiLVLFhYY0IkiHAf6jrTfdt2RA5X0KgNNoVV0uF5VSURRPf1+iJCkZYxApijPh6D1WQomw1hkRDm2uIOoFAADP7Ji9UlF4pAPk2ZgolLnWWq0NICoVvEg5jjMCkKbBdDooSitaRwAURTFLgM/oIPoiQkQTRUpECHwoBJU6Zh7+51PmKJtOXfaRy/bu2zt8dHj5iuUnnHjC3ffe/eMbftzd0332O87+/R9+79nPG5x3wkknvLXtrR/d8KNde3Z96MMf2vH2jqOjR1evWX3GWWfcefedN99y89r1aw8dPrRn354VK1e858ILHnroge9/73vFYvLhSz78yisvd83s3HzmKc5XEJFUHLIKRYoUC/hwv0Ukk6kLdtiIgASEyto0ijJEmaSSADKSF0mDHCW1Ba0IEURSJED0pByisFS8T4hM0AAAAKEKWsyQ2GiVnUY0xgEKgUSaYu8cKS3AitS01T4iKVI6tBGIMgjKe08EiFWLYESNqEPrgChCVIGoTqSh6hKMWpsg1vZsASDY2ihVddcLX1HvLYCEsGKtJdLVqUM1+/PeC4CUy5VMJoehFnFekUY0iKg1Iop1qYjXyoiIcylW+TDhCxxHUcxsiUIPzTP7wO4Ij7VI9XEXEaXIWsscapFwmYIYRgxCqK1NAcR70ToE4iC+ZERNFIWGiYhoFQcoDbMQmXA5LM4H1C2Ccz7MAxAhzMQAghqHmdl7Z0wc2JkYOh2hQESc/n6qQH4nYqUiIg7oDK3DAgsmSSIiSmkQUToCYGsrAWeGqKvpLfA0ble8D4Y/mgiD3X9Q7yCa0Ddy1oUTMdRAWsdKqTQthZM7HGzTDS5VqZSUAqW0Z48AiIrFWuu0NohK6zgUQGHmH6DtRBoxkHxC0YCBEg2AAAHwAOGHlTJKGUVahANZPgT68EBOv3lUyliXIAQNkhBFRLra90Os/iR66yreu2BOSaSZnVJRQB2ELFUpMCYW8dZZrUP1GTJ5xczeM5Ge7mUpIkrTklIRIQmwosiz885rZZiBkCDw0wHCli9UnwEJ+2VE1Xo3lBrHHtrQ4iMC7134MWMipUItIsyO2RoTIYqIC0Geq2MzJAKlqFyeymRyEBpTpILqOnQRnUvDfQ77B0oZAO9cBRG1jhABkRExTSuhSTU1NRFFsdYaka21IZsB8P+7IxMiTxf9ztoKVXt62vsUwBOpJKlorQDMn2dUq7dv3/7222/39/e//PLLr7766tjYmLV2/vz5Bw8eXLVqVTabDelboVB44YUXnHOHDx8eGxtra2t78803e3p6hoaGdu7c6b2/4447BgcHjTF9fX1TU0VE6uvrJ8KRkaOrVq8SSYQTrRSgB3BIxodpRjVb0YrU+Hhxz57tS5YsLhSKR44c6uhsq8nXIJmtW3cUJissGoAJqlhLZjd7zsyOjrqjw6M7d+4N9X7QL7a05vv75k9NFbdu3cqMwkAKcrm4o72luaWJgMMR4pwcOnT4wP5DjU25WbN6hUgpAIRyKd25c1ehUFiyZEltbd67VACsTfbuPTA6OtHXN6e1tcWmybbtWwqTZRH2zIoIFdbXZ+fNnYuIRCYQFo8MDRcKxdlzBoql8s4dbw/M7Y0zmr0XgTjKO58qyhw73rXWYVYmIlpH3ttQz4bDj4iIjIhks5FN5ejR4ZGR0VIxQcLa2lxra2NLSzOLV9U+rEMyxmSCeF9rzUzVPg+zUrFIqlQMwM45FlHIoY8RfGuJUAS1jkKl770jRSDBwI+IIhFvTCYM5Y4cGc5m8rlcFhGRtIiE0iSEksJU4eCBgxOTRQS9csUSUug9iiilIwRIbdnoTABYiogIh8hiTBzCDaJntsFtLYRjwFCueSJNCtlb5jSOs86lRCxARIrFSXUfGDKZHEDYguEw4Y+iHIAP2WJAlCOE7JX27NldKlXmz1+QJOXC1JQiamhsAFAgMDk5sX3HnoUL58ZxRjioKpVSxrlE69AMCPk7hMgrQgAcx9lQk4Xuk4glhDjOAgT/6CrJLxRGSoWqhcMn7j2HHppIAMeHpB6DWlGpql3ryOjEnNkz4zisEbiQZFjrjhwZLRXLPb2dxuDePfudk76+OVrFUs10VICrsKREQKAjUzXxZg6/LgQ+zWwRUanwTliE4ihvbWJMRsSHKWtgUbF3IjIyOn7wwKEkdTNntnd0tACQCLIwgo6iDHsmivbt37d/74HOrqZZs2YTcTh0A7OQyAQtw3TpeWzOCYhaxIUJvFIqgKtCOmStjaLIGB12yJWiqvgbRCklIscuKpPJQBWkzIF+pRQ6Z5WK4jhiBuY0nL7hhIiiKHQFmEPg9lpjCOh1dfXMwUYFlVJKkbWJqrYlqys+057njAhxnAkPOYBEURzSu0wc/1mbOd77YrGYz+cRsaenZ9OmTbW1tdbahoYGIjKmWu9PTExAmCgDBB2F1jqfzxeLRQ51lISJma2vr589e06kVaVc0SpXKBTGxsYaW3LVzwwAgAVDLewBBFEzEwLde++vb7rptocffuiPf3zu1p/d8rm//ezChYMi+G/XXf+nV3YzkzAoBCLa+fbbo6OjN9zwvbPf0f3Yo8/95f/4bG9vb21tTQADvfOdJ33qioWvv779Xe+6sKW5u6Wl3bkp58unn37aZ//2U9lMhlQkokTkxz/+6TXX/GTt2oV33XW7gAcUZnn11Tc/9al/ev21Lbfceu35579DUBTp117f8Xef+9rjv3/umh98/UMXf2B8fOrTn/781q37ent7p3MrWLFyztXf/jYge88IClHddNPPdu7Y9a1vf+dPr7z2+S987Y47rm+Nm4hMiG4gilnwPwy1mchwVbjC06PXqrlb0I0wY1Jxzz37wp133v3WW1vSFJWiurp45aqVH/3oJW3trVDl9xJAmJQwkvLsgiA19ItZxDoJaxJERkBYQIVJABrPVikNEgpnD0BKG+cSrSLANGRwABpBC/PoyNF/+7frV65YdcZZZzE7kDCWZ6UjYXbO/+HxZ398w49KJclms7fecn02m3PeGR0xB5VnDKhCK5w59Nw0s2MRDKmioFaGRdhXpUQSjIyRWJgAEDWgeBZABaBFwsqOIhJhDqEz5G5KISCxZ6iOTyHUXkohgBIAZvnpTbf+6ZU/3XTTreVy5Wc/v72xsekDF13kWZQyL7/y2gc+8DeP//72WbNnB/EGoWLxRMp7YRZEBqDpNRUUFlImNPe8FwzbB561DrBlRDQAOC0DAQBtbTmMSUIxF5paUMVjSeAziyB7VgqVyhRLUw8+9ORPf3rH9dd/c87sBu8tUezZamUqleTWW+569bU3v/Wtf2hpab7hxpu3b9/2i1/8kiUEsrDb4UGAwmcNx5A1YTAQuChBXG+YPXNo0ahQLBLFVZy6AJIS5jAMP3Jk6Jprvv/CCy9nMg2XXPLeM886NYpQUabaDBFkpomxia9++Z9vv/3Bj338/G99+xsQ6is41l9y1X1JqOKopv8cAELCHhQEDMBaV1tSUXSM9eqNqRZq04tAjBj+J+Gcg5CAH2tnAYjWFHzKiOCYunq6xyLTKoxpCg3gNO7C/4fWAACAjVHT/8RPK9X52IUcS/zD0KJ6mTLtkv9neWkQiU1kE6tIrV+3vqmx6Wc/+9nBAwdXr1l9yYcv8dYHhHIo5RUqb73RxjsvLMJilFGoxEtdbR0KKlKVUuXVP716800/qZQrzhKRmioWzn/PWf93lxU6g0TRSy+9tmzpsnLZHj48nsu0dHR2saDW0Sf+8q+mpspRlGXPwrJ3z+6rr75m0aLe5SuWBpj4zJmdV1zxF0uXLmW2XtKurg52HlHX1dZ/8IMXnnPOO0dHx+6865c//OHNGzduWLd+HSIJ0PDwkeeff7W2pu65Z1/ft+9wT087i0ekSsWz87Nnzbz7znvPPfcspZR3/pWX3yhMTNTX1djUMSOi1koff9zyv//7zzF7E2nvbV1dnfd+WkmiQGjbW3vnzRsk0K+/vqWzo6WlpT0MjYM0LSx2OpuQwiBhCtKO6ZQqmPAFeaiEgM+eXn3lzSuv/JfGxrrLLvvonDmziXDb9m0vv/Tqvn372tpbvcfQS/U+7DeRIkSsxvpwqwEkirKB+0N0bD0OCDWLeM9Ga0Dx3isy1jqlUGsDAIqMSFhzD+NTUy67J594pqG+hb1ok7FpWZFmYRJEVMVi8ZFHnqirbf3C5/+iq6vbmAwAKYoACAGts0pp9qJUlARhH5D3VhgJFZJyPjXVDR2h6iTNaxUJMHtGQu8FEAkViwswGWZP1Q5wIFNXCyYiknDbBdGL0sbZQNEJKjoEIfbutE1nzJu7gJmSxL/04mttbe38PkJUIuBcEIpo9j6KM95bz16AldJpWoqirHNOKUOonHMiJALsQtebBTwygIhnz1YiE4uAcBCNAAI4l5IKRSEKM1TrJI+I1joRIVIIyB7CPJ+ZmEVRFGSKCJoZwiBHQAUzUUQNoJhRKXPG6WctXrQMpHot1X4LKscpigoNlWMEKGEADJMbQKAgmRfxYexPiCygVOydBVQCiA4AlAiQivfvO/zoI0995KOXnH76aY2N9Yo0kQFwWkdSJYqoe+/59dhYIZ9D74A9hsLlzxPs/n/5+vPFegDQvTN72lpbn/7jMwqVUcalrlKq5HP55UuXI2AumytMFkCAPStU3nmEoHBB8XLk8JF169Z1tHc465YsWjI6OgoMu3ftPuOMMxYtXPTSSy91d8884YQTf/ObXyMokSC5+c/vgJkVRd7DljffuviDlxQK5V07d7e1tTXUNwWXrv7+fhFFpBBx5Ojwr+64S2n6m0/91axZ3QDofZLJxr2zuhYtHXS2AuBNZNg7AMzE2a4ZM+fNHfTMnZ0dv/j5b5944qnjjjsOUXnHzz/3wu5d+z5y2cXXXnv9r3555xWf+evpJkYsos4555133HHn0NBwa2vz+PjUn155Y9asvkoFvQ+JsBCpuvqGxYuXhuqMxWmNoWMeRbGwGh+dPHhg7MwzBpSJ39r61sDArNB4RVRBEJnJRGlSjuJMSDYRjfeeKCAMiRmcS6Momh71kIhMThRuueU25+QLX/jbhQsXkkJmt3TZotM3bwSU3bv3PvTgg2vWrlu+fBmz9Z7//brrBuYObNq0aejIkft+/XB3d+fU1Nirr23r7Gg+6aRTH3n08Xlze3bs2L5v/8jHPnrxrFm9zz///NNPvzA0NNHcXLNp06mDg4NEVJyqXP2d759wwqo9u3fv3rW3vr7hHWef3T8wL03SH/7wR7t3H73//sd37z4ys6fjwgvP7exsQyARPnhw6NZbf/noo0+3NNfffNMdq1YvPe/cc2688bqOjg5S+Morry1evPD00zc9++zTr7/+5oEDI62t9StXLl+/fm0URcz4+9///plnnjn33HMffPDh0dHJxYsHTzvttEOH9j/66CNDR8YHB2efccZZjQ2Nwef98KEjDzzwwLZtB/M1eu2alevXr6ury4VecEi+RkdG7rjjV/PmD5544okgeOMNN+/YsfPv//6KXL7mwP5DDzz48KJFi1evXn306NjERAGA7rvvty+88EY2s+fvPveVfE186SUXh4bP4UNHHn3ksV2798+Y0XrmWZtmzOgk0lrH3nulIhFBlG3btz/z9LO7dh0icrNmzTx144be3pksKSLFqrrEIIyvv/7mE08809szY+fb2w8fHu2dNeP8885tbW0FVHv37XnqySd37d5jU1ffUHP65tMHFyx0NlX6f7F33nF2VVXfX2vtvc+5986d3mumZFrapHcSWgKBQCihSpEiRaWo+NhBH+ARHhBBBBEUpYgUaVKEhFBCQjohhXTSk0kyaVPvvefsvdf7x74TQtFHxUd9H13J537m1jlz7jnr7L32b31/XhiauXPnv/HGPK27Bwzon+hJIQpCxZYSqeTs2W8uXrwkCGDggOZkMgXMwNIa2Lfv4IED7QDY05N46825e/bsrawqWbRoaXt7x6CWujNOPwWJEFVnR9e8efPnvfOeseHQoQMz4vEN67dcdtn5DK6ADp4X0aFltjt37Z45Y8aGDdukVIMGNR876ThPyYWLFtz3s4e3bds/c8Y727ftPve80+vqapxKjRkIJTOuXLHy1Vde/dznznv//ZWIkllaDgXT3xMk8E8Wf9elWnn2WeesW7v+vXeX6cCsXL7y+OOnXHDehR0dHWtXr2tqaJ5y3AkvvPACWJSk2LBAqYTHBiQpSerdxUurq2rOnH5WT0/Pjh07ujq6lFDL31tRkF8wbtz40aPHWi33tLX19CTYGmvdpMkedkFDAPz971947tk3kgmzZMk6HT757HOvrl612o94H3yw5cyzTjz++ElEoBRpHRgDv3/+5ddnvXHxxeeNHz9BqmhPVxeiAOYwtN2dCWsDP6JSqZRSkTDQQqYBcG4iphRkZmZZ65TgMPedxbm5WVNPOmHR4gUvvviHL37pMkffUlIi0aBBA958c9arr772uc+ds2HDB62tOwYPHr5t+26lpA5DRKG1AeYwDMIw0EYrJcLQxGIxG5gXX3z10UeeT3QnV61aec89v3z8iReWLF6Uk5O5cdMVJ598zJlnnqitVkohIglptCYSghRbBhAIqHUgpBP2ptUO7opCqDo6e2bMeONz553er18jkmU2gIaI8gpyrOFVq1c/99zz+fnFQ4YMlxKTyeRzz/9+9OjRk449rv1g5/PP/2H//l0TJozp27cxOzu+ffvuW35497hxLUOHDqgoL41EorNnz73xxh9XVxeXllatWPH+ooWLr/v6dSOGj2g/2PWj2+9ftHDRhCNG1VTXvPbarKXvLr39jjtzsrL71tb6nigoyGlqqsvLyxQSAYGI2epIJFpZWZaTk5uREetTXVFaUmwMP/bYb5WSI0YOr69vKCjI6+zsmD17jiBZkJ+/c+e2BQsW7N7dNn36aZ6nli1b8cADD23fvjMazTh4sHPO2wtWrlx/8GBrZlZGZ0fy7p+8nOhJXXrpZcz8/vurfvSj+w4e3N3Q0H/f3oN33XnPzp27L7jgHCllItHjeRFmEwTh3LkLP/hg17ixR3R2dD76yLNL3l1y0kknjho15oONWx977LdXX10IAPPmzVu2bNm5516Ql5uXlRmPx7Pr6qqVomg06nleV1fPz37281JETokAACAASURBVKKiQgD6/fOvbN269aqrrygrKyESWoeuEA9Iy5etWLtmfUZGrrUw49W3li3b8PX/uKK4uEBKYrZS+qlUSkp/w4ZNt9xy94Qjho0dN7y2ts8LLzy3ds3qO+74sdZm+7bWNWvWAqDvR1avWjvrtSW3335DTW0NMc2aNfPOO+8pKipraqybOeO1jRu3eV6mMUxCPf/ck/f+7IHm5rqysopXXpmxetXGur71RIKEXLhw4dKlSy655OJUKpz99txnnn7h2Eljhg4dKgT87N77BcL0M85M9CRnzHjt5/fdX1PTVFFR9vxzL27atMnzs6+88iIGcC6bWodEXkdHz8033bJu3aYhQwbu2bP79dffXr9hy+WXXVJUWFBZUeapSE11ZUNDbcT3iJBBIFpgMMZ0diaeeuqZ2rr6cePGEUrXnpmeRfyDzPz+1UI+9eRT27ZtSyaSSqo1q9fu3NGalZWltd6+ffsHGz5g5v379i9ZvGTV+6va2trYckd7xy8e+EVbW5s1dlfrrmeefiYrK0sptXPnzjAMdWi6Tfes12YtXfpuRkZWokfv3r17/759JJDSFSz86PwFG+objjlGL1q4tLQ078ILz9m2bevGD9acccbJNTWVDY11lkNPxZAsEcydM/eBBx6YOHHiKaeeFovGdailVGxh7drN11z93ezsDGZgwKefub+0rMzzlDG6q7szmUq0te356U/visbs8ccfB2iEwE2bNq5YsWrUqFHl5cXnn3/uVVd9e8H8xRMmTgSbXsOJZfhnnX3Kbx59/Kwzz1mxfF0kkjVoUPNLL70GAEJSKpVQKvLCC28sXz5NSGuMFQIv/Py0Cy74nO+r+r6VJ02d+MasOfX1fU444fhkMvn27DnXXXdlXn52vwH1JCRAGIYhADlr3F6TUiZ0igsf0aIANLanp8v3FZFk1oDY3dWVSoXl5cVCCssBoiUEY5LGsFIxYON5nqc8q5kEWsuCJKFwAjVEmZdXeNpp0wcNGqrD4I033lLSjBg+4tJLL4plRADgBz+4pE9Vn29+81v5eYU7dmy/8cYfPvvMCw31jQCoJFT3qbrwwosyYpHq6upvfOOmdWvWjxs/bty4sY8/8djQoQMvuPAcEiAFGpNSioBEVnbGEUeMmznz7fLysvPPPycrMx5qG4Y2Es264oorKirKXPH08suviEQyfC/S3dPzyCMPvfbarLFjxtbU1gCInh4xZvT4SZOPSyYSP/zhnY88/Jub/+u7xx57ZCoV3HEHvfzy7NNPPzMez3r66efWr1t9663/1dDQmEoFTz7x1HPPvtgyqN+Qof193wlYbWZW1sCBLe8uWbmrdc+2bVsRw37Nfd96a86wYaM3b9qemZnf2NhERFprAPA8OXr06NraF/Pziy+66DxAFESpVEoprKmp/cIXLo1Eo08//bvHHnvo1FOnlpWVu2VAJCkAwkAfeeSxEyZOyohlW6OXL1925513vPXmnDPOON0aZGAhhFIxZggCbU04cuTwCy64yPPl0KEt06dfeuyxr5w49eT+/QdWVVbGMuJSeR0HD3zhC1966slnvv3d7+zb2/bCC7NKSyuvuury6uqajR9suuqqa30/W0q5dcuWp59+cfjwoZdfflFpadmSJUu/eu132AIzW2t6erqdhIkoJSUVFuVOPXHqhIlHMOutWz944IGHzzzrc7t3b3/pxdf69Rt6zbVX5eRk79u7d9KkSfUNA5nZ8ZkByCmy5sx5++23l1x3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oygypMg5a50Vke9973utrS2IauvWrcx8/PEnnHnmrGw2hxi8Y9DU1FhfXzty5PAjjzzSucQYEPCkKCJTXW0GtbVUVEQdHUOOPHKSiCoUilWV1R+45OJ3n38eAhGpTCZ73XVf7esrWGunTp2xe/e+J598Ytq0o3K5ChEcO3bsl7/8lREjRljr1q+/5JFHHn755ZcaG5u3bdtaKKTr1m06ePDg9u3b7r338X/+52suueQSdjJz5szrr//G88+/OnXakZmMDr42reItW7YsWLDwtNNO+sK1n21sbD71Had++lOfu//+x2eddU7H0KGNjVXZrDpi0sSamoo0LSKCMVmbWqXMXXfdvWfPvpdffrG6umbAf4DeWwDZurV//vzfNzW1pEmay9W++sqSreduGTp0iDGxNrEEq6MHIm2tB1FpmhKp9vYhX/jCF4YOHSKCy5Ytf+aZ319wwQXVVdVaR6WSX7Ro8c9/Mae+vuJHd3x9UFsLCKepPbzc/++osKslCADe+yQpMYugAucBHJZpNCQQrKnwN0rOdNC9hRY+qCrDsq6UKpVKURQFeE44JRgThF8Suvtisbhy5cply5YxcxRFuVyuUCjkcjkRDq2iCCqlo9iQAs+WJTU6ZgEWr7QRdt5zY2NzfZ3Zt3f/0UfPHDV63PLlq6uqGk84/sSauuqgHUySpLIy+8lPXnXGGacBJoLJoEEtURyJ91Fk5i94esWqlb29aU/33is+dPnQocNEQJHeunnzxg3rTjjh6Jqa2tra2kmTOubOnff5z1+TzeYAkQjTNDlq6uSW1uannvpdZ+emyZNHtbUNIiJmzyICoEh3dDTeffdPEMkYLeKbmqqbmhqZbRjRiniAoBYXRDN69OgFC55ctHjxotcWL1q08qYb71y79o1rv/iZlpZmARJhz17AA4LRsTAniX3m6efq65uPnjEzKaXHH3/C/fc/8uyzC6dPPzrORJlsvqur98c/vnfOnCeSUmHHjq233Pqdmpp69l7piL2IiPdhEg9aGQEnYmtqamqq61aufL2ltWbatCm79+6x1h13/LEjR44E8AMBZWxtQqRKpeT1Net27dptIpPL6enTp7/66isHD5YQqaoqN378uMrKSudSrSMiJFLeu2nTj/j0pz/aNriZyGSzkfcsAsHRFry7o0ePqK6uDrrAQYNam5pa77tvzsaNnePHjxs7dvTQoUONiaMoAJO5VCpmMrGA8y4xWrF4UqaiokJEI0JqS5k4n81nWwe1jRgxgihkpsu+fd0//vFdr736inOSprBp0/YpU8akiY9jFoG6urrhw0eKSBzHtbXR9OlTqqoqnUtzuVxtbUN3d3+xWHrh+Zf6evsrKmqfX/gaiBMhpc3rr7++f//+oUPbEUmEAWT37t1bt2w59ZRTGhqbC/19FRVVs2adcccdd61cseLY445n1kRa2ItgFGWYrXOpUto5u3TJujPOOD2KjPc2eFxFgEgR0cyZY+rr69O0FMfZurrK3r4DxUJidGx03HuwH0AZrUBHihQpEhFjYgCoyOdaWwcjErOrr6/r7u4GACSdpsm6dRu+9a3vTzpy4pe+9JlBgwYLexaOo9zbJEU9XH/nkvAfi0jAeQkLIxulEAGBpWxA/ztBFIgoNO9EVFFRkSRJeXOJOSRbaa3DyWBgmytKrVVK9/f1h71K9qy1TlNrtI5MlJQSATFGBauhNhECMosirTH2nAojEVprRfyOHduWLl17sMf+/vfPTJx45K/uvfff//35vr6e3zy+YOSo9smTj4hjoxTGsR41auTEIyYAJJ5LRMGqE4n4s89518ev/khPT88jjzwxZ87DEycecdY5p4rgs//+/IEDhY0bt91zz/2eHUBm8+aul1566eSTT2G2Al5rymbj00479cEH5+7dt/+mm75jjBERJGL23lkijON46tRpA2EAnrlERIhBginMAY9MCErYa00mqjzhhBOOO+743p7CTTfd/OBDD330o1c0N7ewd4AqiqOwjgCgZxBQDzzwaH+ffe215StWvN5f6EuS0iOPPHrVVR+NojphbmysnT37srPPPmf7tu133vmTb37zhmnTJo4dNyZstCIiUdg1dkwAAN1dXYuXrNm1Y/8f/vC0UplH5z22adOWrdu6Fi9e1dPTO+WoCfV1NYGmQIRKqT17dj467/Eli9cA4OjRzRMnTJo7d9769bvZ4/gJQ+vqaiorq7TSh5g0IlBVWT1q1Mhx40eLkNaqv7An6FWUouBIyOdzSobJxzUAACAASURBVCnvEyIzduy4z3720wsWLFi27PVnn302k8lde+3npk2bnqZJSETJZDIBlaGNFvEChMLBaEqERpOIOGeN0VoTIjCzc3L//fc/8cTvv3r9tZMnTzFGf/3r39qzZxcgOuuN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5dmyTCYTpdM6k0kDQpLEZWW5TLYsmy0bcfjI+vqGtWs3gkSIGkF9sXXnp6s+/va3J40ceehfXnmltaVVq5SzDkExqzGjj06lyhd9uNA5LBbN++9/UFdbO3BAf0IwiSkU8pl0Op1SmUy2oqKipqZDdXVNKhW135iNnyQTkdahsYnHhabSUXl5ZXmuorq6uqqqMpvNAKAzhgh79Og24eSTZ8+es2jhomJbMdChMJWVlRMpETCJiaJURUVlZVVVfX39oEEDL7/8QnbxvPcWOt8ZcdY62bunce2aDb169f3ii52bN+/s3//gxMTWidYhMztntdYeYICoQLyKEb1+3J9kfROgfegAiBDokFABIFIIqJ3ztPcEQB6Z8sgpp5w6aOCRQwYfcduP/mnH9t1xsSBAe/bsvekHNw0fPqp37xFjxx790AMPtbUWbrzx9g8/XDBlyvNDh446ctQp8+bNQyQiErGEdOEFF9x11/0bN24aMeL4K79z3dtz3r7owu/+6pf3Xn/9jUOHjL7k4kv27W168YUXzz7rnEGDjhx5+Nhrr75m86atOsiKqBmvzbzowkt/d+8fzj///IGDRp5/wcWfr1772eerL774kkMGjzj7nAsWL17snBCFSWLeeWfued++sF/fYWOOPO6uu+7Zs2evs85aESERDIKM1iFRtGHD+vPOPW/QwKFDhoy5/vobP/tstbXy4IMPn3P2ZY37GiedccXEiWe/8cabOgiVUsYURVjrqLUteeD+R449dsLQoWPGHT3+vj/c29aWT6WzALB+/forr7hy0IDBp5565puz3zJJYo1Zv37T6adNeunFlxG1NZxvK4waedqT054GwEULl02adNYvf3H3ZZdddsghhx899pi5c+exUKGQKJUq5FkgAgZj3JQpjx8+4viXXnoF8Bs/nO2vv+36xh8g/OMfH3jo4T/v2tXS2tp68813xHHc2tpUlqt8/ImXbv3hd88/72xjrXN27dp1y5evCBSjsp07H1BZmc63tJTlyoxJCJGBNqxf09racsjBw3QQgKhC0X780Rprw5EjR3XoUH/HHXetW7ehsqqcKCAMFekOHTrkyjJz5rx18sTjW1qa574z78QTT1i9eqO1orROpzNEqqWluGzp8jAKjUkEbE11tnPnTo6LYZCy1nPznYANtAYApdTePa0LFy4Mw5RSAGCrqjMNENkcHgAAIABJREFUDR2TJHGOU6n0MeNGL1++eO7cBQcfMsyVmiXaGtseY1ACGHgFUecu3fr3H7hm7abt23d16Xzg735738MPPb+vsbWtrXXx4tU/vOXnxbjw7rsLf/nLe6+79oILLvh2rjwn4nxQCYAAKEBCFIS/Gs62t3S/srCJQJJYBA7DqNCWj6IKL/ZHpDiOEfGCCy7s03vQls3bpk2bfvNNt9/7u3+uqCy74yc/W7p0yc9//rO6urrPP1vjXWA/vu37n6xcNXBgj0suufjATnWptI8G9Lwgdfc9d//u3j+89tr7r732pyiKGhv3NTbm779/yi23TJ48+bpMJgOgROi0b51+4+Tue/Y2PvXkk1dffeNLL70QBDou8oqPP9+6ZeeZZ086//yLbrvt9rPO/vbw4cOGDTt84sRvPfLI9Pvue/iuu3rW1dUvWrTwxhtvHj582G9+8/OdO3b84Q9P7Ny555d3/VyrVBIX0um0tQaQdu/aceak83Nl2V/880+bW5offezJn/zTr+688/Zzzzn/wIbO11xz00MP/mrQoAE1tVXWJEQYBGnnisWC+dmdv5o5c+5550088sgjdu3e4ZxxNm5tbdy7d8e0qU+efvqkU04544XnX7z1lh8///wzPXp3T2Lb0tKGqNiR1ikdZFpbW1tbis6hSezqz7fs2tn6ox/dePvt//jUU09deunkOXNe6dylm7MuCEBrbG4t/P7e3zz/whv33HPbMePH/8e9LPtrf/2b9Y0v93DhhReffvoFjz/x5JtvvjllypTFixc/9NAD/3Dbzd26d6mtrUKCdCZdyBcee+zJP//5NQIm4p/cceMx446JorBYzK9evXbmzNn5tvzMma9nUuqss85Kp8tAzPZt215//fVBgwb1P+igjh071tU9+swzzwwbNhSArGUiAXBHHz32Rz/68a5duzdt2pzPu2HDRqxatVEpBFCOuampedu2vZMn35IYUUoQcfz4YTfccGVZLttONbBaRyLEzEgUhtGXX+6ZPPlW5xCEkeDYYw+bfON3qyob2DkA6NW791FHjX3ttRljRo/u0rkHISSJVTr0jBpXwuwTgJBSYRhUVFRs2LS3UCgI4MUXX3ryhEkvvzJr5ow3f/f7u954c/bixQvOPfesnr2613eozpVXOhcDiFIKwDFbZx2A8oxGr7oREURBQiIvIvFHfAzDFIBiB5mycmbbTjPFVCoz6cyzvtiyo6mxUF1VO/rIsa/NeHnlylXDhh22Z3fTIQcf2rNnnwPq6w8dfBiLiEAqkwvDjNZRv/4DtHaCsbVGqRBBiUiH+gPCMKysDDp16uyY9+zZgygTJkw488yzqqpzLAyCxx13/JbNWxubWioq6iacdNqtt965+vM1gw4+OAjTzOFll3/3/PPPUVrHhq+44vsDBw2+4qqrCVVzS/7ue37d2hans/lHHpvatXuff/rJTzvWH4AIqVTq9tvv/P73Jzc0HBCGkTcwIKoXXnh5z+7iKy+/VH9Ag3Ocy1X+5Cd3Ll689IwzTu/UqbNzumevngd2OhC8ykUYAIxx27bteu65V2+5+carr71aOEFiAedcEjY1a50+9dSJ3/v+TQi6vsOBl19+w+er13Xv2Q1BsUNFYWm+zZLEAKC0TjmGIMALLzxn/PjjgiC44frJjz06feGHizp36qpUIEKbNm76xc9/unDhR48+8usBAwYKg4Dbn1myv/4r9bUu917j4eUQRAoAQLCysrKqKrN927YhQ4Z269p94cJFNTX1Q4YMrajIeuKNSZKyXPqKKy+ccOKJILFI8cBODaSUMMVxvGrV6gceeDyfz2/ZtHHCSSdXVVUhkLW8adPW9evXn3DC+Iry8mwmdcghvWfPntPU1FxZWaWUdg6dk+EjhnXq1Pm5557btGnj0KGDevbqjQhBoBBEEaVSUefOtQ9PuVcptNZpjbnyVHlFWaBDFoOofA4Ms0XUIK65ualbt7pHH/0DKc3OErmq6kx1dY0zFgkFIAz0cceNeeedOe+88+5553ZhRlIkJdA0KuVzMNhjyJwxPi0yDAIAqKgoz2arduzYNnjwgF69+8ya9UaHDh0PHTK0Y8f6JG4FQA+yF3EisnnzpnnvfZTPmygK+vbt0tDQccGCJY2NrUTYr3/XoUMPSacz7Qg8NMYAsDEGxAeICxED4L59zVOfeGb5suXFglOU2rFjz959jXv37gvD6Nhjj37mmWfvvOPOIUNG9O7dbeDAgQ0NB0rJMkrClpAss1Lam7PYsieOJYmXh3vaGvbu3SedzgAAITU1N7/88l/mvDXXGONsYK1zzmzcuOngwYc64zoeUNfQUI+IAty5c5d0OnvIwQcTKmaura0DSDknzLJq1adlZVVvvDFXESDIpo1ftrbKti+3d2zoqJQSdqSUMHzyycru3WtqamqctUGU7tatW3191x079gqQB/Fb67y5HRCYmRCjKLVkydKybM1RR4111iIKeQEuIQDkcplevXsTIQI1NByYzaZ3794lIizgHDsWQI0IAqIUEGlrLaGqra2tqanVQcgg2bIyIti1azcp7ZitdVOnPpkk8f0P3Ddo0CBvMSOlAZKv8wO7v/7Hyyul/1pJhf+DA5qvdbkvBbY4h0DWGKVw1aefzJmzqK2N3377/R49e/zs57/68MP5e/fuuv/+Rw45pM+oUSPKyrJKo9LU8YADevfpTZAIxIjIzjFTOh2OO+bw7/3guuam5ldenv3sn14ZMuTQc8+fFMfx22/P3b27bcGCZTt33mOd2bGzcePGXR98MG/8+OO85FspIgUTTj7moYenFgut9957t7Mxom134TMiZLNRnz59PG9LhJVikcTLSESEWRBFKWJhwiiVitKZsG/fvkSe92wc55VScdGEUUDEzLZvv17jjx37wvOvDx0yHJGttUTknHPOlcaniIhkrWtqaVm3bl2PXt0rKys/+WTFW28szrcV58x5r2PHDr/85a/nzn030PLQQ48PHdp//DFjAXzjXnka6a5du5cu/ailpYjIQWBz5bnlyz/asWMfC6czOGTIYAD0jX4EJEQiFBBhBtAggKRFZOGHC5955rnLLr3kqLHjK8qqFiz48K5f/bOHC5919tmdu3RbvGjJypWfzpjx6siRR1511eU1tTVEoDWJMKAX+bBPhkHSCoSZibz7FK21ztlsNuOnvszJmjVrpk9/eszosZPOnFRRXrlr5+7jjjsTEEGYCKMoVEoLCAEGIYUhtvOLQAdahFgcOzbG7t3btGjxEhJHiNbymWeelMuVfeU2YOZ2MT0IoFbEzlK7Xh2AkyTR2ivuBQRAmJQ3GDutlXcveDyyYwPIJfwrqGw2w8wINgw1gI8MAkQgInbs0yNMkjhXEnF6M2AQBP6exSypVGCsYecQgEjV19fv2bP3s88+HTFiOAAg4f5mzt9nCQCgAFhr84UCO8dASgDBwr+EF1K74uIbYOb8J8vnsXlGu7cnCYhzZsXKlYVia9++Pfft271ixfJjxo8tFltZLKAjBBEngjpQCOC8+QUsYuh1cOXluW5du4hIhw4Nq1dvmPLII+OOHaW1fv31WQMH9q6pqWxta2RnBwzos3nzhqem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Ojo6KysrNm3aJOp69uyhSitXthJaAFNZWVFTU2EjYrJt27evXbOpobFm65bNbdsL1nBzc69MNva+ENmsOL98eWt7e6dhU1WdLxTSqqqKfD6PwES4ecvmLZvbCoXOfD7T2NioUZg9RhG1NuNcUqq0d1mXfcwURL2oJyJrjSo7AQMIiKheARRLSWkSwE+UcANehZk/VG8uW/gx1BFDR/nn6u6tiVR9oVDMZbqpKqB6l3zwwYr33luJEL/15gf779fx+BPPzJk9p6qqYvr014YO7d/YWAcAxmgxSbwXBee8QwBjYmszkbWIzGREpLa2rqIit3Hjxmw2770jskuXtC55/92LL7l45ow50+5/6Lzzzm1qqivPT9Gee+759sLFL02fOXJUS1tbx/PPv9S3z6CKyhpQRGCmCIFAsVDoYMOikiSOCJjQe5/LwcaNGzdv2lhZVYmISVK01oCGRkZhpjjOhm763r17p46TYmKjGIDS1HvvRUTEGUPE7JybO2/+smXvX3DhNX379E6LHVEcFQrtFZW5bt2HBC2YhQsXrVmzpVB0b7+9ZM3qjU8++fzSD5ZXVlY8+8yMUaOG9uhRT6RJmjIpEYGKqigAs1qbC9Qzw3HQEjcmg0YAjPgEEZmZ2TjnRDQpFohJ1S1ZuuS73732oIP2+8pXzvYi4uWGG36xfNnqe+6505idHJaWnL4qICgitre353LZFatW/+D7U99/f9m6tY/OmjXnoou/sHnz+it/9NOLLjrntddmA2TPPffkpqae99133/z589vaUmPcgQceePbZZzc1NanSlVf+rK1tQ//+PV99db737YMGDT7jjCmvvvrqSy/N2LRp3fARu1xz9ZW1tbUAZuGCBXfeecebby5KEja24/jjj/3iF8+LIrKRVVARb23U2dl5ww0/e+KJp4877si35i/s2bPpggu+OG/evCeffGr1qk1pKn369DrppBPGH7JvNpt7792lxx9//qWXnbpo0aJVqzbHEUyYcNipp55cW1vjvH/yyaduvPEX7e1pQ0P98OEDn3pq1pe/fNYZZ0whNnPnzrv77ntff22eKlbXxBMmjD/rrNOrqysQUdWpelWvarr0sLrs44YAwAjIhJlsVFNTQ5RNPbAqoIY+CEVSIEUItKpPPoZICS4bUCg7dpBE5JwLwWscx0mSfM65e3Q+jaIIVNMkieKI2b711oIHHnjyvXdXOFecO2fhs8+8vPidxYMHD/zNb3535pknTJw4Pk3T7duT556dvn7dOmIjmhx66EEDBwx2Lk1T51JXLCZpmsyZPWf9+rWnnnpcHEfGRFu3bpv9+huVlXXDh42oqKh65pnn33hjXo8eh4aXg4iqKqv2P2CvZ599+vQzT92yuW3unLcmTz5h9uyFSZKoqqpP06StrfO23/6eKEh/uMGDe+2337ju3bvtv//oRx55tKNDhg4d2NyroaVleENDQyi3xlHsvaYuSdN0xYoVs2e/2dhQU11dtXr1akScM+fN22//I0CKSKL+wAP36NXc74Olrb2aBzQ39wJUYxnQ2YiJUEQA2TuZMePVF56fvWDhYufMjBmvr169as3a1YjRe++vvPTSc+rqayK2kY1VBQC8CJPBkN0Oyq3AXnxYFAlBQYiEiMIkFCJMnz6zWCxYGwH6kSMH9ujRWMr8qBIZAW84WyiwMRmANLyPOzKJKqoqxBZUcrkcovbq1fzL/7zqG1//j4kTD//CF87NZKNp0+4VgbffXvSjH32/traOiLZubTvwwINPOOGkfD6/ZMn7v/zlf4rgd7/7HRGvCrNnzxk1aviNN/50zpy5N9/822uumTp+/AHf+ta3Nm5c/+1vX/PII4+ee+4XV7auvPXWO1atWvXVr142eMjAV16Z8bOf/bJnc+OkSUcbDWeuAJDL5Z3za9Z0ZDKZn/7kx1XVlfl8bvXqtWedeXZTU+8tm7c//fRzd955d2Njt9FjdhUBUJg5Y9Z3/+Pfmno0TZv2X4/81xMjRw474IB9N27YdNVV140aNeycc87y3t1zz33Ll6/wXkVge9u2X/7y5o0btn3rW9/o1avX9OnTb731loED+k487GBjrDEGSnMVO5pQu6zLdpgCgIh60aSYbm9vB3CpU4uIqB9L5tBHG/JL9w8j+6qFQiFc88HdJ0mSyWScc9Za732xWITPvVQriMDEqmE+VkTcoYdOHLv3wbfddscrM1+98cafTp/+0p133vW973+rT5+eVdWVURRlsxnv/Xvvve98pyqzgdGjR/Xp3TeO80niZs6cd+WV13nv33jjtWHD+h199FHWsoisXbP+hRdeHL3rLkOHjujff1BTU+M9d9972GETvXellyNNjjjiiAcf+POihYuWLl1CZPfZZ7/XXlvAJeVWjWK7rW373LlvEGEYGspmJUlGV1bW/Nu3/u3xx59+8813X3rpeeeSlpG7fOELZ44ZPZqYC4Vk8eIlP/vZr+NMtGTJ0tWr11922ZcCzF4V1q5dN/v1OcaKAqlqS0vfHg29Ojs6c7lcNhMDqJcCEKqmAMxsvBPmaMqppx9/7OSrf3ztpk1br7rm6mnTHpg3b87Xv3FRXffquvruofqq4L14RPbOCYr3EpLdiOCcE5WiOGuNiSLxTsQjlVrvEWHZsuVRhPmK6kJhe3W17dHUUBbqI6ISzqGUxMada5sAgCFHJOKZY/FpAM/V1naPMzafz9bV1xKDF++cXPbVSwYOHBg2lfl8ftu2ba+/PnvTpk0dHc57nDNnQZomgYoxcOCA8847r6mpZ0ND/cyZr65ateHEE08cNGiwqr/77ntmzJj5hS98ZcmSZbNnz7vkkguPPvoYVT9i+Ijp06f/4Q8PnHzSyQCq4BHZe1VJoyhuaKifMuX0vn37Iqn3bvSuY2bOnPnccy9u3NC5Zs2G1tbWd955f4899wRFUDj77HNaWlqI7Ni993n8sefXrt0IALNnz13ZuuX3v79iwID+IuqcvPrqIu+EyC5duuzVWfO+971/P+KIoxFp6NCRM2a88thjjx9+xATVQIEN3Iuu+m2XfdxK4ndkSmM0ZcFU0J37Gv5fogQRMcaUe7shkGCIKMT7RISIAQbzOcubKJNBIEUiQpcWiSgTR/lc/bIPVuy119iabrVbtmytrq4ePXpMnLHFYocqFAqd2WxmypQTJh52CLEHwOqqbnGcSdMkjqNQlty2bfPqNeuzuUjEi4gqLlq0eO3a9ZMnj4yjrDXxPvvsed99D69bu76uvltIWBvmgQMHDh8+/IFpD7S2tu6339ja2joiDlkwQCSi7t1rfvjDK6yNAro9l4syGRbxI1pahgwd0bqideXKlW+//e5vb//d9ddPve223xJyHMdhGWOO991373PPnTx2730QMdRPDjxw369efqH3RWtJVbO5SD1XVFS2tbV3dnYCCDOpFI0hAFEQBQLVysrqbAbffWfJscceV1lZtWXLluZezcOGDrcWvKaIKOLDhFSaJM+/+MITj0/furmDmE45+cg+/fpfP/U/vfcAcsopx+y337jKqirQUEVU70VEJ0067MQTj6murkrSQkVFft26NaAYpF9VAYGTJGUOAJxyd8qHLYkKQEGFEUpcilB/EsAQeXhmyOawd+9mY9hLogIvvvjC7bffWVVV3adPXyJTXV21dWva2dmRy+VVdciQwZlMhChxnKmsrKiv1549e4YZ3e7da1evXuud37Bh8/Jla++//+GXX54dmpfef395oaBJkkSRLVWuMYiFQU1N3NzcS1VAoFAo/PrXt8yb98awoSNyudqKigrv/NatW8PHRAF69+5DaEExm81HNrd9e6cILFr0TmVVPGDAgFB3bWrqWVvbnYhU5N13l6xfv/2BaY/PeHm2c56IFix4r6EhKhaL+XylqgSJG6KuMm2XfZohIQR9BVAAkfABCpOaAUWiAKrlj9gnH0BVjKGgIB2iCu9dLpdrb2+PooiZkiQREWvt50vEBBLwCp6ARZSNeemlF39zyz0bNxTfeOOturruM2bOXbVyRUfHtuOPP/Oww/c/7bQTqqryREAM+Ypc7969vBQAyLugq0cAOm7cmG9845LOQsczzzxzww2/+vOfH/nSl76oSk8//dyK5et//as77r3nv0R07bpVa9dufeIvfznnnLMDEp2Z4zg66ujDv/PtH6nid777HQBFlDRNRITIFIvFqqpsc3NvVQkt5KpFRA8QIZC13K//wH79B+y5116tK5fdfvv9xWIhk630Ph00uN+FF57T0FgXRVEmkw2INgA1hqqqKnr0aALwCikhp64TNOrbr/nBB1tXrlo9ctQwYkKMRRNCRkBmfujBR6bd9/jmTR2vvT53zZqt997/5w8+WGosz5u7cMppR59w/NGZjGFmInUuRaT6+oYRLYM62xNroh49euSymVGjhoTOme7da6yNANC5IhIycXDT3bp1a27umclkAD2Arl+/xlpb1iInQCgUCsaEnODHGttDOkjDLDGREUlLQE0QIghjtM4lkRXDxktKZLZ3bH/uuZlxXPmVr1zQv39/7+W666bOm7coTRPEHBEECWLvXVkIHpkBIGDm2KWOjbFRJpfPjxgxbNiwYWFIYq+9d62szLOxQQwZUQnJgxaLnXGM4fMAgPPnz3/4z0994+sXH3zw+Hy+at7cea+++hKiCUqQYTggrGoi4iUhQuddRb6iWAjje0YEVMG7MO1McRxls7ndd9+1qakpDPHtuefouvpMFMUBnOd9YPl9uNHusi4LhlAaVA9uOjRc7DSagjtqs1TqEP704T6icHlTSGMeeuihgwYN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lJXkstlHH1328G8fHTZ06IxZM5mBHW/evPXcc88tKS274/a7br31F3PmHHLqqafV1Fbdc/evfvGLBxctWjRkyJDfPfzIfb/69ac/c9rCBYdFcXTLzbf+/Gd3jRo1etDg/n7mx1pLaDZs3HjbbXdOO2Ta6aefKiD33vPL71xz3SFTp82cNf2iC8+9+abbP3feOfMXTKusKip0lkAqKyqPPubo559/edGi+aefcXJpWSqVyoC809y811o+5+xzS8tK7rzjjhtuuPXkU04tyhQte/L3jz327EknH7dwwWHM7sc//sn1190yZcqksvISv4tSyvg5qMJcAjChAgJEMiaVy0ULFx5eW1tbVlaxv2X/jTf+/Jf33j969JiysvJjjzn8+edfPfPM1uqq6uaWfc/9/pXjj1tSUlyya/eeH11/Y21t/RVXXF5ZUbHilRXf+971U6dOX7BgIQju37+/pLj47HPOqa4ur6gqT5Ickukp5uAHXbX34YMVTvrQh78KWOjI+vlmr31MiICEftQe6S/cYz0zfgXN2J4xFmaWMNRJkvig70PNR0CzstYaFTIzEYrg/PmHzZgx/8c/uiGdom9c8dWXV6w8sH/fFVd8qb6hprg4bYxO4jwBGhU466TAAEIAJNK7dzeuWPH6Kaec3K9/3ezZ02+/vfKZZ34/Y9b0VGjqGxqOP+HYP760csbMaXPnzjRGISGgY7FEFIYkECsiEbHWam2ShEVg/bp3rv72tSUlJa2tbTt3brjhxh9XVtayyyPB1KmHjBk15dnfv7xy5atXf+fKN99cm821nnPuWXPnzjIG00UpAFJIwIwEgiqbzQOAUsTswjD0zluIaIwh1TuY5/zGzQlbtmEquOCi80468YxlTz09dtxoTxgmChFp0ODhTz7xxMaNG7q6cjt3NG/bvqVx2/bpM2YrHQLqE086edac2UEQbti4ftlTTyw9Yum8+XMB+eRTPvHoYy80Nm4vLat48cXXJ02adMonT6usqEHikz/R8d3vfu+NtesGDmpQSkVRZHQqSeJ1b24A0aeccvzkqVMQpF+/+rvufuTpZ5ZdNObioqKUUlBSWlxZWaGUBbBEIMJIKpPJKKVTqVR5RWUqjewYSGrrao865qjZc2Yj0amf+tS9v3xse+P2mrq6P760cszYiaeddkZZWak2wcUXffGkk89Yu3bd/MPmIlr2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WTJ/ztyZccI6EOucAKxbt27X7h0XXvS5qpoqAIekCWTylImTp0x75ZXXTjhh+/Dho5KEUSnmxLE90Nm5/q11pWU6ndFAIgJr1775wAOPdnZkX3rp1T2797fsa1v25DOZTPrb3/ruxMljTjrpOPCcNgAR7hkwJ2ZWpJgFSYE4QCU98vhag/K8JwEQN2jAgMWLlj7x5BPr1m2YNXs2oFIKBAiA9u5teXLZM027diMEnZ1tDz306CUXf3HmrBmI8vjjz//ud4+NnzBUKTjQau+9+/5TTzt127ZNbe0H9u5p6erKX/ZPX5o3b66AeeWVVbfecuuBtvaamtrm5qaHf/fMt6+6bPjwIQLCLAIMwCLUtKv5n//52rc3bhg2fERra4t+6JHzzvuHBQsX7tnbundvK2CyZctWrTm2ecAi73iezXY27dplnd21u9kEmdLSksSK0uHOnduvv/56RNy370B0f3TJFy5esGCeUmr79l3f+c6/79m9q65uQFdX1yOPLDv/gnPnzplBypOz/PSMdiwAYExKBPe3tt1w409XrnytqqreJq6treuMMz556mmfACTHbsvWTffe+0sR6O6Oduzc8rnP7T/99E/52X7HMSH9icNU4aaiAlEAC5nQf42K0lev78NHBp/FgyAgFTcMq56yNKHigmQHMoETQIbCfc9IDKCEtTAJoyAACSoHlGHWKRMnEaFoRC2aEycojEgQMMWMeQUfrlctAll2RoU+VpJCdk4ro7XZuGGjMXrcuDHN+/a0tu5bunRpUVE6CAIEIkJ24JwTkT17WjOZovr6GqUMcwxoRaCqqnLUqJEP//aRAwfaSClr3c6dLeed9wUkyuU6d+3acsopxw8fMcTHQWMMIu/ZsysMYciQAdYmmzbt+IfPn5kpSqfCQIRJaWsj5sQYjWg87wax4EPCzvnsVesCT8e5BFCBCCllrS0uLl+wcP6zv3/umWf+MG7cOGFUBCIkAlVVdccff3I6nQqDsK2945abb/3+93/8wIP3AFil1I7tO84446QlSxc7q778pa/97Gd3f+YzJ5119pnZ7uQbV3z7oYcenjlzZmd31x133tl6oPUf//GrQ4cO2bWr6RtXXPmLX9x1+eVfN0aBv/6omeHOO+54+qlnb7rpJyNGDt+xo/GGG26+4467R4wYddppn9q+ffsjj7R/85v/SOTClHEuQSRF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BugaAK21npfatKm5rKzUGssM6Uy2tbU1CqN0OtXe3laSzSB1cscJIdbV1s2ceeLiJQufXPjUueeeozW2t7cLICrdsr31jjt/+tzyZR+05Nt3201btq1+880+/eqZoaKq2+hxE/r07a+Ipk2deeMNP58+bUZD7wYEHDJk0D33LMjnWXuppU8t69ev74wZn1FaI8LsWbPvufvhLVu2+YEuLS1FVAAoTEufXlpbmznuuEllpaWpVGbihOMeWvDE66++NeX4yakgjYiplO/5zuhwuTEqn28vKa1gFqW9ktIyBArDvIlCpeSiL15UVVlFSg8fMXLRoid3teaEYcGCxTOmnzRm7HjPD0B42tRpS5c+s2XLB4OHKIgJ7jH2RiLMnHnclBPGRZHJZrP9+/fNhxEATJs+Y9CgwUopa4019r1337/rrrtefvm1lpb2HR+0b92ybdeu1praWhFo6N00ccJxPXt0z4e7Jx1//IMPPHHuued2r68nnRoydMia/3krDNkKLHho4RVfumDMmAnGRII8bca0G264acfO3XV1dYm6T3CIgQieL8wWLKMhHflIUdSuFWgxCM6Z49S9dsEzRNqLysVtBwJkiDMg9qwABLhY/sioe4mPEvK5/K5d1pr8ihUvjhkzbueu3SuWr6ioKCvJlubz+ZKSFBGE+fZs1pswYeyZZ56mPQAMHX2ZsEmnvdNOP+miL35+w4YNv/jFf9991y+nHH/i5BPHhmH44so/trba+vr65ubmXK599OiRP/rxHWvWvDV48CBEDUBB4NfV1UyZMun223++efOmK6+8MpVKMwOicxExoK3vXjJnzhmuwktpxLhk1Fv//no23urVb3teNp0pXbVqUX19fXtbWyqtgzQhotaaGRC176tdu3bOnHnmrl0CgGedOfOCC87+4Q9v/f3vX2KGvn17L1nyq3gujvOuGJABwdpwxIihsz4zfeGTj48cMZwZPM8DwddfX33td673g+hvv351Q6/B21vy5557kTAgIYOprKyuKK9ksARYWlqilKqsrEJAQMpkS5mVIJl8tHbtu++//4enB40mAmtBaWlrM2vXrh08ZBBzHoGYgUh90LK9vLykvLI6nfIRobKqqrKyYvfu3ah0GIYALv1fRAwRAkTW2MDP5NvbOno9ioCfSnu+V1KCge+RVmxMKghEMJ+PWlvb2tra77774d/+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	f	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-06 12:14:34.053769+00	2026-02-16 09:31:32.384052+00	\N	\N	{}	\N	\N	\N	\N	f	\N	\N	\N	[]
 \.
 
 
@@ -6747,6 +9918,698 @@ COPY public.published_file_dependencies (published_file_id, depends_on_published
 --
 
 COPY public.published_files (id, project_id, entity_type, entity_id, version_id, task_id, code, name, description, version_number, file_type, file_path, file_size, published_by, published_at, status, created_at, updated_at, thumbnail_url, link, downstream_published_files, upstream_published_files, tags, client_version, element, output, path_cache, path_cache_storage, path_to_source, submission_notes, snapshot_id, snapshot_type, target_name, ayon_representation_id, cached_display_name, filmstrip_thumbnail_url, image_source_entity, thumbnail_blur_hash, updated_by) FROM stdin;
+6	7	shot	4	5	4	test	test	testing	\N	maya	/projects	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-11 11:24:14.896236+00	ip	2026-02-11 11:24:14.896236+00	2026-02-11 11:24:14.896236+00	\N	\N	{}	{}	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+5	1	shot	3	4	3	test	test	testing	\N	maya	/projects	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-11 09:59:21.018315+00	review	2026-02-11 09:59:21.018315+00	2026-02-16 06:39:45.521054+00	\N	\N	{}	{}	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: schema_change_log; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_change_log (id, action, field_id, choice_set_id, actor_id, payload, created_at) FROM stdin;
+1	bootstrap_fields	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"entity_type": null, "inserted_or_linked": 372}	2026-02-12 07:12:26.320293+00
+2	update_field_meta	364	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"field_type": "permanent"}	2026-02-12 09:27:04.863344+00
+3	update_field_meta	364	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"field_type": "dynamic"}	2026-02-12 09:27:14.569477+00
+4	update_field_meta	364	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"field_type": "permanent"}	2026-02-12 10:09:37.243119+00
+5	update_field_meta	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"name": "Ayon Sync Status", "is_active": true, "field_type": "custom", "description": "Bootstrapped from existing DB column", "choice_set_id": null}	2026-02-13 09:02:21.489634+00
+6	bootstrap_fields	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"entity_type": null, "inserted_or_linked": 0}	2026-02-13 09:03:43.465801+00
+7	change_field_data_type	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"code": "ayon_sync_status", "new_data_type": "list", "old_data_type": "checkbox"}	2026-02-13 09:36:37.79138+00
+8	update_field_meta	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"name": "Ayon Sync Status", "is_active": true, "field_type": "custom", "description": "Bootstrapped from existing DB column", "choice_set_id": null}	2026-02-13 09:36:37.894475+00
+9	change_field_data_type	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"code": "ayon_sync_status", "new_data_type": "text", "old_data_type": "list"}	2026-02-13 10:24:16.446758+00
+10	update_field_meta	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"choice_set_id": null}	2026-02-13 10:24:16.529909+00
+11	update_field_meta	59	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"field_type": "dynamic"}	2026-02-13 10:24:21.003394+00
+12	create_field	373	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"code": "target", "name": "target", "entities": ["task"], "data_type": "text", "field_type": "dynamic"}	2026-02-13 10:55:22.86323+00
+13	update_field_meta	283	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"name": "Publish Status", "is_active": true, "field_type": "dynamic", "description": "Bootstrapped from existing DB column", "choice_set_id": null}	2026-02-16 05:20:30.30515+00
+14	add_field_to_entity	283	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"entity_type": "asset"}	2026-02-16 05:20:30.608595+00
+15	create_choice_set	\N	1	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"name": "task template"}	2026-02-16 08:33:25.422664+00
+16	bootstrap_fields	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{"entity_type": null, "inserted_or_linked": 0}	2026-02-16 10:51:10.879063+00
+\.
+
+
+--
+-- Data for Name: schema_choice_set_items; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_choice_set_items (id, choice_set_id, value, label, color, sort_order, is_active, created_by, updated_by, created_at, updated_at) FROM stdin;
+1	1	ingest	ingest	\N	10	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 08:33:25.422664+00	2026-02-16 08:33:25.422664+00
+2	1	vendor	vendor	\N	20	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 08:33:25.422664+00	2026-02-16 08:33:25.422664+00
+3	1	comp	comp	\N	30	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 08:33:25.422664+00	2026-02-16 08:33:25.422664+00
+4	1	Default Template	Default Template	\N	10	t	\N	\N	2026-02-16 10:46:32.634457+00	2026-02-16 10:46:32.634457+00
+\.
+
+
+--
+-- Data for Name: schema_choice_sets; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_choice_sets (id, name, description, is_system, is_active, created_by, updated_by, created_at, updated_at) FROM stdin;
+1	task template	templates	f	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 08:33:25.422664+00	2026-02-16 08:33:25.422664+00
+\.
+
+
+--
+-- Data for Name: schema_field_entities; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_field_entities (id, field_id, entity_type, table_name, column_name, required, visible_by_default, display_order, is_active, created_by, updated_by, created_at, updated_at) FROM stdin;
+1	1	asset	assets	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+2	2	asset	assets	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+3	3	asset	assets	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+4	4	asset	assets	asset_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+5	5	asset	assets	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+6	6	asset	assets	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+7	7	asset	assets	client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+8	8	asset	assets	dd_client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+9	9	asset	assets	keep	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+10	10	asset	assets	outsource	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+11	11	asset	assets	sequence_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+12	12	asset	assets	shot_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+13	13	asset	assets	shots	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+14	14	asset	assets	vendor_groups	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+15	15	asset	assets	sub_assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+16	16	asset	assets	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+17	17	asset	assets	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+18	18	asset	assets	parent_assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+19	19	asset	assets	sequences	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+20	20	asset	assets	asset_sequence	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+21	21	asset	assets	asset_shot	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+22	22	asset	assets	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+23	23	asset	assets	cc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+24	24	asset	assets	creative_brief	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+25	25	asset	assets	episodes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+26	26	asset	assets	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+27	27	asset	assets	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+28	28	asset	assets	levels	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+29	29	asset	assets	linked_projects	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+30	30	asset	assets	mocap_takes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+31	31	asset	assets	notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+32	32	asset	assets	open_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+33	33	asset	assets	open_notes_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+34	34	asset	assets	published_file_links	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+35	35	asset	assets	review_versions_link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+36	36	asset	assets	sequences_assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+37	37	asset	assets	shots_assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+38	38	asset	assets	tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+39	39	asset	assets	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+40	40	asset	assets	version_link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+41	1	sequence	sequences	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+42	2	sequence	sequences	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+43	3	sequence	sequences	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+44	5	sequence	sequences	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+45	6	sequence	sequences	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+46	7	sequence	sequences	client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+47	8	sequence	sequences	dd_client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+48	23	sequence	sequences	cc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+49	17	sequence	sequences	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+50	50	sequence	sequences	sequence_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+51	16	sequence	sequences	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+52	13	sequence	sequences	shots	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+53	53	sequence	sequences	assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+54	54	sequence	sequences	plates	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+55	55	sequence	sequences	cuts	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+56	33	sequence	sequences	open_notes_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+57	34	sequence	sequences	published_file_links	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+58	58	sequence	sequences	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+60	22	sequence	sequences	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+61	61	sequence	sequences	episode	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+62	26	sequence	sequences	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+63	27	sequence	sequences	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+64	31	sequence	sequences	notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+65	32	sequence	sequences	open_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+66	66	sequence	sequences	scenes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+67	38	sequence	sequences	tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+68	39	sequence	sequences	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+69	14	sequence	sequences	vendor_groups	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+70	40	sequence	sequences	version_link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+71	11	shot	shots	sequence_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+72	1	shot	shots	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+73	2	shot	shots	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+74	3	shot	shots	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+75	5	shot	shots	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+76	76	shot	shots	cut_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+77	77	shot	shots	cut_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+78	78	shot	shots	cut_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+79	79	shot	shots	head_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+80	80	shot	shots	tail_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+81	81	shot	shots	working_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+82	82	shot	shots	frame_start	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+83	83	shot	shots	frame_end	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+84	6	shot	shots	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+85	85	shot	shots	shot_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+86	7	shot	shots	client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+87	8	shot	shots	dd_client_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+88	23	shot	shots	cc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+89	89	shot	shots	comp_note	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+90	90	shot	shots	cut_order	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+91	91	shot	shots	cut_summary	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+92	92	shot	shots	duration_summary	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+93	93	shot	shots	dd_location	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+94	94	shot	shots	delivery_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+95	95	shot	shots	head_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+96	96	shot	shots	head_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+97	97	shot	shots	tail_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+98	98	shot	shots	next_review	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+99	32	shot	shots	open_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+100	33	shot	shots	open_notes_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+101	101	shot	shots	parent_shots	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+102	54	shot	shots	plates	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+103	103	shot	shots	seq_shot	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+104	104	shot	shots	shot_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+105	105	shot	shots	sub_shots	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+106	106	shot	shots	target_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+107	17	shot	shots	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+108	14	shot	shots	vendor_groups	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+109	53	shot	shots	assets	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+110	16	shot	shots	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+111	58	shot	shots	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+113	22	shot	shots	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+114	26	shot	shots	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+115	27	shot	shots	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+116	31	shot	shots	notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+117	34	shot	shots	published_file_links	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+118	118	shot	shots	raw_cut_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+119	119	shot	shots	raw_cut_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+120	120	shot	shots	raw_cut_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+121	121	shot	shots	raw_head_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+122	122	shot	shots	raw_head_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+123	123	shot	shots	raw_head_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+124	124	shot	shots	raw_tail_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+125	125	shot	shots	raw_tail_in	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+126	126	shot	shots	raw_tail_out	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+127	127	shot	shots	tail_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+128	38	shot	shots	tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+129	39	shot	shots	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+130	130	shot	shots	turnover	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+131	40	shot	shots	version_link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+133	133	task	tasks	milestone_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+134	2	task	tasks	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+135	3	task	tasks	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+136	5	task	tasks	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+137	137	task	tasks	priority	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+138	138	task	tasks	start_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+139	139	task	tasks	due_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+140	140	task	tasks	duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+141	141	task	tasks	estimated_hours	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+142	142	task	tasks	actual_hours	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+143	143	task	tasks	task_template_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+144	144	task	tasks	assigned_to	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+145	145	task	tasks	reviewer	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+146	146	task	tasks	link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+147	147	task	tasks	bid	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+148	148	task	tasks	bid_breakdown	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+149	149	task	tasks	buffer_days	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+150	150	task	tasks	buffer_days2	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+151	151	task	tasks	casting	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+152	23	task	tasks	cc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+153	153	task	tasks	ddna_bid	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+154	154	task	tasks	ddna_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+155	155	task	tasks	ddna_to	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+156	156	task	tasks	dependency_violation	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+157	157	task	tasks	dept_end_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+158	158	task	tasks	downstream_dependency	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+159	159	task	tasks	end_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+160	160	task	tasks	gantt_bar_color	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+161	161	task	tasks	inventory_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+162	162	task	tasks	milestone	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+163	31	task	tasks	notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+164	164	task	tasks	prod_comments	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+165	165	task	tasks	proposed_start_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+166	166	task	tasks	publish_version_number	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+167	16	task	tasks	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+168	168	task	tasks	task_complexity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+170	6	task	tasks	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+171	171	task	tasks	versions	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+172	172	task	tasks	workload	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+173	173	task	tasks	pipeline_step_color	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+174	174	task	tasks	ayon_assignees	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+175	58	task	tasks	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+177	22	task	tasks	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+178	26	task	tasks	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+179	27	task	tasks	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+180	180	task	tasks	implicit	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+181	181	task	tasks	notes_links	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+182	32	task	tasks	open_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+183	33	task	tasks	open_notes_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+184	184	task	tasks	pinned	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+185	185	task	tasks	review_versions_task	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+132	132	task	tasks	step_id	f	t	1000	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+186	186	task	tasks	schedule_change_comments	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+187	187	task	tasks	sibling_tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+188	188	task	tasks	sort_order	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+189	189	task	tasks	split_durations	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+190	190	task	tasks	splits	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+192	39	task	tasks	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+193	193	task	tasks	time_logged	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+194	194	task	tasks	time_logged_of_bid	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+195	195	task	tasks	time_logged_over_under_bid	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+196	196	task	tasks	upstream_dependency	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+197	197	task	tasks	workload_assignee_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+198	198	version	versions	task_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+199	1	version	versions	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+200	200	version	versions	version_number	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+201	3	version	versions	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+202	5	version	versions	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+203	203	version	versions	client_approved	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+204	204	version	versions	movie_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+205	6	version	versions	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+206	206	version	versions	frames_path	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+207	207	version	versions	first_frame	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+208	208	version	versions	last_frame	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+209	209	version	versions	frame_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+210	210	version	versions	frame_range	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+211	211	version	versions	artist_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+212	212	version	versions	file_path	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+213	146	version	versions	link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+214	55	version	versions	cuts	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+215	215	version	versions	date_viewed	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+216	216	version	versions	department	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+217	217	version	versions	editorial_qc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+218	218	version	versions	flagged	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+219	219	version	versions	movie_aspect_ratio	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+220	220	version	versions	movie_has_slate	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+221	221	version	versions	nuke_script	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+222	222	version	versions	playlists	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+223	223	version	versions	published_files	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+224	224	version	versions	send_exrs	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+225	225	version	versions	source_clip	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+226	16	version	versions	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+227	17	version	versions	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+228	228	version	versions	version_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+229	229	version	versions	uploaded_movie	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+230	230	version	versions	viewed_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+231	231	version	versions	client_approved_at	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+232	232	version	versions	client_approved_by	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+233	233	version	versions	client_version_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+234	58	version	versions	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+235	235	version	versions	ayon_product_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+237	237	version	versions	ayon_version_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+238	22	version	versions	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+239	239	version	versions	deliveries	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+240	26	version	versions	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+241	241	version	versions	frame_rate	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+242	242	version	versions	frames_aspect_ratio	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+243	243	version	versions	frames_have_slate	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+244	27	version	versions	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+245	245	version	versions	media_center_import_time	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+191	191	task	tasks	template_task	f	t	1000	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+246	31	version	versions	notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+247	32	version	versions	open_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+248	33	version	versions	open_notes_count	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+249	249	version	versions	otio_playable	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+250	250	version	versions	path_to_geometry	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+251	38	version	versions	tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+252	39	version	versions	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+253	253	version	versions	translation_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+254	254	version	versions	uploaded_movie_audio_offset	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+255	255	version	versions	uploaded_movie_duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+256	256	version	versions	uploaded_movie_image	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+257	257	version	versions	uploaded_movie_mp4	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+258	258	version	versions	uploaded_movie_transcoding_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+259	259	version	versions	uploaded_movie_webm	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+260	260	note	notes	parent_note_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+261	261	note	notes	author_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+262	262	note	notes	subject	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+263	263	note	notes	content	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+264	264	note	notes	note_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+265	265	note	notes	read_by_default	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+266	5	note	notes	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+267	198	note	notes	task_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+268	268	note	notes	attachments	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+269	58	note	notes	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+271	22	note	notes	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+272	23	note	notes	cc	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+273	203	note	notes	client_approved	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+274	274	note	notes	client_note	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+275	275	note	notes	client_note_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+276	276	note	notes	composition	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+277	26	note	notes	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+278	27	note	notes	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+279	279	note	notes	links	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+280	280	note	notes	notes_app_context_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+281	249	note	notes	otio_playable	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+282	282	note	notes	playlist	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+284	284	note	notes	read_unread	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+285	285	note	notes	replies	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+286	286	note	notes	reply_content	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+287	287	note	notes	suppress_email_notification	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+288	16	note	notes	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+289	38	note	notes	tasks	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+290	6	note	notes	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+291	39	note	notes	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+292	292	note	notes	f_to	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+293	293	published_file	published_files	version_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+294	198	published_file	published_files	task_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+295	1	published_file	published_files	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+296	2	published_file	published_files	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+297	3	published_file	published_files	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+298	200	published_file	published_files	version_number	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+299	299	published_file	published_files	file_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+300	212	published_file	published_files	file_path	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+301	301	published_file	published_files	file_size	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+302	302	published_file	published_files	published_by	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+303	303	published_file	published_files	published_at	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+304	5	published_file	published_files	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+305	6	published_file	published_files	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+283	283	note	notes	publish_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 05:20:30.30515+00
+306	146	published_file	published_files	link	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+307	307	published_file	published_files	downstream_published_files	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+308	308	published_file	published_files	upstream_published_files	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+309	16	published_file	published_files	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+310	310	published_file	published_files	client_version	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+311	311	published_file	published_files	element	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+312	312	published_file	published_files	output	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+313	313	published_file	published_files	path_cache	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+314	314	published_file	published_files	path_cache_storage	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+315	315	published_file	published_files	path_to_source	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+316	316	published_file	published_files	submission_notes	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+317	317	published_file	published_files	snapshot_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+318	318	published_file	published_files	snapshot_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+319	319	published_file	published_files	target_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+320	320	published_file	published_files	ayon_representation_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+321	22	published_file	published_files	cached_display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+322	26	published_file	published_files	filmstrip_thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+323	27	published_file	published_files	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+324	39	published_file	published_files	thumbnail_blur_hash	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+325	1	project	projects	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+326	2	project	projects	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+327	3	project	projects	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+328	5	project	projects	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+329	329	project	projects	color	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+330	138	project	projects	start_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+331	159	project	projects	end_date	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+332	6	project	projects	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+333	333	project	projects	is_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+334	334	project	projects	archived	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+335	335	project	projects	project_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+336	16	project	projects	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+337	58	project	projects	ayon_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+338	338	project	projects	ayon_project_code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+339	339	project	projects	billboard	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+340	140	project	projects	duration	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+341	341	project	projects	favorite	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+342	342	project	projects	sg_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+343	343	project	projects	tank_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+344	17	project	projects	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+345	345	project	projects	users	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+346	1	department	departments	code	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+347	2	department	departments	name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+348	3	department	departments	description	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+349	329	department	departments	color	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+350	350	department	departments	department_type	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+351	5	department	departments	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+352	352	department	departments	order	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+353	16	department	departments	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+354	354	department	departments	people	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+355	6	department	departments	thumbnail_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+356	27	department	departments	image_source_entity	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+357	357	person	profiles	email	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+358	358	person	profiles	display_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+359	359	person	profiles	firstname	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+360	360	person	profiles	lastname	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+361	361	person	profiles	avatar_url	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+362	362	person	profiles	role	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+363	363	person	profiles	department_id	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+364	364	person	profiles	active	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+365	365	person	profiles	login_enabled	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+366	366	person	profiles	full_name	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+367	367	person	profiles	login	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+368	368	person	profiles	password_set	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+369	369	person	profiles	password_strength	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+370	370	person	profiles	projects	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+371	16	person	profiles	tags	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+372	5	person	profiles	status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+59	59	sequence	sequences	ayon_sync_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-13 09:36:37.894475+00
+112	59	shot	shots	ayon_sync_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-13 09:36:37.894475+00
+176	59	task	tasks	ayon_sync_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-13 09:36:37.894475+00
+236	59	version	versions	ayon_sync_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-13 09:36:37.894475+00
+270	59	note	notes	ayon_sync_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-13 09:36:37.894475+00
+373	373	task	tasks	target	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 10:55:22.86323+00	2026-02-13 10:55:22.86323+00
+374	283	asset	assets	publish_status	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 05:20:30.608595+00	2026-02-16 05:20:30.608595+00
+376	216	task	tasks	department	f	t	120	t	\N	\N	2026-02-16 10:46:32.634457+00	2026-02-16 10:46:32.634457+00
+169	17	task	tasks	task_template	f	t	1000	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+\.
+
+
+--
+-- Data for Name: schema_field_link_targets; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_field_link_targets (id, field_id, target_entity_type, created_at) FROM stdin;
+5	216	department	2026-02-16 10:46:32.634457+00
+6	144	person	2026-02-16 10:46:32.634457+00
+7	145	person	2026-02-16 10:46:32.634457+00
+8	174	person	2026-02-16 10:46:32.634457+00
+\.
+
+
+--
+-- Data for Name: schema_fields; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.schema_fields (id, code, name, data_type, field_type, description, default_value, choice_set_id, is_active, created_by, updated_by, created_at, updated_at) FROM stdin;
+373	target	target	text	dynamic	\N	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 10:55:22.86323+00	2026-02-13 10:55:22.86323+00
+4	asset_type	Asset Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+9	keep	Keep	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+10	outsource	Outsource	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+12	shot_id	Shot Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+15	sub_assets	Sub Assets	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+18	parent_assets	Parent Assets	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+19	sequences	Sequences	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+20	asset_sequence	Asset Sequence	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+21	asset_shot	Asset Shot	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+24	creative_brief	Creative Brief	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+25	episodes	Episodes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+28	levels	Levels	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+29	linked_projects	Linked Projects	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+30	mocap_takes	Mocap Takes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+35	review_versions_link	Review Versions Link	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+36	sequences_assets	Sequences Assets	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+37	shots_assets	Shots Assets	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+50	sequence_type	Sequence Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+13	shots	Shots	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+61	episode	Episode	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+66	scenes	Scenes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+11	sequence_id	Sequence Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+76	cut_in	Cut In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+77	cut_out	Cut Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+78	cut_duration	Cut Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+79	head_in	Head In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+80	tail_out	Tail Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+81	working_duration	Working Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+82	frame_start	Frame Start	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+83	frame_end	Frame End	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+85	shot_type	Shot Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+7	client_name	Client Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+8	dd_client_name	Dd Client Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+89	comp_note	Comp Note	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+90	cut_order	Cut Order	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+91	cut_summary	Cut Summary	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+92	duration_summary	Duration Summary	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+93	dd_location	Dd Location	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+94	delivery_date	Delivery Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+95	head_duration	Head Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+96	head_out	Head Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+97	tail_in	Tail In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+98	next_review	Next Review	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+101	parent_shots	Parent Shots	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+54	plates	Plates	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+103	seq_shot	Seq Shot	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+104	shot_notes	Shot Notes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+105	sub_shots	Sub Shots	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+106	target_date	Target Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+14	vendor_groups	Vendor Groups	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+53	assets	Assets	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+34	published_file_links	Published File Links	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+118	raw_cut_duration	Raw Cut Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+119	raw_cut_in	Raw Cut In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+120	raw_cut_out	Raw Cut Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+121	raw_head_duration	Raw Head Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+122	raw_head_in	Raw Head In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+123	raw_head_out	Raw Head Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+124	raw_tail_duration	Raw Tail Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+125	raw_tail_in	Raw Tail In	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+126	raw_tail_out	Raw Tail Out	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+127	tail_duration	Tail Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+130	turnover	Turnover	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+40	version_link	Version Link	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+132	step_id	Step Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+133	milestone_id	Milestone Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+137	priority	Priority	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+139	due_date	Due Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+141	estimated_hours	Estimated Hours	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+142	actual_hours	Actual Hours	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+143	task_template_id	Task Template Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+144	assigned_to	Assigned To	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+145	reviewer	Reviewer	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+147	bid	Bid	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+148	bid_breakdown	Bid Breakdown	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+149	buffer_days	Buffer Days	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+150	buffer_days2	Buffer Days2	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+151	casting	Casting	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+174	ayon_assignees	Ayon Assignees	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+153	ddna_bid	Ddna Bid	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+154	ddna_id	Ddna Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+155	ddna_to	Ddna To	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+156	dependency_violation	Dependency Violation	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+157	dept_end_date	Dept End Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+158	downstream_dependency	Downstream Dependency	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+160	gantt_bar_color	Gantt Bar Color	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+161	inventory_date	Inventory Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+162	milestone	Milestone	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+164	prod_comments	Prod Comments	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+165	proposed_start_date	Proposed Start Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+166	publish_version_number	Publish Version Number	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+168	task_complexity	Task Complexity	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+171	versions	Versions	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+172	workload	Workload	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+173	pipeline_step_color	Pipeline Step Color	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+180	implicit	Implicit	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+181	notes_links	Notes Links	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+184	pinned	Pinned	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+185	review_versions_task	Review Versions Task	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+186	schedule_change_comments	Schedule Change Comments	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+187	sibling_tasks	Sibling Tasks	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+188	sort_order	Sort Order	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+189	split_durations	Split Durations	serializable	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+190	splits	Splits	serializable	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+191	template_task	Template Task	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+216	department	Department	entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+193	time_logged	Time Logged	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+194	time_logged_of_bid	Time Logged Of Bid	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+195	time_logged_over_under_bid	Time Logged Over Under Bid	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+196	upstream_dependency	Upstream Dependency	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+197	workload_assignee_count	Workload Assignee Count	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+204	movie_url	Movie Url	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+206	frames_path	Frames Path	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+207	first_frame	First Frame	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+208	last_frame	Last Frame	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+209	frame_count	Frame Count	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+210	frame_range	Frame Range	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+211	artist_id	Artist Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+55	cuts	Cuts	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+215	date_viewed	Date Viewed	date_time	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+217	editorial_qc	Editorial Qc	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+218	flagged	Flagged	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+219	movie_aspect_ratio	Movie Aspect Ratio	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+220	movie_has_slate	Movie Has Slate	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+221	nuke_script	Nuke Script	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+222	playlists	Playlists	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+223	published_files	Published Files	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+224	send_exrs	Send Exrs	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+225	source_clip	Source Clip	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+228	version_type	Version Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+229	uploaded_movie	Uploaded Movie	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+230	viewed_status	Viewed Status	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+231	client_approved_at	Client Approved At	date_time	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+232	client_approved_by	Client Approved By	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+233	client_version_name	Client Version Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+235	ayon_product_id	Ayon Product Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+237	ayon_version_id	Ayon Version Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+239	deliveries	Deliveries	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+241	frame_rate	Frame Rate	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+242	frames_aspect_ratio	Frames Aspect Ratio	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+243	frames_have_slate	Frames Have Slate	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+245	media_center_import_time	Media Center Import Time	date_time	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+31	notes	Notes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+32	open_notes	Open Notes	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+33	open_notes_count	Open Notes Count	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+250	path_to_geometry	Path To Geometry	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+253	translation_type	Translation Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+254	uploaded_movie_audio_offset	Uploaded Movie Audio Offset	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+255	uploaded_movie_duration	Uploaded Movie Duration	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+256	uploaded_movie_image	Uploaded Movie Image	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+257	uploaded_movie_mp4	Uploaded Movie Mp4	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+258	uploaded_movie_transcoding_status	Uploaded Movie Transcoding Status	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+259	uploaded_movie_webm	Uploaded Movie Webm	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+260	parent_note_id	Parent Note Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+261	author_id	Author Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+262	subject	Subject	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+263	content	Content	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+264	note_type	Note Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+265	read_by_default	Read By Default	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+59	ayon_sync_status	Ayon Sync Status	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+268	attachments	Attachments	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+23	cc	Cc	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+203	client_approved	Client Approved	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+274	client_note	Client Note	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+275	client_note_id	Client Note Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+276	composition	Composition	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+283	publish_status	Publish Status	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 05:20:30.30515+00
+279	links	Links	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+280	notes_app_context_entity	Notes App Context Entity	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+249	otio_playable	Otio Playable	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+282	playlist	Playlist	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+284	read_unread	Read Unread	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+285	replies	Replies	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+286	reply_content	Reply Content	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+287	suppress_email_notification	Suppress Email Notification	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+38	tasks	Tasks	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+292	f_to	F To	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+293	version_id	Version Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+198	task_id	Task Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+200	version_number	Version Number	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+299	file_type	File Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+212	file_path	File Path	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+301	file_size	File Size	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+302	published_by	Published By	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+303	published_at	Published At	date_time	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+146	link	Link	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+307	downstream_published_files	Downstream Published Files	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+308	upstream_published_files	Upstream Published Files	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+310	client_version	Client Version	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+311	element	Element	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+312	output	Output	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+313	path_cache	Path Cache	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+314	path_cache_storage	Path Cache Storage	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+315	path_to_source	Path To Source	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+316	submission_notes	Submission Notes	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+317	snapshot_id	Snapshot Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+318	snapshot_type	Snapshot Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+319	target_name	Target Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+320	ayon_representation_id	Ayon Representation Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+22	cached_display_name	Cached Display Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+26	filmstrip_thumbnail_url	Filmstrip Thumbnail Url	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+39	thumbnail_blur_hash	Thumbnail Blur Hash	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+138	start_date	Start Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+159	end_date	End Date	date	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+333	is_template	Is Template	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+334	archived	Archived	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+335	project_type	Project Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+58	ayon_id	Ayon Id	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+338	ayon_project_code	Ayon Project Code	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+339	billboard	Billboard	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+140	duration	Duration	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+341	favorite	Favorite	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+342	sg_id	Sg Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+343	tank_name	Tank Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+345	users	Users	serializable	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+1	code	Code	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+2	name	Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+3	description	Description	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+329	color	Color	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+350	department_type	Department Type	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+352	order	Order	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+364	active	Active	checkbox	permanent	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 10:09:37.243119+00
+354	people	People	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+6	thumbnail_url	Thumbnail Url	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+27	image_source_entity	Image Source Entity	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+357	email	Email	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+358	display_name	Display Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+359	firstname	Firstname	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+360	lastname	Lastname	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+361	avatar_url	Avatar Url	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+362	role	Role	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+363	department_id	Department Id	number	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+365	login_enabled	Login Enabled	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+366	full_name	Full Name	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+367	login	Login	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+368	password_set	Password Set	checkbox	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+369	password_strength	Password Strength	float	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+370	projects	Projects	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+16	tags	Tags	multi_entity	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
+17	task_template	Task Template	list	dynamic	Bootstrapped from existing DB column	\N	1	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-16 10:46:32.634457+00
+5	status	Status	text	dynamic	Bootstrapped from existing DB column	\N	\N	t	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 07:12:26.320293+00	2026-02-12 07:12:26.320293+00
 \.
 
 
@@ -6755,8 +10618,8 @@ COPY public.published_files (id, project_id, entity_type, entity_id, version_id,
 --
 
 COPY public.sequences (id, project_id, code, name, description, status, thumbnail_url, created_at, updated_at, client_name, dd_client_name, cc, task_template, sequence_type, tags, shots, assets, plates, cuts, open_notes_count, published_file_links, created_by, ayon_id, ayon_sync_status, cached_display_name, episode, filmstrip_thumbnail_url, image_source_entity, notes, open_notes, scenes, tasks, thumbnail_blur_hash, updated_by, vendor_groups, version_link) FROM stdin;
-4	1	RND	RND	test	active	\N	2026-02-05 14:18:15.132963+00	2026-02-10 06:14:30.220224+00	\N	\N	\N	\N	\N	{}	{}	{}	\N	\N	0	{}	\N	\N	\N	\N	\N	\N	\N	{}	{}	{}	{}	\N	\N	{}	{}
-5	7	RND	RND	Test sequence	active	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	Client A	DD Client A	\N	\N	\N	{}	{2560}	{prop_demo}	Plates 01	CUTS-01	0	{}	\N	\N	\N	\N	\N	\N	\N	{}	{}	{}	{}	\N	\N	{}	{}
+5	7	RND	RND	Test sequence	active	\N	2026-02-10 08:26:24.441322+00	2026-02-12 12:10:08.506009+00	Client A	DD Client A	\N	\N	\N	{}	{2560}	{prop_demo}	Plates 01	CUTS-01	0	{}	\N		\N	\N	\N	\N	\N	{}	{}	{}	{}	\N	\N	{}	{}
+4	1	RND	RND	test	active	\N	2026-02-05 14:18:15.132963+00	2026-02-13 09:04:53.159694+00	Client A	\N	\N	\N	\N	{}	{}	{}	["[\\"[]\\"]"]	[]	0	{}	\N	\N		\N	\N		\N	{}	{}	{}	{}	\N	\N	{}	{}
 \.
 
 
@@ -6765,8 +10628,58 @@ COPY public.sequences (id, project_id, code, name, description, status, thumbnai
 --
 
 COPY public.shots (id, project_id, sequence_id, code, name, description, status, cut_in, cut_out, head_in, tail_out, working_duration, frame_start, frame_end, thumbnail_url, created_by, created_at, updated_at, shot_type, client_name, dd_client_name, cc, comp_note, cut_order, cut_summary, duration_summary, dd_location, delivery_date, head_duration, head_out, tail_in, next_review, open_notes, open_notes_count, parent_shots, plates, seq_shot, shot_notes, sub_shots, target_date, task_template, vendor_groups, assets, tags, ayon_id, ayon_sync_status, cached_display_name, filmstrip_thumbnail_url, image_source_entity, notes, published_file_links, raw_cut_duration, raw_cut_in, raw_cut_out, raw_head_duration, raw_head_in, raw_head_out, raw_tail_duration, raw_tail_in, raw_tail_out, tail_duration, tasks, thumbnail_blur_hash, turnover, updated_by, version_link) FROM stdin;
-3	1	4	2560	2560	test shot\n	pending	\N	\N	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-05 14:18:31.960992+00	2026-02-10 05:55:38.404736+00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	0	{}	\N	\N	{}	{}	\N	\N	{}	{}	{}	\N	\N	\N	\N	\N	{}	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}
 4	7	5	2560	2560	Test shot	pending	1001	1050	1001	1050	\N	\N	\N	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	VFX	Client A	DD Client A	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	0	{}	Plate A	\N	{}	{}	\N	Default Template	{"Vendor Group A"}	{prop_demo}	{test,shot}	\N	\N	\N	\N	\N	{}	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}
+5	1	4	RND2600	2600	\N	pending	\N	\N	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 08:44:13.524626+00	2026-02-13 09:35:37.562879+00	\N	RND2600	RND2600	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	0	{}	\N	\N	{}	{}	\N	\N	{}	{tree}	{}	\N		\N	\N	\N	{}	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}
+\.
+
+
+--
+-- Data for Name: status_entity_types; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.status_entity_types (id, status_id, entity_type, created_at) FROM stdin;
+1	1	task	2026-02-12 09:41:34.407028+00
+2	2	task	2026-02-12 09:41:34.407028+00
+3	3	task	2026-02-12 09:41:34.407028+00
+5	5	task	2026-02-12 09:41:34.407028+00
+6	7	task	2026-02-12 09:41:34.407028+00
+7	8	task	2026-02-12 09:41:34.407028+00
+8	9	asset	2026-02-12 09:41:34.407028+00
+9	10	asset	2026-02-12 09:41:34.407028+00
+10	11	asset	2026-02-12 09:41:34.407028+00
+12	13	asset	2026-02-12 09:41:34.407028+00
+13	14	asset	2026-02-12 09:41:34.407028+00
+14	15	shot	2026-02-12 09:41:34.407028+00
+15	16	shot	2026-02-12 09:41:34.407028+00
+16	17	shot	2026-02-12 09:41:34.407028+00
+18	19	shot	2026-02-12 09:41:34.407028+00
+19	20	shot	2026-02-12 09:41:34.407028+00
+20	21	shot	2026-02-12 09:41:34.407028+00
+21	22	version	2026-02-12 09:41:34.407028+00
+22	23	version	2026-02-12 09:41:34.407028+00
+23	24	version	2026-02-12 09:41:34.407028+00
+24	25	version	2026-02-12 09:41:34.407028+00
+25	26	version	2026-02-12 09:41:34.407028+00
+27	62	asset	2026-02-12 09:41:34.407028+00
+28	67	shot	2026-02-12 09:41:34.407028+00
+29	70	shot	2026-02-12 09:41:34.407028+00
+30	74	version	2026-02-12 09:41:34.407028+00
+31	76	version	2026-02-12 09:41:34.407028+00
+32	77	version	2026-02-12 09:41:34.407028+00
+33	6	task	2026-02-12 09:41:34.407028+00
+38	12	asset	2026-02-12 09:49:23.539031+00
+72	78	all	2026-02-12 11:11:42.339219+00
+104	27	version	2026-02-13 06:36:26.032028+00
+105	27	sequence	2026-02-13 06:36:26.032028+00
+106	18	shot	2026-02-13 06:36:32.964109+00
+107	18	version	2026-02-13 06:36:32.964109+00
+108	18	task	2026-02-13 06:36:32.964109+00
+109	18	asset	2026-02-13 06:36:32.964109+00
+110	18	sequence	2026-02-13 06:36:32.964109+00
+111	4	task	2026-02-16 05:27:56.729678+00
+112	4	asset	2026-02-16 05:27:56.729678+00
+113	4	shot	2026-02-16 05:27:56.729678+00
+114	4	note	2026-02-16 05:27:56.729678+00
 \.
 
 
@@ -6774,40 +10687,41 @@ COPY public.shots (id, project_id, sequence_id, code, name, description, status,
 -- Data for Name: statuses; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.statuses (id, code, name, entity_type, color, icon, sort_order, is_default, created_at) FROM stdin;
-1	wtg	Waiting to Start	task	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00
-2	rdy	Ready to Start	task	#3B82F6	\N	20	f	2026-02-05 10:29:30.062559+00
-3	ip	In Progress	task	#F59E0B	\N	30	f	2026-02-05 10:29:30.062559+00
-4	rev	Pending Review	task	#8B5CF6	\N	40	f	2026-02-05 10:29:30.062559+00
-5	rtk	Retake	task	#EF4444	\N	45	f	2026-02-05 10:29:30.062559+00
-6	apr	Approved	task	#10B981	\N	50	f	2026-02-05 10:29:30.062559+00
-7	omt	Omitted	task	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00
-8	fin	Final	task	#22C55E	\N	70	f	2026-02-05 10:29:30.062559+00
-9	wtg	Waiting to Start	asset	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00
-10	ip	In Progress	asset	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00
-11	rev	Pending Review	asset	#8B5CF6	\N	30	f	2026-02-05 10:29:30.062559+00
-12	apr	Approved	asset	#10B981	\N	40	f	2026-02-05 10:29:30.062559+00
-13	fin	Final	asset	#22C55E	\N	50	f	2026-02-05 10:29:30.062559+00
-14	omt	Omitted	asset	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00
-15	wtg	Waiting to Start	shot	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00
-16	ip	In Progress	shot	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00
-17	rev	Pending Review	shot	#8B5CF6	\N	30	f	2026-02-05 10:29:30.062559+00
-18	apr	Approved	shot	#10B981	\N	40	f	2026-02-05 10:29:30.062559+00
-19	fin	Final	shot	#22C55E	\N	50	f	2026-02-05 10:29:30.062559+00
-20	omt	Omitted	shot	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00
-21	hld	On Hold	shot	#F97316	\N	70	f	2026-02-05 10:29:30.062559+00
-22	pen	Pending Review	version	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00
-23	rev	In Review	version	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00
-24	apr	Approved	version	#10B981	\N	30	f	2026-02-05 10:29:30.062559+00
-25	rej	Rejected	version	#EF4444	\N	40	f	2026-02-05 10:29:30.062559+00
-26	cbr	Client Review	version	#8B5CF6	\N	50	f	2026-02-05 10:29:30.062559+00
-27	cap	Client Approved	version	#22C55E	\N	60	f	2026-02-05 10:29:30.062559+00
-62	pending	Pending	asset	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00
-67	pending	Pending	shot	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00
-70	cbr	Client Review	shot	#06B6D4	\N	35	f	2026-02-05 10:37:06.692008+00
-74	pending	Pending Review	version	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00
-76	rtk	Retake	version	#EF4444	\N	30	f	2026-02-05 10:37:06.692008+00
-77	fin	Final	version	#22C55E	\N	40	f	2026-02-05 10:37:06.692008+00
+COPY public.statuses (id, code, name, entity_type, color, icon, sort_order, is_default, created_at, is_system_locked, created_by, updated_by, updated_at) FROM stdin;
+1	wtg	Waiting to Start	task	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+2	rdy	Ready to Start	task	#3B82F6	\N	20	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+3	ip	In Progress	task	#F59E0B	\N	30	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+5	rtk	Retake	task	#EF4444	\N	45	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+7	omt	Omitted	task	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+8	fin	Final	task	#22C55E	\N	70	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+9	wtg	Waiting to Start	asset	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+10	ip	In Progress	asset	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+11	rev	Pending Review	asset	#8B5CF6	\N	30	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+13	fin	Final	asset	#22C55E	\N	50	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+14	omt	Omitted	asset	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+15	wtg	Waiting to Start	shot	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+16	ip	In Progress	shot	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+17	rev	Pending Review	shot	#8B5CF6	\N	30	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+19	fin	Final	shot	#22C55E	\N	50	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+20	omt	Omitted	shot	#94A3B8	\N	60	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+21	hld	On Hold	shot	#F97316	\N	70	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+22	pen	Pending Review	version	#6B7280	\N	10	t	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+23	rev	In Review	version	#F59E0B	\N	20	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+25	rej	Rejected	version	#EF4444	\N	40	f	2026-02-05 10:29:30.062559+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+62	pending	Pending	asset	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+67	pending	Pending	shot	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+74	pending	Pending Review	version	#6B7280	\N	10	t	2026-02-05 10:37:06.692008+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+76	rtk	Retake	version	#EF4444	\N	30	f	2026-02-05 10:37:06.692008+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+77	fin	Final	version	#22C55E	\N	40	f	2026-02-05 10:37:06.692008+00	f	\N	\N	2026-02-12 09:41:34.407028+00
+24	apr	Approved	version	#659f8c	\N	30	f	2026-02-05 10:29:30.062559+00	t	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:06:33.876994+00
+6	apr	Approved	task	#659f8c	\N	50	f	2026-02-05 10:29:30.062559+00	t	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:06:34.203844+00
+12	apr	Approved	asset	#659f8c	\N	40	f	2026-02-05 10:29:30.062559+00	t	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:06:34.549286+00
+78	ina	inactive	all	#6b7280	\N	\N	f	2026-02-12 11:11:42.27782+00	f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 11:11:42.27782+00
+27	cap	Client Approved	all	#22C55E	\N	60	f	2026-02-05 10:29:30.062559+00	f	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:36:25.996831+00
+18	apr	Approved	all	#659f8c	\N	40	f	2026-02-05 10:29:30.062559+00	t	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:36:32.92002+00
+4	rev	Pending Review	all	#8B5CF6	\N	40	f	2026-02-05 10:29:30.062559+00	f	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 05:27:56.690737+00
+26	cbr	Client Review	version	#8B5CF6	\N	50	f	2026-02-05 10:29:30.062559+00	f	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:06:26.666003+00
+70	cbr	Client Review	shot	#06B6D4	\N	35	f	2026-02-05 10:37:06.692008+00	f	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:06:26.998603+00
 \.
 
 
@@ -6838,6 +10752,16 @@ COPY public.steps (id, code, name, short_name, description, department_id, color
 
 
 --
+-- Data for Name: tags; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.tags (id, name, usage_count, color, description, created_by, updated_by, created_at, updated_at) FROM stdin;
+4	main	0	#2a3750	main	eb0bdb87-6685-4dc3-a0d0-e16765c68242	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 10:01:07.39924+00	2026-02-12 10:07:18.411146+00
+3	test	0	#895d5d	test	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 09:50:30.400104+00	2026-02-12 10:07:30.8986+00
+\.
+
+
+--
 -- Data for Name: task_assignments; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -6857,9 +10781,13 @@ COPY public.task_dependencies (task_id, depends_on_task_id, dependency_type, cre
 -- Data for Name: tasks; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.tasks (id, project_id, entity_type, entity_id, step_id, milestone_id, name, description, status, priority, start_date, due_date, duration, estimated_hours, actual_hours, task_template_id, created_by, created_at, updated_at, assigned_to, reviewer, link, bid, bid_breakdown, buffer_days, buffer_days2, casting, cc, ddna_bid, ddna_id, ddna_to, dependency_violation, dept_end_date, downstream_dependency, end_date, gantt_bar_color, inventory_date, milestone, notes, prod_comments, proposed_start_date, publish_version_number, tags, task_complexity, task_template, thumbnail_url, versions, workload, pipeline_step_color, ayon_assignees, ayon_id, ayon_sync_status, cached_display_name, filmstrip_thumbnail_url, image_source_entity, implicit, notes_links, open_notes, open_notes_count, pinned, review_versions_task, schedule_change_comments, sibling_tasks, sort_order, split_durations, splits, template_task, thumbnail_blur_hash, time_logged, time_logged_of_bid, time_logged_over_under_bid, updated_by, upstream_dependency, workload_assignee_count) FROM stdin;
-3	1	shot	3	14	\N	integ_cam	test task 	ip	high	\N	2026-02-12	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-05 14:23:21.065133+00	2026-02-05 14:23:21.065133+00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N
-4	7	shot	4	28	\N	TEST: Matchmove	Test task linked to shot	ip	high	2026-02-10	2026-02-20	5	\N	\N	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	\N	Lead	https://example.com/task	2	2d Matchmove	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{test,task}	\N	Default Template	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N
+COPY public.tasks (id, project_id, entity_type, entity_id, step_id, milestone_id, name, description, status, priority, start_date, due_date, duration, estimated_hours, actual_hours, task_template_id, created_by, created_at, updated_at, assigned_to, reviewer, link, bid, bid_breakdown, buffer_days, buffer_days2, casting, cc, ddna_bid, ddna_id, ddna_to, dependency_violation, dept_end_date, downstream_dependency, end_date, gantt_bar_color, inventory_date, milestone, notes, prod_comments, proposed_start_date, publish_version_number, tags, task_complexity, task_template, thumbnail_url, versions, workload, pipeline_step_color, ayon_assignees, ayon_id, ayon_sync_status, cached_display_name, filmstrip_thumbnail_url, image_source_entity, implicit, notes_links, open_notes, open_notes_count, pinned, review_versions_task, schedule_change_comments, sibling_tasks, sort_order, split_durations, splits, template_task, thumbnail_blur_hash, time_logged, time_logged_of_bid, time_logged_over_under_bid, updated_by, upstream_dependency, workload_assignee_count, target, department) FROM stdin;
+4	7	shot	4	28	\N	TEST: Matchmove	Test task linked to shot	ip	high	2026-02-10	2026-02-20	5	\N	\N	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-16 10:46:32.634457+00	\N	{Lead}	https://example.com/task	2	2d Matchmove	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{test,task}	\N	Default Template	\N	{}	\N	\N	{}	\N	f	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N
+5	7	asset	6	1	\N	modeling_mp01	\N	pending	medium	2026-02-11	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-12 12:26:58.083411+00	2026-02-16 10:46:32.634457+00	9fb05e6d-0103-4517-aeef-12c6d946df67	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	2026-02-13	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	{}	\N	f	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	1
+7	1	asset	5	2	\N	model	\N	pending	medium	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 13:27:58.9293+00	2026-02-16 10:46:32.634457+00	9fb05e6d-0103-4517-aeef-12c6d946df67	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	{}	\N	f	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	8
+6	1	shot	5	10	\N	test	\N	pending	medium	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 12:16:07.392634+00	2026-02-16 10:46:32.634457+00	9fb05e6d-0103-4517-aeef-12c6d946df67	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	{}	\N	f	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	6
+3	1	shot	3	14	\N	integ_cam	test task 	ip	high	\N	2026-02-12	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-05 14:23:21.065133+00	2026-02-16 10:46:32.634457+00	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	{}	\N	f	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	9
+8	1	asset	7	1	\N	model_mp01	\N	pending	medium	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 10:50:04.197775+00	2026-02-16 10:50:04.197775+00	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{9fb05e6d-0103-4517-aeef-12c6d946df67}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	{}	\N	\N	{eb0bdb87-6685-4dc3-a0d0-e16765c68242}	\N	\N	\N	\N	\N	f	{}	{}	0	f	{}	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	1
 \.
 
 
@@ -6885,55 +10813,63 @@ COPY public.time_logs (id, project_id, entity_type, entity_id, user_id, date, du
 
 COPY public.versions (id, project_id, entity_type, entity_id, task_id, code, version_number, description, status, client_approved, movie_url, thumbnail_url, frames_path, first_frame, last_frame, frame_count, frame_range, artist_id, created_by, created_at, updated_at, file_path, link, cuts, date_viewed, department, editorial_qc, flagged, movie_aspect_ratio, movie_has_slate, nuke_script, playlists, published_files, send_exrs, source_clip, tags, task_template, version_type, uploaded_movie, viewed_status, client_approved_at, client_approved_by, client_version_name, ayon_id, ayon_product_id, ayon_sync_status, ayon_version_id, cached_display_name, deliveries, filmstrip_thumbnail_url, frame_rate, frames_aspect_ratio, frames_have_slate, image_source_entity, media_center_import_time, notes, open_notes, open_notes_count, otio_playable, path_to_geometry, tasks, thumbnail_blur_hash, translation_type, updated_by, uploaded_movie_audio_offset, uploaded_movie_duration, uploaded_movie_image, uploaded_movie_mp4, uploaded_movie_transcoding_status, uploaded_movie_webm) FROM stdin;
 5	7	shot	4	4	TEST_2560_v001	1	Test version	review	f	/path/to/movie.mov	\N	/path/to/frames	1001	1050	\N	\N	\N	\N	2026-02-10 08:26:24.441322+00	2026-02-10 08:26:24.441322+00	\N	https://example.com/version	v1	\N	comp	\N	f	\N	f	\N	{}	{}	f	\N	{test,version}	Default Template	comp	movie.mov	unviewed	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	f	\N	\N	{}	{}	0	\N	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N
-4	1	shot	3	3	asset	1	\N	pending	f	http://10.100.222.197:8000/storage/v1/object/public/versions/1/1770707309118_asset.png	\N	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:08:29.477243+00	2026-02-10 13:19:24.259468+00	1/1770707309118_asset.png	\N	\N	\N		\N	f	\N	f	\N	{}	{}	f	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	f	\N	\N	{}	{}	0	\N	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N
+4	1	shot	3	3	asset	1	\N	pending	f	http://10.100.222.197:8000/storage/v1/object/public/versions/1/1770707309118_asset.png	\N	\N	\N	\N	\N	\N	\N	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:08:29.477243+00	2026-02-16 06:08:10.867659+00	1/1770707309118_asset.png		\N	\N		\N	f	\N	f	\N	{}	{}	f	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	{}	\N	\N	\N	f	\N	\N	{}	{}	0	\N	\N	{}	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
 --
--- Data for Name: messages_2026_02_08; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_14; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_08 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_14 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
 --
--- Data for Name: messages_2026_02_09; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_15; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_09 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_15 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
 --
--- Data for Name: messages_2026_02_10; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_16; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_10 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_16 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
 --
--- Data for Name: messages_2026_02_11; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_17; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_11 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_17 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
 --
--- Data for Name: messages_2026_02_12; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_18; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_12 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_18 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
 --
--- Data for Name: messages_2026_02_13; Type: TABLE DATA; Schema: realtime; Owner: -
+-- Data for Name: messages_2026_02_19; Type: TABLE DATA; Schema: realtime; Owner: -
 --
 
-COPY realtime.messages_2026_02_13 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+COPY realtime.messages_2026_02_19 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2026_02_20; Type: TABLE DATA; Schema: realtime; Owner: -
+--
+
+COPY realtime.messages_2026_02_20 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
@@ -7015,6 +10951,9 @@ COPY realtime.schema_migrations (version, inserted_at) FROM stdin;
 --
 
 COPY realtime.subscription (id, subscription_id, entity, filters, claims, created_at) FROM stdin;
+1036	6e0d1af0-0bc1-11f1-a51b-7acbc34cc45c	public.messages	{"(conversation_id,eq,1)"}	{"aal": "aal1", "amr": [{"method": "password", "timestamp": 1771246644}], "aud": "authenticated", "exp": 1771309407, "iat": 1771305807, "sub": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "role": "authenticated", "email": "balajid@d2.com", "phone": "", "session_id": "7db62eab-3142-471b-acc7-b065a34750f5", "app_metadata": {"provider": "email", "providers": ["email"]}, "is_anonymous": false, "user_metadata": {"email_verified": true}}	2026-02-17 05:28:02.815015
+1037	6e0d6b7c-0bc1-11f1-a081-7acbc34cc45c	public.messages	{"(conversation_id,eq,2)"}	{"aal": "aal1", "amr": [{"method": "password", "timestamp": 1771246644}], "aud": "authenticated", "exp": 1771309407, "iat": 1771305807, "sub": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "role": "authenticated", "email": "balajid@d2.com", "phone": "", "session_id": "7db62eab-3142-471b-acc7-b065a34750f5", "app_metadata": {"provider": "email", "providers": ["email"]}, "is_anonymous": false, "user_metadata": {"email_verified": true}}	2026-02-17 05:28:02.816938
+1038	6e0dabbe-0bc1-11f1-a3d5-7acbc34cc45c	public.messages	{"(conversation_id,eq,1)"}	{"aal": "aal1", "amr": [{"method": "password", "timestamp": 1771246644}], "aud": "authenticated", "exp": 1771309407, "iat": 1771305807, "sub": "eb0bdb87-6685-4dc3-a0d0-e16765c68242", "role": "authenticated", "email": "balajid@d2.com", "phone": "", "session_id": "7db62eab-3142-471b-acc7-b065a34750f5", "app_metadata": {"provider": "email", "providers": ["email"]}, "is_anonymous": false, "user_metadata": {"email_verified": true}}	2026-02-17 05:28:02.818475
 \.
 
 
@@ -7025,6 +10964,7 @@ COPY realtime.subscription (id, subscription_id, entity, filters, claims, create
 COPY storage.buckets (id, name, owner, created_at, updated_at, public, avif_autodetection, file_size_limit, allowed_mime_types, owner_id, type) FROM stdin;
 versions	versions	\N	2026-02-06 05:58:03.093723+00	2026-02-06 05:58:03.093723+00	f	f	52428800	{image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/x-msvideo,application/pdf,application/zip}	\N	STANDARD
 note-attachments	note-attachments	\N	2026-02-06 06:28:35.840473+00	2026-02-06 06:28:35.840473+00	f	f	10485760	{image/jpeg,image/png,image/gif,image/webp,application/pdf}	\N	STANDARD
+post-media	post-media	\N	2026-02-12 11:22:39.531802+00	2026-02-12 11:22:39.531802+00	f	f	52428800	{image/jpeg,image/jpg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/x-msvideo}	\N	STANDARD
 \.
 
 
@@ -7126,6 +11066,21 @@ COPY storage.objects (id, bucket_id, name, owner, created_at, updated_at, last_a
 b0c1892e-69e9-4f56-b62c-56529a2b35e6	note-attachments	13/1770706917495_asset_activity.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:01:57.555967+00	2026-02-10 07:01:57.555967+00	2026-02-10 07:01:57.555967+00	{"eTag": "\\"ccdb9f11719f32aac92cc92f23625c36\\"", "size": 70724, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-10T07:01:57.550Z", "contentLength": 70724, "httpStatusCode": 200}	3f483646-6671-411c-b937-eda2e8ee9580	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
 dbe8e1fa-1376-449f-8abc-d27efd19a1fc	versions	1/1770706955870_asset.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:02:35.957412+00	2026-02-10 07:02:35.957412+00	2026-02-10 07:02:35.957412+00	{"eTag": "\\"0fd2c156aac79fe6637d8c63bcc94e5e\\"", "size": 76959, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-10T07:02:35.953Z", "contentLength": 76959, "httpStatusCode": 200}	0cc95673-e658-451c-8aba-be4764e656a4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
 62e577a9-8c11-4228-9bbd-35f2e92a3db2	versions	1/1770707309118_asset.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-10 07:08:29.167572+00	2026-02-10 07:08:29.167572+00	2026-02-10 07:08:29.167572+00	{"eTag": "\\"0fd2c156aac79fe6637d8c63bcc94e5e\\"", "size": 76959, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-10T07:08:29.163Z", "contentLength": 76959, "httpStatusCode": 200}	b4e7c79b-e1b2-4a0c-930e-9728b981ec13	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+caa2a67e-0c0f-40b5-8009-7de7148805a0	post-media	17/1770964041151-0.mov	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:27:21.306735+00	2026-02-13 06:27:21.306735+00	2026-02-13 06:27:21.306735+00	{"eTag": "\\"a83042765f254adccb53cb1e455c1733\\"", "size": 2247200, "mimetype": "video/quicktime", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T06:27:21.247Z", "contentLength": 2247200, "httpStatusCode": 200}	10362d6d-37d5-4c93-a8ca-e4bfc38182df	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+9565a6c1-64f4-4dda-9e00-7a54762cfa9b	post-media	18/1770964328644-0.mov	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:32:08.7142+00	2026-02-13 06:32:08.7142+00	2026-02-13 06:32:08.7142+00	{"eTag": "\\"a83042765f254adccb53cb1e455c1733\\"", "size": 2247200, "mimetype": "video/quicktime", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T06:32:08.688Z", "contentLength": 2247200, "httpStatusCode": 200}	9f399cca-30ef-4f8a-985f-60ad0ec6df1e	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+71915752-0808-4fc2-999a-a5451c2f2ff0	post-media	19/1770964977072-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:42:57.396273+00	2026-02-13 06:42:57.396273+00	2026-02-13 06:42:57.396273+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T06:42:57.188Z", "contentLength": 17839845, "httpStatusCode": 200}	58f86f87-5d83-4fea-bd8a-ee7a4089fbb6	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+267d52cc-95ce-4b07-b2c5-a85c85ecf4b7	post-media	20/1770965434321-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 06:50:34.691537+00	2026-02-13 06:50:34.691537+00	2026-02-13 06:50:34.691537+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T06:50:34.462Z", "contentLength": 17839845, "httpStatusCode": 200}	96443d71-c983-4560-a5ba-3baa34a53a8e	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+a2bd4ac6-0a08-40fe-a395-0709e0eb021b	post-media	22/1770971887082-0.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 08:38:07.116594+00	2026-02-13 08:38:07.116594+00	2026-02-13 08:38:07.116594+00	{"eTag": "\\"5a1d6427098a64bda32146849de737e4\\"", "size": 117672, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T08:38:07.112Z", "contentLength": 117672, "httpStatusCode": 200}	815a0a94-9fb3-4f03-b176-7924f9e5484f	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+85d2d4fc-0d9d-45f8-aee3-7fe1086fb951	post-media	23/1770971918977-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 08:38:39.283456+00	2026-02-13 08:38:39.283456+00	2026-02-13 08:38:39.283456+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T08:38:39.101Z", "contentLength": 17839845, "httpStatusCode": 200}	2871ffd1-9080-43e2-b9d6-f22ec369a05c	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+92a963d9-bd5f-47c7-86c8-e0fcda9cbdff	post-media	39/1770988585169-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 13:16:25.538228+00	2026-02-13 13:16:25.538228+00	2026-02-13 13:16:25.538228+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T13:16:25.343Z", "contentLength": 17839845, "httpStatusCode": 200}	d90c3fdb-9d5f-4fc3-841a-7627b16bbb3b	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+7c3cf0c3-13d5-44d2-8ba8-58924511e806	post-media	40/1770988751275-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 13:19:11.626027+00	2026-02-13 13:19:11.626027+00	2026-02-13 13:19:11.626027+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T13:19:11.427Z", "contentLength": 17839845, "httpStatusCode": 200}	64c8f6a7-ffc1-4d7d-96ad-237ddd59e154	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+0586d3e7-1342-4ef7-adc5-cf171f98f743	post-media	42/1770989633902-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-13 13:33:54.195891+00	2026-02-13 13:33:54.195891+00	2026-02-13 13:33:54.195891+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-13T13:33:54.025Z", "contentLength": 17839845, "httpStatusCode": 200}	7636ad56-c30d-40da-b26e-df70604f14da	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+649dc7ca-51d6-4827-a90d-9416f77fea0a	post-media	43/1771219798809-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 05:29:59.130771+00	2026-02-16 05:29:59.130771+00	2026-02-16 05:29:59.130771+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T05:29:58.924Z", "contentLength": 17839845, "httpStatusCode": 200}	8396177e-343a-47d7-96f1-bb27c4582d51	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+410fb239-da2e-411b-9dc3-3991ce7c12ae	post-media	44/1771220234248-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 05:37:14.611071+00	2026-02-16 05:37:14.611071+00	2026-02-16 05:37:14.611071+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T05:37:14.363Z", "contentLength": 17839845, "httpStatusCode": 200}	ae2bfd8c-40f4-4ed7-b043-93be2a66e802	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+1adcbac4-9c81-4073-b370-24902263b25e	post-media	45/1771222188950-0.mp4	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 06:09:49.268807+00	2026-02-16 06:09:49.268807+00	2026-02-16 06:09:49.268807+00	{"eTag": "\\"d7a3decdb6280eb0ef3a059ac35ea0ee\\"", "size": 17839845, "mimetype": "video/mp4", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T06:09:49.083Z", "contentLength": 17839845, "httpStatusCode": 200}	378548c1-9e81-404b-87bd-804a93243675	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+c16dd0a7-7f1d-402f-91b4-9de75be6e811	note-attachments	33/1771222203205_frame-25.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 06:10:03.280632+00	2026-02-16 06:10:03.280632+00	2026-02-16 06:10:03.280632+00	{"eTag": "\\"02cb5c8e2c4f14e1749533de8705a32a\\"", "size": 1152227, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T06:10:03.250Z", "contentLength": 1152227, "httpStatusCode": 200}	fe8b0c6f-08a8-4812-9bb0-8bf79603bb8e	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+dae57e5a-8cd1-4f62-99f4-119b90ee586d	note-attachments	34/1771236468094_frame-21.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 10:07:48.136481+00	2026-02-16 10:07:48.136481+00	2026-02-16 10:07:48.136481+00	{"eTag": "\\"841144131e162e4b0c28535aab8aa30d\\"", "size": 1152676, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T10:07:48.122Z", "contentLength": 1152676, "httpStatusCode": 200}	2f56f60d-a283-4abe-a72e-d6f035caedbc	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
+76638efa-d008-462a-98fa-ca18a1b08753	note-attachments	35/1771242322443_frame-20.png	eb0bdb87-6685-4dc3-a0d0-e16765c68242	2026-02-16 11:45:22.512565+00	2026-02-16 11:45:22.512565+00	2026-02-16 11:45:22.512565+00	{"eTag": "\\"0be386b82a359ba461c3669ae27b23cf\\"", "size": 1152622, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2026-02-16T11:45:22.485Z", "contentLength": 1152622, "httpStatusCode": 200}	c9786f6b-9585-417b-acdb-15db603fb469	eb0bdb87-6685-4dc3-a0d0-e16765c68242	{}	2
 \.
 
 
@@ -7137,6 +11092,21 @@ COPY storage.prefixes (bucket_id, name, created_at, updated_at) FROM stdin;
 versions	1	2026-02-06 06:04:09.935187+00	2026-02-06 06:04:09.935187+00
 note-attachments	10	2026-02-06 06:46:13.860239+00	2026-02-06 06:46:13.860239+00
 note-attachments	13	2026-02-10 07:01:57.555967+00	2026-02-10 07:01:57.555967+00
+post-media	17	2026-02-13 06:27:21.306735+00	2026-02-13 06:27:21.306735+00
+post-media	18	2026-02-13 06:32:08.7142+00	2026-02-13 06:32:08.7142+00
+post-media	19	2026-02-13 06:42:57.396273+00	2026-02-13 06:42:57.396273+00
+post-media	20	2026-02-13 06:50:34.691537+00	2026-02-13 06:50:34.691537+00
+post-media	22	2026-02-13 08:38:07.116594+00	2026-02-13 08:38:07.116594+00
+post-media	23	2026-02-13 08:38:39.283456+00	2026-02-13 08:38:39.283456+00
+post-media	39	2026-02-13 13:16:25.538228+00	2026-02-13 13:16:25.538228+00
+post-media	40	2026-02-13 13:19:11.626027+00	2026-02-13 13:19:11.626027+00
+post-media	42	2026-02-13 13:33:54.195891+00	2026-02-13 13:33:54.195891+00
+post-media	43	2026-02-16 05:29:59.130771+00	2026-02-16 05:29:59.130771+00
+post-media	44	2026-02-16 05:37:14.611071+00	2026-02-16 05:37:14.611071+00
+post-media	45	2026-02-16 06:09:49.268807+00	2026-02-16 06:09:49.268807+00
+note-attachments	33	2026-02-16 06:10:03.280632+00	2026-02-16 06:10:03.280632+00
+note-attachments	34	2026-02-16 10:07:48.136481+00	2026-02-16 10:07:48.136481+00
+note-attachments	35	2026-02-16 11:45:22.512565+00	2026-02-16 11:45:22.512565+00
 \.
 
 
@@ -7194,28 +11164,35 @@ COPY vault.secrets (id, name, description, secret, key_id, nonce, created_at, up
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: -
 --
 
-SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 144, true);
+SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 292, true);
 
 
 --
 -- Name: activity_events_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.activity_events_id_seq', 10, true);
+SELECT pg_catalog.setval('public.activity_events_id_seq', 27, true);
+
+
+--
+-- Name: annotations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.annotations_id_seq', 22, true);
 
 
 --
 -- Name: assets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.assets_id_seq', 6, true);
+SELECT pg_catalog.setval('public.assets_id_seq', 7, true);
 
 
 --
 -- Name: attachments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.attachments_id_seq', 2, true);
+SELECT pg_catalog.setval('public.attachments_id_seq', 5, true);
 
 
 --
@@ -7257,7 +11234,7 @@ SELECT pg_catalog.setval('public.groups_id_seq', 5, true);
 -- Name: messages_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.messages_id_seq', 7, true);
+SELECT pg_catalog.setval('public.messages_id_seq', 11, true);
 
 
 --
@@ -7271,7 +11248,14 @@ SELECT pg_catalog.setval('public.milestones_id_seq', 1, false);
 -- Name: notes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.notes_id_seq', 14, true);
+SELECT pg_catalog.setval('public.notes_id_seq', 35, true);
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.notifications_id_seq', 2, true);
 
 
 --
@@ -7296,6 +11280,62 @@ SELECT pg_catalog.setval('public.playlists_id_seq', 1, false);
 
 
 --
+-- Name: post_media_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_media_id_seq', 12, true);
+
+
+--
+-- Name: post_projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_projects_id_seq', 11, true);
+
+
+--
+-- Name: post_reactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_reactions_id_seq', 2, true);
+
+
+--
+-- Name: post_sequences_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_sequences_id_seq', 8, true);
+
+
+--
+-- Name: post_shots_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_shots_id_seq', 7, true);
+
+
+--
+-- Name: post_tasks_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_tasks_id_seq', 10, true);
+
+
+--
+-- Name: post_users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.post_users_id_seq', 1, false);
+
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.posts_id_seq', 45, true);
+
+
+--
 -- Name: projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
@@ -7306,7 +11346,49 @@ SELECT pg_catalog.setval('public.projects_id_seq', 7, true);
 -- Name: published_files_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.published_files_id_seq', 1, true);
+SELECT pg_catalog.setval('public.published_files_id_seq', 6, true);
+
+
+--
+-- Name: schema_change_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_change_log_id_seq', 16, true);
+
+
+--
+-- Name: schema_choice_set_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_choice_set_items_id_seq', 4, true);
+
+
+--
+-- Name: schema_choice_sets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_choice_sets_id_seq', 1, true);
+
+
+--
+-- Name: schema_field_entities_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_field_entities_id_seq', 376, true);
+
+
+--
+-- Name: schema_field_link_targets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_field_link_targets_id_seq', 8, true);
+
+
+--
+-- Name: schema_fields_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.schema_fields_id_seq', 373, true);
 
 
 --
@@ -7320,14 +11402,21 @@ SELECT pg_catalog.setval('public.sequences_id_seq', 5, true);
 -- Name: shots_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.shots_id_seq', 4, true);
+SELECT pg_catalog.setval('public.shots_id_seq', 5, true);
+
+
+--
+-- Name: status_entity_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.status_entity_types_id_seq', 114, true);
 
 
 --
 -- Name: statuses_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.statuses_id_seq', 77, true);
+SELECT pg_catalog.setval('public.statuses_id_seq', 78, true);
 
 
 --
@@ -7338,10 +11427,17 @@ SELECT pg_catalog.setval('public.steps_id_seq', 28, true);
 
 
 --
+-- Name: tags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.tags_id_seq', 4, true);
+
+
+--
 -- Name: tasks_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.tasks_id_seq', 4, true);
+SELECT pg_catalog.setval('public.tasks_id_seq', 8, true);
 
 
 --
@@ -7369,7 +11465,7 @@ SELECT pg_catalog.setval('public.versions_id_seq', 5, true);
 -- Name: subscription_id_seq; Type: SEQUENCE SET; Schema: realtime; Owner: -
 --
 
-SELECT pg_catalog.setval('realtime.subscription_id_seq', 66, true);
+SELECT pg_catalog.setval('realtime.subscription_id_seq', 1038, true);
 
 
 --
@@ -7644,6 +11740,14 @@ ALTER TABLE ONLY public.allowed_users
 
 
 --
+-- Name: annotations annotations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.annotations
+    ADD CONSTRAINT annotations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: assets assets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7788,19 +11892,19 @@ ALTER TABLE ONLY public.note_mentions
 
 
 --
--- Name: notes notes_entity_type_check; Type: CHECK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE public.notes
-    ADD CONSTRAINT notes_entity_type_check CHECK ((entity_type = ANY (ARRAY['task'::text, 'asset'::text, 'shot'::text, 'sequence'::text, 'version'::text, 'project'::text, 'published_file'::text]))) NOT VALID;
-
-
---
 -- Name: notes notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.notes
     ADD CONSTRAINT notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -7857,6 +11961,118 @@ ALTER TABLE ONLY public.playlists
 
 ALTER TABLE ONLY public.playlists
     ADD CONSTRAINT playlists_project_id_code_key UNIQUE (project_id, code);
+
+
+--
+-- Name: post_media post_media_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_media
+    ADD CONSTRAINT post_media_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_projects post_projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_projects
+    ADD CONSTRAINT post_projects_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_projects post_projects_post_id_project_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_projects
+    ADD CONSTRAINT post_projects_post_id_project_id_key UNIQUE (post_id, project_id);
+
+
+--
+-- Name: post_reactions post_reactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions
+    ADD CONSTRAINT post_reactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_reactions post_reactions_user_id_post_id_comment_id_reaction_type_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions
+    ADD CONSTRAINT post_reactions_user_id_post_id_comment_id_reaction_type_key UNIQUE (user_id, post_id, comment_id, reaction_type);
+
+
+--
+-- Name: post_sequences post_sequences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_sequences
+    ADD CONSTRAINT post_sequences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_sequences post_sequences_post_id_sequence_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_sequences
+    ADD CONSTRAINT post_sequences_post_id_sequence_id_key UNIQUE (post_id, sequence_id);
+
+
+--
+-- Name: post_shots post_shots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_shots
+    ADD CONSTRAINT post_shots_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_shots post_shots_post_id_shot_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_shots
+    ADD CONSTRAINT post_shots_post_id_shot_id_key UNIQUE (post_id, shot_id);
+
+
+--
+-- Name: post_tasks post_tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_tasks
+    ADD CONSTRAINT post_tasks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_tasks post_tasks_post_id_task_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_tasks
+    ADD CONSTRAINT post_tasks_post_id_task_id_key UNIQUE (post_id, task_id);
+
+
+--
+-- Name: post_users post_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_users
+    ADD CONSTRAINT post_users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_users post_users_post_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_users
+    ADD CONSTRAINT post_users_post_id_user_id_key UNIQUE (post_id, user_id);
+
+
+--
+-- Name: posts posts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
 
 
 --
@@ -7924,6 +12140,102 @@ ALTER TABLE ONLY public.published_files
 
 
 --
+-- Name: schema_change_log schema_change_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_change_log
+    ADD CONSTRAINT schema_change_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_choice_set_value_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items
+    ADD CONSTRAINT schema_choice_set_items_choice_set_value_key UNIQUE (choice_set_id, value);
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items
+    ADD CONSTRAINT schema_choice_set_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_choice_sets schema_choice_sets_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_sets
+    ADD CONSTRAINT schema_choice_sets_name_key UNIQUE (name);
+
+
+--
+-- Name: schema_choice_sets schema_choice_sets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_sets
+    ADD CONSTRAINT schema_choice_sets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_field_entities schema_field_entities_entity_column_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_entity_column_key UNIQUE (entity_type, column_name);
+
+
+--
+-- Name: schema_field_entities schema_field_entities_field_entity_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_field_entity_key UNIQUE (field_id, entity_type);
+
+
+--
+-- Name: schema_field_entities schema_field_entities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_field_link_targets schema_field_link_targets_field_target_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_link_targets
+    ADD CONSTRAINT schema_field_link_targets_field_target_key UNIQUE (field_id, target_entity_type);
+
+
+--
+-- Name: schema_field_link_targets schema_field_link_targets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_link_targets
+    ADD CONSTRAINT schema_field_link_targets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_fields schema_fields_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields
+    ADD CONSTRAINT schema_fields_code_key UNIQUE (code);
+
+
+--
+-- Name: schema_fields schema_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields
+    ADD CONSTRAINT schema_fields_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: sequences sequences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7956,6 +12268,22 @@ ALTER TABLE ONLY public.shots
 
 
 --
+-- Name: status_entity_types status_entity_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.status_entity_types
+    ADD CONSTRAINT status_entity_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: status_entity_types status_entity_types_status_id_entity_type_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.status_entity_types
+    ADD CONSTRAINT status_entity_types_status_id_entity_type_key UNIQUE (status_id, entity_type);
+
+
+--
 -- Name: statuses statuses_code_entity_type_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7985,6 +12313,22 @@ ALTER TABLE ONLY public.steps
 
 ALTER TABLE ONLY public.steps
     ADD CONSTRAINT steps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tags tags_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_name_key UNIQUE (name);
+
+
+--
+-- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_pkey PRIMARY KEY (id);
 
 
 --
@@ -8068,51 +12412,59 @@ ALTER TABLE ONLY realtime.messages
 
 
 --
--- Name: messages_2026_02_08 messages_2026_02_08_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14 messages_2026_02_14_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages_2026_02_08
-    ADD CONSTRAINT messages_2026_02_08_pkey PRIMARY KEY (id, inserted_at);
-
-
---
--- Name: messages_2026_02_09 messages_2026_02_09_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
---
-
-ALTER TABLE ONLY realtime.messages_2026_02_09
-    ADD CONSTRAINT messages_2026_02_09_pkey PRIMARY KEY (id, inserted_at);
+ALTER TABLE ONLY realtime.messages_2026_02_14
+    ADD CONSTRAINT messages_2026_02_14_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
--- Name: messages_2026_02_10 messages_2026_02_10_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15 messages_2026_02_15_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages_2026_02_10
-    ADD CONSTRAINT messages_2026_02_10_pkey PRIMARY KEY (id, inserted_at);
-
-
---
--- Name: messages_2026_02_11 messages_2026_02_11_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
---
-
-ALTER TABLE ONLY realtime.messages_2026_02_11
-    ADD CONSTRAINT messages_2026_02_11_pkey PRIMARY KEY (id, inserted_at);
+ALTER TABLE ONLY realtime.messages_2026_02_15
+    ADD CONSTRAINT messages_2026_02_15_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
--- Name: messages_2026_02_12 messages_2026_02_12_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16 messages_2026_02_16_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages_2026_02_12
-    ADD CONSTRAINT messages_2026_02_12_pkey PRIMARY KEY (id, inserted_at);
+ALTER TABLE ONLY realtime.messages_2026_02_16
+    ADD CONSTRAINT messages_2026_02_16_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
--- Name: messages_2026_02_13 messages_2026_02_13_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+-- Name: messages_2026_02_17 messages_2026_02_17_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
 --
 
-ALTER TABLE ONLY realtime.messages_2026_02_13
-    ADD CONSTRAINT messages_2026_02_13_pkey PRIMARY KEY (id, inserted_at);
+ALTER TABLE ONLY realtime.messages_2026_02_17
+    ADD CONSTRAINT messages_2026_02_17_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2026_02_18 messages_2026_02_18_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages_2026_02_18
+    ADD CONSTRAINT messages_2026_02_18_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2026_02_19 messages_2026_02_19_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages_2026_02_19
+    ADD CONSTRAINT messages_2026_02_19_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2026_02_20 messages_2026_02_20_pkey; Type: CONSTRAINT; Schema: realtime; Owner: -
+--
+
+ALTER TABLE ONLY realtime.messages_2026_02_20
+    ADD CONSTRAINT messages_2026_02_20_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
@@ -8601,10 +12953,52 @@ CREATE INDEX idx_activity_entity ON public.activity_events USING btree (entity_t
 
 
 --
+-- Name: idx_activity_entity_attribute; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_entity_attribute ON public.activity_events USING btree (entity_type, entity_id, attribute_name);
+
+
+--
 -- Name: idx_activity_project_time; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_activity_project_time ON public.activity_events USING btree (project_id, created_at DESC);
+
+
+--
+-- Name: idx_activity_project_type_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_project_type_time ON public.activity_events USING btree (project_id, event_type, created_at DESC);
+
+
+--
+-- Name: idx_annotations_author; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_annotations_author ON public.annotations USING btree (author_id);
+
+
+--
+-- Name: idx_annotations_frame; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_annotations_frame ON public.annotations USING btree (post_media_id, frame_number);
+
+
+--
+-- Name: idx_annotations_post_media; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_annotations_post_media ON public.annotations USING btree (post_media_id);
+
+
+--
+-- Name: idx_annotations_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_annotations_version ON public.annotations USING btree (version_id);
 
 
 --
@@ -8682,6 +13076,27 @@ CREATE INDEX idx_deliveries_project ON public.deliveries USING btree (project_id
 --
 
 CREATE INDEX idx_deliveries_status ON public.deliveries USING btree (status);
+
+
+--
+-- Name: idx_departments_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_departments_code ON public.departments USING btree (code);
+
+
+--
+-- Name: idx_departments_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_departments_name ON public.departments USING btree (name);
+
+
+--
+-- Name: idx_departments_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_departments_status ON public.departments USING btree (status);
 
 
 --
@@ -8783,6 +13198,27 @@ CREATE INDEX idx_notes_task_id ON public.notes USING btree (task_id);
 
 
 --
+-- Name: idx_notifications_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_project ON public.notifications USING btree (project_id);
+
+
+--
+-- Name: idx_notifications_user_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_user_time ON public.notifications USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_notifications_user_unread; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_user_unread ON public.notifications USING btree (user_id, read_at) WHERE (read_at IS NULL);
+
+
+--
 -- Name: idx_phases_project; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8790,10 +13226,136 @@ CREATE INDEX idx_phases_project ON public.phases USING btree (project_id);
 
 
 --
+-- Name: idx_post_media_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_media_post ON public.post_media USING btree (post_id);
+
+
+--
+-- Name: idx_post_projects_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_projects_post ON public.post_projects USING btree (post_id);
+
+
+--
+-- Name: idx_post_projects_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_projects_project ON public.post_projects USING btree (project_id);
+
+
+--
+-- Name: idx_post_reactions_comment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_reactions_comment ON public.post_reactions USING btree (comment_id);
+
+
+--
+-- Name: idx_post_reactions_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_reactions_post ON public.post_reactions USING btree (post_id);
+
+
+--
+-- Name: idx_post_reactions_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_reactions_user ON public.post_reactions USING btree (user_id);
+
+
+--
+-- Name: idx_post_sequences_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_sequences_post ON public.post_sequences USING btree (post_id);
+
+
+--
+-- Name: idx_post_sequences_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_sequences_sequence ON public.post_sequences USING btree (sequence_id);
+
+
+--
+-- Name: idx_post_shots_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_shots_post ON public.post_shots USING btree (post_id);
+
+
+--
+-- Name: idx_post_shots_shot; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_shots_shot ON public.post_shots USING btree (shot_id);
+
+
+--
+-- Name: idx_post_tasks_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_tasks_post ON public.post_tasks USING btree (post_id);
+
+
+--
+-- Name: idx_post_tasks_task; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_tasks_task ON public.post_tasks USING btree (task_id);
+
+
+--
+-- Name: idx_post_users_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_users_post ON public.post_users USING btree (post_id);
+
+
+--
+-- Name: idx_post_users_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_users_user ON public.post_users USING btree (user_id);
+
+
+--
+-- Name: idx_posts_author; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_posts_author ON public.posts USING btree (author_id);
+
+
+--
+-- Name: idx_posts_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_posts_created ON public.posts USING btree (created_at DESC);
+
+
+--
+-- Name: idx_posts_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_posts_project ON public.posts USING btree (project_id);
+
+
+--
 -- Name: idx_profiles_department; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_profiles_department ON public.profiles USING btree (department_id);
+
+
+--
+-- Name: idx_profiles_department_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_profiles_department_id ON public.profiles USING btree (department_id);
 
 
 --
@@ -8860,6 +13422,48 @@ CREATE INDEX idx_published_files_version ON public.published_files USING btree (
 
 
 --
+-- Name: idx_schema_change_log_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_change_log_created_at ON public.schema_change_log USING btree (created_at DESC);
+
+
+--
+-- Name: idx_schema_choice_set_items_choice_set; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_choice_set_items_choice_set ON public.schema_choice_set_items USING btree (choice_set_id, sort_order);
+
+
+--
+-- Name: idx_schema_field_entities_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_field_entities_entity ON public.schema_field_entities USING btree (entity_type, is_active, display_order);
+
+
+--
+-- Name: idx_schema_field_entities_table_column; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_field_entities_table_column ON public.schema_field_entities USING btree (table_name, column_name);
+
+
+--
+-- Name: idx_schema_fields_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_fields_active ON public.schema_fields USING btree (is_active);
+
+
+--
+-- Name: idx_schema_fields_data_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_schema_fields_data_type ON public.schema_fields USING btree (data_type);
+
+
+--
 -- Name: idx_shots_project; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8878,6 +13482,62 @@ CREATE INDEX idx_shots_sequence ON public.shots USING btree (sequence_id);
 --
 
 CREATE INDEX idx_shots_status ON public.shots USING btree (status);
+
+
+--
+-- Name: idx_status_entity_types_entity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_status_entity_types_entity_type ON public.status_entity_types USING btree (entity_type);
+
+
+--
+-- Name: idx_status_entity_types_status_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_status_entity_types_status_id ON public.status_entity_types USING btree (status_id);
+
+
+--
+-- Name: idx_statuses_code_entity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_statuses_code_entity_type ON public.statuses USING btree (code, entity_type);
+
+
+--
+-- Name: idx_statuses_entity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_statuses_entity_type ON public.statuses USING btree (entity_type);
+
+
+--
+-- Name: idx_statuses_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_statuses_name ON public.statuses USING btree (name);
+
+
+--
+-- Name: idx_statuses_sort_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_statuses_sort_order ON public.statuses USING btree (sort_order);
+
+
+--
+-- Name: idx_tags_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tags_name ON public.tags USING btree (name);
+
+
+--
+-- Name: idx_tags_usage_count; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tags_usage_count ON public.tags USING btree (usage_count);
 
 
 --
@@ -9042,45 +13702,52 @@ CREATE INDEX messages_inserted_at_topic_index ON ONLY realtime.messages USING bt
 
 
 --
--- Name: messages_2026_02_08_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
 --
 
-CREATE INDEX messages_2026_02_08_inserted_at_topic_idx ON realtime.messages_2026_02_08 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
-
-
---
--- Name: messages_2026_02_09_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
---
-
-CREATE INDEX messages_2026_02_09_inserted_at_topic_idx ON realtime.messages_2026_02_09 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+CREATE INDEX messages_2026_02_14_inserted_at_topic_idx ON realtime.messages_2026_02_14 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
 
 
 --
--- Name: messages_2026_02_10_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
 --
 
-CREATE INDEX messages_2026_02_10_inserted_at_topic_idx ON realtime.messages_2026_02_10 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
-
-
---
--- Name: messages_2026_02_11_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
---
-
-CREATE INDEX messages_2026_02_11_inserted_at_topic_idx ON realtime.messages_2026_02_11 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+CREATE INDEX messages_2026_02_15_inserted_at_topic_idx ON realtime.messages_2026_02_15 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
 
 
 --
--- Name: messages_2026_02_12_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
 --
 
-CREATE INDEX messages_2026_02_12_inserted_at_topic_idx ON realtime.messages_2026_02_12 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+CREATE INDEX messages_2026_02_16_inserted_at_topic_idx ON realtime.messages_2026_02_16 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
 
 
 --
--- Name: messages_2026_02_13_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+-- Name: messages_2026_02_17_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
 --
 
-CREATE INDEX messages_2026_02_13_inserted_at_topic_idx ON realtime.messages_2026_02_13 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+CREATE INDEX messages_2026_02_17_inserted_at_topic_idx ON realtime.messages_2026_02_17 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+
+
+--
+-- Name: messages_2026_02_18_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+--
+
+CREATE INDEX messages_2026_02_18_inserted_at_topic_idx ON realtime.messages_2026_02_18 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+
+
+--
+-- Name: messages_2026_02_19_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+--
+
+CREATE INDEX messages_2026_02_19_inserted_at_topic_idx ON realtime.messages_2026_02_19 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+
+
+--
+-- Name: messages_2026_02_20_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: -
+--
+
+CREATE INDEX messages_2026_02_20_inserted_at_topic_idx ON realtime.messages_2026_02_20 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
 
 
 --
@@ -9189,87 +13856,108 @@ CREATE INDEX supabase_functions_hooks_request_id_idx ON supabase_functions.hooks
 
 
 --
--- Name: messages_2026_02_08_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_08_inserted_at_topic_idx;
-
-
---
--- Name: messages_2026_02_08_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_08_pkey;
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_14_inserted_at_topic_idx;
 
 
 --
--- Name: messages_2026_02_09_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_14_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_09_inserted_at_topic_idx;
-
-
---
--- Name: messages_2026_02_09_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_09_pkey;
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_14_pkey;
 
 
 --
--- Name: messages_2026_02_10_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_10_inserted_at_topic_idx;
-
-
---
--- Name: messages_2026_02_10_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_10_pkey;
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_15_inserted_at_topic_idx;
 
 
 --
--- Name: messages_2026_02_11_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_15_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_11_inserted_at_topic_idx;
-
-
---
--- Name: messages_2026_02_11_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_11_pkey;
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_15_pkey;
 
 
 --
--- Name: messages_2026_02_12_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_12_inserted_at_topic_idx;
-
-
---
--- Name: messages_2026_02_12_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_12_pkey;
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_16_inserted_at_topic_idx;
 
 
 --
--- Name: messages_2026_02_13_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_16_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_13_inserted_at_topic_idx;
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_16_pkey;
 
 
 --
--- Name: messages_2026_02_13_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
+-- Name: messages_2026_02_17_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
 --
 
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_13_pkey;
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_17_inserted_at_topic_idx;
+
+
+--
+-- Name: messages_2026_02_17_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_17_pkey;
+
+
+--
+-- Name: messages_2026_02_18_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_18_inserted_at_topic_idx;
+
+
+--
+-- Name: messages_2026_02_18_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_18_pkey;
+
+
+--
+-- Name: messages_2026_02_19_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_19_inserted_at_topic_idx;
+
+
+--
+-- Name: messages_2026_02_19_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_19_pkey;
+
+
+--
+-- Name: messages_2026_02_20_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_02_20_inserted_at_topic_idx;
+
+
+--
+-- Name: messages_2026_02_20_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: -
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_02_20_pkey;
+
+
+--
+-- Name: annotations annotations_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER annotations_updated_at BEFORE UPDATE ON public.annotations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -9294,6 +13982,13 @@ CREATE TRIGGER note_activity_logger AFTER INSERT ON public.notes FOR EACH ROW EX
 
 
 --
+-- Name: posts posts_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER posts_updated_at BEFORE UPDATE ON public.posts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: published_files published_file_activity_logger; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9305,6 +14000,34 @@ CREATE TRIGGER published_file_activity_logger AFTER INSERT ON public.published_f
 --
 
 CREATE TRIGGER task_activity_logger AFTER INSERT OR UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.log_task_status_change();
+
+
+--
+-- Name: departments trg_departments_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_departments_set_updated_at BEFORE UPDATE ON public.departments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: profiles trg_profiles_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_profiles_set_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: statuses trg_statuses_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_statuses_set_updated_at BEFORE UPDATE ON public.statuses FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tags trg_tags_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_tags_set_updated_at BEFORE UPDATE ON public.tags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -9336,6 +14059,41 @@ CREATE TRIGGER update_playlists_updated_at BEFORE UPDATE ON public.playlists FOR
 
 
 --
+-- Name: post_projects update_post_projects_count; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_projects_count AFTER INSERT OR DELETE ON public.post_projects FOR EACH ROW EXECUTE FUNCTION public.update_post_entity_counts();
+
+
+--
+-- Name: post_sequences update_post_sequences_count; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_sequences_count AFTER INSERT OR DELETE ON public.post_sequences FOR EACH ROW EXECUTE FUNCTION public.update_post_entity_counts();
+
+
+--
+-- Name: post_shots update_post_shots_count; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_shots_count AFTER INSERT OR DELETE ON public.post_shots FOR EACH ROW EXECUTE FUNCTION public.update_post_entity_counts();
+
+
+--
+-- Name: post_tasks update_post_tasks_count; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_tasks_count AFTER INSERT OR DELETE ON public.post_tasks FOR EACH ROW EXECUTE FUNCTION public.update_post_entity_counts();
+
+
+--
+-- Name: post_users update_post_users_count; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_users_count AFTER INSERT OR DELETE ON public.post_users FOR EACH ROW EXECUTE FUNCTION public.update_post_entity_counts();
+
+
+--
 -- Name: profiles update_profiles_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9354,6 +14112,34 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR E
 --
 
 CREATE TRIGGER update_published_files_updated_at BEFORE UPDATE ON public.published_files FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+
+--
+-- Name: schema_choice_set_items update_schema_choice_set_items_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_schema_choice_set_items_updated_at BEFORE UPDATE ON public.schema_choice_set_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: schema_choice_sets update_schema_choice_sets_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_schema_choice_sets_updated_at BEFORE UPDATE ON public.schema_choice_sets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: schema_field_entities update_schema_field_entities_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_schema_field_entities_updated_at BEFORE UPDATE ON public.schema_field_entities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: schema_fields update_schema_fields_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_schema_fields_updated_at BEFORE UPDATE ON public.schema_fields FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -9614,6 +14400,30 @@ ALTER TABLE ONLY public.activity_events
 
 
 --
+-- Name: annotations annotations_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.annotations
+    ADD CONSTRAINT annotations_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: annotations annotations_post_media_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.annotations
+    ADD CONSTRAINT annotations_post_media_id_fkey FOREIGN KEY (post_media_id) REFERENCES public.post_media(id) ON DELETE CASCADE;
+
+
+--
+-- Name: annotations annotations_version_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.annotations
+    ADD CONSTRAINT annotations_version_id_fkey FOREIGN KEY (version_id) REFERENCES public.versions(id) ON DELETE CASCADE;
+
+
+--
 -- Name: assets assets_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9838,6 +14648,30 @@ ALTER TABLE ONLY public.notes
 
 
 --
+-- Name: notifications notifications_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: notifications notifications_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
 -- Name: phases phases_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9891,6 +14725,134 @@ ALTER TABLE ONLY public.playlists
 
 ALTER TABLE ONLY public.playlists
     ADD CONSTRAINT playlists_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_media post_media_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_media
+    ADD CONSTRAINT post_media_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_projects post_projects_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_projects
+    ADD CONSTRAINT post_projects_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_projects post_projects_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_projects
+    ADD CONSTRAINT post_projects_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_reactions post_reactions_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions
+    ADD CONSTRAINT post_reactions_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.notes(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_reactions post_reactions_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions
+    ADD CONSTRAINT post_reactions_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_reactions post_reactions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_reactions
+    ADD CONSTRAINT post_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: post_sequences post_sequences_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_sequences
+    ADD CONSTRAINT post_sequences_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_sequences post_sequences_sequence_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_sequences
+    ADD CONSTRAINT post_sequences_sequence_id_fkey FOREIGN KEY (sequence_id) REFERENCES public.sequences(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_shots post_shots_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_shots
+    ADD CONSTRAINT post_shots_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_shots post_shots_shot_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_shots
+    ADD CONSTRAINT post_shots_shot_id_fkey FOREIGN KEY (shot_id) REFERENCES public.shots(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_tasks post_tasks_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_tasks
+    ADD CONSTRAINT post_tasks_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_tasks post_tasks_task_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_tasks
+    ADD CONSTRAINT post_tasks_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_users post_users_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_users
+    ADD CONSTRAINT post_users_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_users post_users_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_users
+    ADD CONSTRAINT post_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: posts posts_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: posts posts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
 
 
 --
@@ -9990,6 +14952,126 @@ ALTER TABLE ONLY public.published_files
 
 
 --
+-- Name: schema_change_log schema_change_log_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_change_log
+    ADD CONSTRAINT schema_change_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_change_log schema_change_log_choice_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_change_log
+    ADD CONSTRAINT schema_change_log_choice_set_id_fkey FOREIGN KEY (choice_set_id) REFERENCES public.schema_choice_sets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_change_log schema_change_log_field_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_change_log
+    ADD CONSTRAINT schema_change_log_field_id_fkey FOREIGN KEY (field_id) REFERENCES public.schema_fields(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_choice_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items
+    ADD CONSTRAINT schema_choice_set_items_choice_set_id_fkey FOREIGN KEY (choice_set_id) REFERENCES public.schema_choice_sets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items
+    ADD CONSTRAINT schema_choice_set_items_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_set_items
+    ADD CONSTRAINT schema_choice_set_items_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_choice_sets schema_choice_sets_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_sets
+    ADD CONSTRAINT schema_choice_sets_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_choice_sets schema_choice_sets_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_choice_sets
+    ADD CONSTRAINT schema_choice_sets_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_field_entities schema_field_entities_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_field_entities schema_field_entities_field_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_field_id_fkey FOREIGN KEY (field_id) REFERENCES public.schema_fields(id) ON DELETE CASCADE;
+
+
+--
+-- Name: schema_field_entities schema_field_entities_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_entities
+    ADD CONSTRAINT schema_field_entities_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_field_link_targets schema_field_link_targets_field_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_field_link_targets
+    ADD CONSTRAINT schema_field_link_targets_field_id_fkey FOREIGN KEY (field_id) REFERENCES public.schema_fields(id) ON DELETE CASCADE;
+
+
+--
+-- Name: schema_fields schema_fields_choice_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields
+    ADD CONSTRAINT schema_fields_choice_set_id_fkey FOREIGN KEY (choice_set_id) REFERENCES public.schema_choice_sets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_fields schema_fields_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields
+    ADD CONSTRAINT schema_fields_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: schema_fields schema_fields_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_fields
+    ADD CONSTRAINT schema_fields_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
 -- Name: sequences sequences_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10046,11 +15128,51 @@ ALTER TABLE ONLY public.shots
 
 
 --
+-- Name: status_entity_types status_entity_types_status_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.status_entity_types
+    ADD CONSTRAINT status_entity_types_status_id_fkey FOREIGN KEY (status_id) REFERENCES public.statuses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: statuses statuses_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.statuses
+    ADD CONSTRAINT statuses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: statuses statuses_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.statuses
+    ADD CONSTRAINT statuses_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
 -- Name: steps steps_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.steps
     ADD CONSTRAINT steps_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id);
+
+
+--
+-- Name: tags tags_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tags tags_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
 
 
 --
@@ -10559,6 +15681,20 @@ CREATE POLICY "Authenticated users can create conversations" ON public.conversat
 
 
 --
+-- Name: activity_events Authenticated users can insert activity; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated users can insert activity" ON public.activity_events FOR INSERT TO authenticated WITH CHECK ((actor_id = auth.uid()));
+
+
+--
+-- Name: notifications Authenticated users can insert notifications; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated users can insert notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
+
+
+--
 -- Name: conversation_members Conversation creators can add members; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10590,6 +15726,20 @@ CREATE POLICY "Leads can manage project members" ON public.project_members TO au
 
 
 --
+-- Name: post_reactions Users can add reactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can add reactions" ON public.post_reactions FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: annotations Users can create annotations; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create annotations" ON public.annotations FOR INSERT WITH CHECK ((auth.uid() = author_id));
+
+
+--
 -- Name: attachments Users can create attachments in their projects; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10610,12 +15760,60 @@ CREATE POLICY "Users can create notes in their projects" ON public.notes FOR INS
 
 
 --
+-- Name: posts Users can create posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create posts" ON public.posts FOR INSERT WITH CHECK ((auth.uid() = author_id));
+
+
+--
+-- Name: published_files Users can create published files in their projects; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create published files in their projects" ON public.published_files FOR INSERT TO authenticated WITH CHECK (((project_id IN ( SELECT pm.project_id
+   FROM public.project_members pm
+  WHERE (pm.user_id = auth.uid()))) AND (published_by = auth.uid())));
+
+
+--
 -- Name: versions Users can create versions in their projects; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can create versions in their projects" ON public.versions FOR INSERT TO authenticated WITH CHECK ((project_id IN ( SELECT project_members.project_id
    FROM public.project_members
   WHERE (project_members.user_id = auth.uid()))));
+
+
+--
+-- Name: annotations Users can delete own annotations; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete own annotations" ON public.annotations FOR DELETE USING ((auth.uid() = author_id));
+
+
+--
+-- Name: posts Users can delete own posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING ((auth.uid() = author_id));
+
+
+--
+-- Name: post_media Users can delete post media for own posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete post media for own posts" ON public.post_media FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM public.posts
+  WHERE ((posts.id = post_media.post_id) AND (posts.author_id = auth.uid())))));
+
+
+--
+-- Name: published_files Users can delete published files in their projects; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete published files in their projects" ON public.published_files FOR DELETE TO authenticated USING ((project_id IN ( SELECT pm.project_id
+   FROM public.project_members pm
+  WHERE (pm.user_id = auth.uid()))));
 
 
 --
@@ -10656,6 +15854,22 @@ CREATE POLICY "Users can edit their own messages" ON public.messages FOR UPDATE 
 
 
 --
+-- Name: post_media Users can insert post media for own posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert post media for own posts" ON public.post_media FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.posts
+  WHERE ((posts.id = post_media.post_id) AND (posts.author_id = auth.uid())))));
+
+
+--
+-- Name: post_reactions Users can remove own reactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can remove own reactions" ON public.post_reactions FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: messages Users can send messages to their conversations; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10663,10 +15877,42 @@ CREATE POLICY "Users can send messages to their conversations" ON public.message
 
 
 --
+-- Name: annotations Users can update own annotations; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update own annotations" ON public.annotations FOR UPDATE USING ((auth.uid() = author_id));
+
+
+--
+-- Name: notifications Users can update own notifications; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated USING ((user_id = auth.uid()));
+
+
+--
+-- Name: posts Users can update own posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING ((auth.uid() = author_id));
+
+
+--
 -- Name: profiles Users can update own profile; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING ((id = auth.uid()));
+
+
+--
+-- Name: published_files Users can update published files in their projects; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update published files in their projects" ON public.published_files FOR UPDATE TO authenticated USING ((project_id IN ( SELECT pm.project_id
+   FROM public.project_members pm
+  WHERE (pm.user_id = auth.uid())))) WITH CHECK ((project_id IN ( SELECT pm.project_id
+   FROM public.project_members pm
+  WHERE (pm.user_id = auth.uid()))));
 
 
 --
@@ -10711,6 +15957,20 @@ CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT TO aut
 
 
 --
+-- Name: post_reactions Users can view all reactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view all reactions" ON public.post_reactions FOR SELECT USING (true);
+
+
+--
+-- Name: annotations Users can view annotations; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view annotations" ON public.annotations FOR SELECT USING (true);
+
+
+--
 -- Name: assets Users can view assets in their projects; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10747,6 +16007,13 @@ CREATE POLICY "Users can view deliveries in their projects" ON public.deliveries
 
 
 --
+-- Name: posts Users can view global posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view global posts" ON public.posts FOR SELECT USING (((visibility = 'global'::text) OR (project_id IS NULL)));
+
+
+--
 -- Name: messages Users can view messages in their conversations; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10772,6 +16039,13 @@ CREATE POLICY "Users can view notes in their projects" ON public.notes FOR SELEC
 
 
 --
+-- Name: notifications Users can view own notifications; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT TO authenticated USING ((user_id = auth.uid()));
+
+
+--
 -- Name: phases Users can view phases in their projects; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10790,6 +16064,15 @@ CREATE POLICY "Users can view playlists in their projects" ON public.playlists F
 
 
 --
+-- Name: post_media Users can view post media for visible posts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view post media for visible posts" ON public.post_media FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.posts
+  WHERE (posts.id = post_media.post_id))));
+
+
+--
 -- Name: project_members Users can view project members of their projects; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10802,9 +16085,9 @@ CREATE POLICY "Users can view project members of their projects" ON public.proje
 -- Name: published_files Users can view published files in their projects; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Users can view published files in their projects" ON public.published_files FOR SELECT TO authenticated USING ((project_id IN ( SELECT project_members.project_id
-   FROM public.project_members
-  WHERE (project_members.user_id = auth.uid()))));
+CREATE POLICY "Users can view published files in their projects" ON public.published_files FOR SELECT TO authenticated USING ((project_id IN ( SELECT pm.project_id
+   FROM public.project_members pm
+  WHERE (pm.user_id = auth.uid()))));
 
 
 --
@@ -10895,6 +16178,12 @@ CREATE POLICY "allow read own allowlist record" ON public.allowed_users FOR SELE
 ALTER TABLE public.allowed_users ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: annotations; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.annotations ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: assets; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10937,6 +16226,13 @@ ALTER TABLE public.delivery_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: departments departments_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY departments_select_authenticated ON public.departments FOR SELECT TO authenticated USING (true);
+
+
+--
 -- Name: group_members; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10973,6 +16269,12 @@ ALTER TABLE public.note_mentions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: notifications; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: phases; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10995,6 +16297,45 @@ ALTER TABLE public.playlist_shares ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: post_media; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.post_media ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: post_reactions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.post_reactions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: posts; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: posts posts_select_global; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY posts_select_global ON public.posts FOR SELECT USING ((visibility = 'global'::text));
+
+
+--
+-- Name: posts posts_select_own; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY posts_select_own ON public.posts FOR SELECT USING ((auth.uid() = author_id));
+
+
+--
+-- Name: posts posts_select_project; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY posts_select_project ON public.posts FOR SELECT USING (((visibility = 'project'::text) AND ((auth.uid() = author_id) OR (auth.role() = 'authenticated'::text))));
+
 
 --
 -- Name: profiles; Type: ROW SECURITY; Schema: public; Owner: -
@@ -11021,6 +16362,126 @@ ALTER TABLE public.published_file_dependencies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.published_files ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: schema_change_log; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_change_log ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_change_log schema_change_log_alpha_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_change_log_alpha_select ON public.schema_change_log FOR SELECT TO authenticated USING (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_change_log schema_change_log_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_change_log_alpha_write ON public.schema_change_log TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_choice_set_items; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_choice_set_items ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_choice_set_items_alpha_write ON public.schema_choice_set_items TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_choice_set_items schema_choice_set_items_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_choice_set_items_select_authenticated ON public.schema_choice_set_items FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: schema_choice_sets; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_choice_sets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_choice_sets schema_choice_sets_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_choice_sets_alpha_write ON public.schema_choice_sets TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_choice_sets schema_choice_sets_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_choice_sets_select_authenticated ON public.schema_choice_sets FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: schema_field_entities; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_field_entities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_field_entities schema_field_entities_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_field_entities_alpha_write ON public.schema_field_entities TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_field_entities schema_field_entities_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_field_entities_select_authenticated ON public.schema_field_entities FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: schema_field_link_targets; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_field_link_targets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_field_link_targets schema_field_link_targets_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_field_link_targets_alpha_write ON public.schema_field_link_targets TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_field_link_targets schema_field_link_targets_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_field_link_targets_select_authenticated ON public.schema_field_link_targets FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: schema_fields; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.schema_fields ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: schema_fields schema_fields_alpha_write; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_fields_alpha_write ON public.schema_fields TO authenticated USING (public.schema_can_manage_fields()) WITH CHECK (public.schema_can_manage_fields());
+
+
+--
+-- Name: schema_fields schema_fields_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY schema_fields_select_authenticated ON public.schema_fields FOR SELECT TO authenticated USING (true);
+
+
+--
 -- Name: sequences; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -11033,16 +16494,49 @@ ALTER TABLE public.sequences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shots ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: status_entity_types; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.status_entity_types ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: status_entity_types status_entity_types_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY status_entity_types_select_authenticated ON public.status_entity_types FOR SELECT TO authenticated USING (true);
+
+
+--
 -- Name: statuses; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.statuses ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: statuses statuses_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY statuses_select_authenticated ON public.statuses FOR SELECT TO authenticated USING (true);
+
+
+--
 -- Name: steps; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.steps ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: tags; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: tags tags_select_authenticated; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tags_select_authenticated ON public.tags FOR SELECT TO authenticated USING (true);
+
 
 --
 -- Name: task_assignments; Type: ROW SECURITY; Schema: public; Owner: -
@@ -11087,6 +16581,20 @@ ALTER TABLE public.versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: objects Authenticated users can upload post-media; Type: POLICY; Schema: storage; Owner: -
+--
+
+CREATE POLICY "Authenticated users can upload post-media" ON storage.objects FOR INSERT WITH CHECK (((bucket_id = 'post-media'::text) AND (auth.role() = 'authenticated'::text)));
+
+
+--
+-- Name: objects Authenticated users can view post-media; Type: POLICY; Schema: storage; Owner: -
+--
+
+CREATE POLICY "Authenticated users can view post-media" ON storage.objects FOR SELECT USING (((bucket_id = 'post-media'::text) AND (auth.role() = 'authenticated'::text)));
+
+
+--
 -- Name: objects Users can delete files; Type: POLICY; Schema: storage; Owner: -
 --
 
@@ -11101,6 +16609,16 @@ CREATE POLICY "Users can delete note attachments" ON storage.objects FOR DELETE 
 
 
 --
+-- Name: objects Users can delete own post-media; Type: POLICY; Schema: storage; Owner: -
+--
+
+CREATE POLICY "Users can delete own post-media" ON storage.objects FOR DELETE USING (((bucket_id = 'post-media'::text) AND (auth.role() = 'authenticated'::text) AND (EXISTS ( SELECT 1
+   FROM (public.post_media
+     JOIN public.posts ON ((posts.id = post_media.post_id)))
+  WHERE ((post_media.storage_path = objects.name) AND (posts.author_id = auth.uid()))))));
+
+
+--
 -- Name: objects Users can update files; Type: POLICY; Schema: storage; Owner: -
 --
 
@@ -11112,6 +16630,16 @@ CREATE POLICY "Users can update files" ON storage.objects FOR UPDATE TO authenti
 --
 
 CREATE POLICY "Users can update note attachments" ON storage.objects FOR UPDATE TO authenticated USING (((bucket_id = 'note-attachments'::text) AND (auth.role() = 'authenticated'::text)));
+
+
+--
+-- Name: objects Users can update own post-media; Type: POLICY; Schema: storage; Owner: -
+--
+
+CREATE POLICY "Users can update own post-media" ON storage.objects FOR UPDATE USING (((bucket_id = 'post-media'::text) AND (auth.role() = 'authenticated'::text) AND (EXISTS ( SELECT 1
+   FROM (public.post_media
+     JOIN public.posts ON ((posts.id = post_media.post_id)))
+  WHERE ((post_media.storage_path = objects.name) AND (posts.author_id = auth.uid()))))));
 
 
 --

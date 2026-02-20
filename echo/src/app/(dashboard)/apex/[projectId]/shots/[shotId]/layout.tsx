@@ -1,9 +1,17 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
-import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
-import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
+import { buildDetailFields } from '@/lib/fields/detail-builder'
+import { asText, parseTextArray } from '@/lib/fields'
 import { ShotTabs } from '@/components/layout/shot-tabs'
+
+function resolveShotVersionId(shot: Record<string, unknown>): string | null {
+  const linked = parseTextArray(shot.version_link)
+  if (linked.length > 0) return linked[0]
+  const fallback = parseTextArray(shot.versions)
+  if (fallback.length > 0) return fallback[0]
+  return null
+}
 
 export default async function ShotLayout({
   children,
@@ -34,6 +42,7 @@ export default async function ShotLayout({
     )
     .eq('id', shotId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!shot) {
@@ -44,6 +53,7 @@ export default async function ShotLayout({
     .from('shots')
     .select('id, code, name')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('code', { ascending: true })
 
   const sequenceLabel = shot.sequence
@@ -54,55 +64,32 @@ export default async function ShotLayout({
     id: String(option.id),
     label: `${option.code || `Shot ${option.id}`}${option.name ? ` · ${option.name}` : ''}`,
   }))
-  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'shot')
-  const fields = applyFieldOptionMap(
-    appendAutoHeaderFields(
-      'shot',
-      shot as Record<string, unknown>,
-      [
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'text',
-        value: shot.status || null,
-        editable: true,
-        column: 'status',
-      },
-      {
-        id: 'sequence',
-        label: 'Sequence',
-        type: 'readonly',
-        value: sequenceLabel,
-      },
-      {
-        id: 'cut_in',
-        label: 'Cut In',
-        type: 'number',
-        value: shot.cut_in ?? null,
-        editable: true,
-        column: 'cut_in',
-      },
-      {
-        id: 'cut_out',
-        label: 'Cut Out',
-        type: 'number',
-        value: shot.cut_out ?? null,
-        editable: true,
-        column: 'cut_out',
-      },
-      {
-        id: 'duration',
-        label: 'Duration',
-        type: 'readonly',
-        value: shot.cut_duration ?? null,
-      },
-    ],
-      {
-        excludeColumns: ['sequence'],
-      }
-    ),
-    fieldOptionMap
-  )
+
+  const { fields } = await buildDetailFields({
+    entity: 'shot',
+    row: shot as Record<string, unknown>,
+    supabase,
+    projectId,
+    manualFields: ['status', 'cut_in', 'cut_out', 'cut_duration'],
+    prependFields: [],
+    excludeFields: ['sequence_id'],
+  })
+
+  // Insert the computed sequence label as a readonly field after status
+  const sequenceField = {
+    id: 'sequence',
+    label: 'Sequence',
+    type: 'readonly' as const,
+    value: sequenceLabel,
+  }
+  const statusIndex = fields.findIndex((f) => f.id === 'status')
+  if (statusIndex >= 0) {
+    fields.splice(statusIndex + 1, 0, sequenceField)
+  } else {
+    fields.unshift(sequenceField)
+  }
+
+  const linkedShotVersionId = resolveShotVersionId(shot as Record<string, unknown>)
 
   return (
     <div className="flex h-full flex-col">
@@ -117,6 +104,9 @@ export default async function ShotLayout({
         descriptionColumn="description"
         thumbnailUrl={shot.thumbnail_url}
         thumbnailColumn="thumbnail_url"
+        thumbnailLinkHref={
+          linkedShotVersionId ? `/apex/${projectId}/versions/${linkedShotVersionId}/activity` : null
+        }
         thumbnailPlaceholder="No Thumbnail"
         switchOptions={switchOptions}
         tabPaths={[
@@ -130,7 +120,7 @@ export default async function ShotLayout({
           'history',
         ]}
         fields={fields}
-        defaultVisibleFieldIds={['sequence', 'cut_in', 'cut_out', 'duration']}
+        defaultVisibleFieldIds={['sequence', 'cut_in', 'cut_out', 'cut_duration']}
       />
 
       <ShotTabs projectId={projectId} shotId={shotId} />

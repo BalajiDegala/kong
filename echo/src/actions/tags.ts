@@ -12,6 +12,8 @@ type TagMutationInput = {
   description?: string | null
 }
 
+type TagId = string | number
+
 type TagMetadata = {
   table: string
   columns: Set<string>
@@ -245,7 +247,7 @@ export async function createTag(input: TagMutationInput) {
 }
 
 export async function updateTag(
-  tagId: number,
+  tagId: TagId,
   input: TagMutationInput
 ) {
   try {
@@ -296,7 +298,7 @@ export async function updateTag(
   }
 }
 
-export async function deleteTag(tagId: number) {
+export async function deleteTag(tagId: TagId) {
   try {
     await requireAuthenticatedUser()
     const service = createServiceClient()

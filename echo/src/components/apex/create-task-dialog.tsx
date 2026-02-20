@@ -285,16 +285,19 @@ export function CreateTaskDialog({
           .from('assets')
           .select('id, name, code')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('name'),
         supabase
           .from('shots')
           .select('id, name, code')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code'),
         supabase
           .from('sequences')
           .select('id, name, code')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code'),
         supabase
           .from('departments')
@@ -305,6 +308,7 @@ export function CreateTaskDialog({
           .from('projects')
           .select('name, code')
           .eq('id', projectId)
+          .is('deleted_at', null)
           .maybeSingle(),
         listStatusNames('task'),
         listTagNames(),

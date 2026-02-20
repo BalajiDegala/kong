@@ -247,31 +247,34 @@ export function CreateAssetDialog({
 
   const loadSequences = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('sequences')
-      .select('id, code, name')
-      .eq('project_id', projectId)
-      .order('code')
+  const { data } = await supabase
+    .from('sequences')
+    .select('id, code, name')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('code')
     setSequences((data || []) as SequenceOption[])
   }, [projectId])
 
   const loadShots = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('shots')
-      .select('id, code, name, sequence_id, sequence:sequences!shots_sequence_id_fkey(code)')
-      .eq('project_id', projectId)
-      .order('code')
+  const { data } = await supabase
+    .from('shots')
+    .select('id, code, name, sequence_id, sequence:sequences!shots_sequence_id_fkey(code)')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('code')
     setShots((data || []) as ShotOption[])
   }, [projectId])
 
   const loadProject = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('projects')
-      .select('name, code')
-      .eq('id', projectId)
-      .maybeSingle()
+  const { data } = await supabase
+    .from('projects')
+    .select('name, code')
+    .eq('id', projectId)
+    .is('deleted_at', null)
+    .maybeSingle()
 
     if (!data) {
       setProjectLabel(projectId)

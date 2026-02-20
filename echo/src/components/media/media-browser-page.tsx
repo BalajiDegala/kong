@@ -387,6 +387,7 @@ export function MediaBrowserPage({
     const { data, error } = await supabase
       .from('projects')
       .select('id, code, name')
+      .is('deleted_at', null)
       .order('name', { ascending: true })
 
     if (error) {
@@ -412,6 +413,7 @@ export function MediaBrowserPage({
     let query = supabase
       .from('playlists')
       .select('id, project_id, name, code, created_at, project:projects(id, code, name)')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(200)
 
@@ -464,16 +466,19 @@ export function MediaBrowserPage({
           .from('assets')
           .select('id, project_id, code, name')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code', { ascending: true }),
         supabase
           .from('sequences')
           .select('id, project_id, code, name')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code', { ascending: true }),
         supabase
           .from('shots')
           .select('id, project_id, sequence_id, code, name')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code', { ascending: true }),
       ])
 
@@ -559,6 +564,7 @@ export function MediaBrowserPage({
         'id, code, version_number, file_path, movie_url, uploaded_movie, uploaded_movie_mp4, uploaded_movie_webm, frame_rate, status, created_at, project_id, task_id, entity_type, entity_id, thumbnail_url, task:tasks(id, name, entity_type, entity_id), project:projects(id, code, name)',
         { count: 'exact' }
       )
+      .is('deleted_at', null)
 
     if (selectedProjectId !== 'all') {
       query = query.eq('project_id', selectedProjectId)
@@ -722,6 +728,7 @@ export function MediaBrowserPage({
       const { data: shotData, error: shotError } = await supabase
         .from('shots')
         .select('id, code, name')
+        .is('deleted_at', null)
         .in('id', Array.from(shotIds))
 
       if (requestToken !== versionsRequestTokenRef.current) return

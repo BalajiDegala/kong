@@ -262,16 +262,19 @@ export function EditPublishedFileDialog({
           .from('tasks')
           .select('id, name, entity_type, entity_id')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false }),
         supabase
           .from('versions')
           .select('id, code, version_number, entity_type, entity_id')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false }),
         supabase
           .from('projects')
           .select('name, code')
           .eq('id', projectId)
+          .is('deleted_at', null)
           .maybeSingle(),
         listStatusNames('published_file'),
         listTagNames(),

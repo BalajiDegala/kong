@@ -22,11 +22,11 @@ interface PostFeedProps {
 export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProps) {
   const [posts, setPosts] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
+  const [nextCursorId, setNextCursorId] = useState<number | null>(null)
   const pageSize = 20
 
-  const loadPosts = useCallback(async (pageNum: number, append = false) => {
+  const loadPosts = useCallback(async (cursorId: number | null, append = false) => {
     const supabase = createClient()
 
     // If filters are provided, use filtered query
@@ -37,99 +37,177 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
       filters.taskIds?.length ||
       filters.userIds?.length
     )) {
-      // Build filtered query using junction tables
-      let postIds: number[] = []
-      let firstFilter = true
+      // First try DB-side filtered cursor RPC. If unavailable, fallback to client-side scan.
+      const targetMatchCount = pageSize + 1
+      const scanBatchSize = pageSize * 3
+      let matchedPosts: Array<{ id: number; author_id: string | null }> = []
+      let reachedEnd = false
 
-      // Filter by projects
-      if (filters.projectIds && filters.projectIds.length > 0) {
-        const { data } = await supabase
-          .from('post_projects')
-          .select('post_id')
-          .in('project_id', filters.projectIds)
+      const { data: rpcRows, error: rpcError } = await supabase.rpc('get_filtered_posts_cursor', {
+        p_project_ids:
+          filters.projectIds && filters.projectIds.length > 0 ? filters.projectIds : null,
+        p_sequence_ids:
+          filters.sequenceIds && filters.sequenceIds.length > 0 ? filters.sequenceIds : null,
+        p_shot_ids: filters.shotIds && filters.shotIds.length > 0 ? filters.shotIds : null,
+        p_task_ids: filters.taskIds && filters.taskIds.length > 0 ? filters.taskIds : null,
+        p_user_ids: filters.userIds && filters.userIds.length > 0 ? filters.userIds : null,
+        p_cursor_id: cursorId,
+        p_limit: pageSize,
+      })
 
-        if (firstFilter) {
-          postIds = data?.map((r) => r.post_id) || []
-          firstFilter = false
-        } else {
-          const filteredIds = data?.map((r) => r.post_id) || []
-          postIds = postIds.filter((id) => filteredIds.includes(id))
+      if (!rpcError && Array.isArray(rpcRows)) {
+        matchedPosts = rpcRows
+          .map((row: any) => ({
+            id: Number(row?.id),
+            author_id: typeof row?.author_id === 'string' ? row.author_id : null,
+          }))
+          .filter((row) => Number.isFinite(row.id))
+        reachedEnd = matchedPosts.length <= pageSize
+      } else {
+        if (rpcError) {
+          console.warn('Filtered cursor RPC unavailable; using client-side fallback:', rpcError)
+        }
+
+        let scanCursorId = cursorId
+
+        // Cursor-based filtered scan:
+        // scan posts in batches by descending id and keep only matching rows.
+        while (matchedPosts.length < targetMatchCount) {
+          let scanQuery = supabase
+            .from('posts')
+            .select('id, author_id')
+            .order('id', { ascending: false })
+            .limit(scanBatchSize)
+
+          if (scanCursorId) {
+            scanQuery = scanQuery.lt('id', scanCursorId)
+          }
+
+          const { data: candidates, error: scanError } = await scanQuery
+
+          if (scanError) {
+            console.error('Failed to scan filtered posts:', scanError)
+            setIsLoading(false)
+            return
+          }
+
+          const candidateRows = candidates || []
+          if (candidateRows.length === 0) {
+            reachedEnd = true
+            break
+          }
+
+          const candidateIds = candidateRows.map((row) => row.id)
+          const [
+            projectMatchesResult,
+            sequenceMatchesResult,
+            shotMatchesResult,
+            taskMatchesResult,
+            userMatchesResult,
+          ] = await Promise.all([
+            filters.projectIds && filters.projectIds.length > 0
+              ? supabase
+                  .from('post_projects')
+                  .select('post_id')
+                  .in('post_id', candidateIds)
+                  .in('project_id', filters.projectIds)
+              : Promise.resolve({ data: [] }),
+            filters.sequenceIds && filters.sequenceIds.length > 0
+              ? supabase
+                  .from('post_sequences')
+                  .select('post_id')
+                  .in('post_id', candidateIds)
+                  .in('sequence_id', filters.sequenceIds)
+              : Promise.resolve({ data: [] }),
+            filters.shotIds && filters.shotIds.length > 0
+              ? supabase
+                  .from('post_shots')
+                  .select('post_id')
+                  .in('post_id', candidateIds)
+                  .in('shot_id', filters.shotIds)
+              : Promise.resolve({ data: [] }),
+            filters.taskIds && filters.taskIds.length > 0
+              ? supabase
+                  .from('post_tasks')
+                  .select('post_id')
+                  .in('post_id', candidateIds)
+                  .in('task_id', filters.taskIds)
+              : Promise.resolve({ data: [] }),
+            filters.userIds && filters.userIds.length > 0
+              ? supabase
+                  .from('post_users')
+                  .select('post_id')
+                  .in('post_id', candidateIds)
+                  .in('user_id', filters.userIds)
+              : Promise.resolve({ data: [] }),
+          ])
+
+          const projectMatchIds = new Set<number>(
+            (projectMatchesResult.data || []).map((row: any) => row.post_id)
+          )
+          const sequenceMatchIds = new Set<number>(
+            (sequenceMatchesResult.data || []).map((row: any) => row.post_id)
+          )
+          const shotMatchIds = new Set<number>(
+            (shotMatchesResult.data || []).map((row: any) => row.post_id)
+          )
+          const taskMatchIds = new Set<number>(
+            (taskMatchesResult.data || []).map((row: any) => row.post_id)
+          )
+          const userMentionMatchIds = new Set<number>(
+            (userMatchesResult.data || []).map((row: any) => row.post_id)
+          )
+
+          for (const candidate of candidateRows) {
+            if (filters.projectIds && filters.projectIds.length > 0 && !projectMatchIds.has(candidate.id)) {
+              continue
+            }
+            if (filters.sequenceIds && filters.sequenceIds.length > 0 && !sequenceMatchIds.has(candidate.id)) {
+              continue
+            }
+            if (filters.shotIds && filters.shotIds.length > 0 && !shotMatchIds.has(candidate.id)) {
+              continue
+            }
+            if (filters.taskIds && filters.taskIds.length > 0 && !taskMatchIds.has(candidate.id)) {
+              continue
+            }
+            if (filters.userIds && filters.userIds.length > 0) {
+              const isAuthorMatch =
+                candidate.author_id !== null && filters.userIds.includes(candidate.author_id)
+              if (!isAuthorMatch && !userMentionMatchIds.has(candidate.id)) {
+                continue
+              }
+            }
+
+            matchedPosts.push(candidate)
+            if (matchedPosts.length >= targetMatchCount) {
+              break
+            }
+          }
+
+          if (matchedPosts.length >= targetMatchCount) {
+            break
+          }
+
+          scanCursorId = candidateRows[candidateRows.length - 1]?.id || null
+          if (candidateRows.length < scanBatchSize) {
+            reachedEnd = true
+            break
+          }
         }
       }
 
-      // Filter by sequences
-      if (filters.sequenceIds && filters.sequenceIds.length > 0) {
-        const { data } = await supabase
-          .from('post_sequences')
-          .select('post_id')
-          .in('sequence_id', filters.sequenceIds)
+      const matchedPage = matchedPosts.slice(0, pageSize)
 
-        if (firstFilter) {
-          postIds = data?.map((r) => r.post_id) || []
-          firstFilter = false
-        } else {
-          const filteredIds = data?.map((r) => r.post_id) || []
-          postIds = postIds.filter((id) => filteredIds.includes(id))
-        }
-      }
-
-      // Filter by shots
-      if (filters.shotIds && filters.shotIds.length > 0) {
-        const { data } = await supabase
-          .from('post_shots')
-          .select('post_id')
-          .in('shot_id', filters.shotIds)
-
-        if (firstFilter) {
-          postIds = data?.map((r) => r.post_id) || []
-          firstFilter = false
-        } else {
-          const filteredIds = data?.map((r) => r.post_id) || []
-          postIds = postIds.filter((id) => filteredIds.includes(id))
-        }
-      }
-
-      // Filter by tasks
-      if (filters.taskIds && filters.taskIds.length > 0) {
-        const { data } = await supabase
-          .from('post_tasks')
-          .select('post_id')
-          .in('task_id', filters.taskIds)
-
-        if (firstFilter) {
-          postIds = data?.map((r) => r.post_id) || []
-          firstFilter = false
-        } else {
-          const filteredIds = data?.map((r) => r.post_id) || []
-          postIds = postIds.filter((id) => filteredIds.includes(id))
-        }
-      }
-
-      // Filter by users
-      if (filters.userIds && filters.userIds.length > 0) {
-        const { data } = await supabase
-          .from('post_users')
-          .select('post_id')
-          .in('user_id', filters.userIds)
-
-        if (firstFilter) {
-          postIds = data?.map((r) => r.post_id) || []
-          firstFilter = false
-        } else {
-          const filteredIds = data?.map((r) => r.post_id) || []
-          postIds = postIds.filter((id) => filteredIds.includes(id))
-        }
-      }
-
-      // If no posts match filters, return empty
-      if (postIds.length === 0) {
+      if (matchedPage.length === 0) {
         setPosts([])
         setHasMore(false)
+        setNextCursorId(null)
         setIsLoading(false)
         return
       }
 
-      // Fetch posts by IDs
+      const matchedIds = matchedPage.map((row) => row.id)
       const { data, error } = await supabase
         .from('posts')
         .select(`
@@ -142,9 +220,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
           post_tasks(task_id),
           post_users(user_id)
         `)
-        .in('id', postIds)
-        .order('created_at', { ascending: false })
-        .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1)
+        .in('id', matchedIds)
 
       if (error) {
         console.error('Failed to load filtered posts:', error)
@@ -152,21 +228,36 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
         return
       }
 
-      const rawPosts = data || []
-      setHasMore(rawPosts.length === pageSize)
+      const postOrder = new Map(matchedIds.map((id, index) => [id, index]))
+      const rawPosts = (data || []).sort(
+        (a, b) => (postOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (postOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      )
+
+      const hasAdditionalMatches = matchedPosts.length > pageSize
+      setHasMore(hasAdditionalMatches)
+      setNextCursorId(matchedPage[matchedPage.length - 1]?.id || null)
+      if (reachedEnd && !hasAdditionalMatches) {
+        setHasMore(false)
+      }
 
       // Load entity details
       await enrichPostsWithEntities(rawPosts, supabase, append)
     } else {
       // Global feed - no filters, try simplest query first
-      console.log('[PostFeed] Loading global feed, page:', pageNum)
+      console.log('[PostFeed] Loading global feed, cursor:', cursorId)
 
       // Try ultra-simple query without joins first
-      const { data: basicData, error: basicError } = await supabase
+      let basicQuery = supabase
         .from('posts')
         .select('*')
-        .order('created_at', { ascending: false })
-        .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1)
+        .order('id', { ascending: false })
+        .limit(pageSize)
+
+      if (cursorId) {
+        basicQuery = basicQuery.lt('id', cursorId)
+      }
+
+      const { data: basicData, error: basicError } = await basicQuery
 
       console.log('[PostFeed] Basic query result:', {
         dataCount: basicData?.length,
@@ -184,15 +275,21 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
       }
 
       // If basic query worked, try with joins
-      const { data, error } = await supabase
+      let postQuery = supabase
         .from('posts')
         .select(`
           *,
           post_media(*),
           post_reactions(reaction_type, user_id)
         `)
-        .order('created_at', { ascending: false })
-        .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1)
+        .order('id', { ascending: false })
+        .limit(pageSize)
+
+      if (cursorId) {
+        postQuery = postQuery.lt('id', cursorId)
+      }
+
+      const { data, error } = await postQuery
 
       if (error) {
         console.error('[PostFeed] Failed to load posts (with joins):', {
@@ -206,6 +303,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
         console.log('[PostFeed] Using basic data without joins')
         const rawPosts = basicData || []
         setHasMore(rawPosts.length === pageSize)
+        setNextCursorId(rawPosts.length > 0 ? rawPosts[rawPosts.length - 1].id : null)
 
         // Initialize empty arrays for entities
         rawPosts.forEach((post) => {
@@ -226,6 +324,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
 
       const rawPosts = data || []
       setHasMore(rawPosts.length === pageSize)
+      setNextCursorId(rawPosts.length > 0 ? rawPosts[rawPosts.length - 1].id : null)
 
       // Load entity associations separately (if tables exist)
       if (rawPosts.length > 0) {
@@ -286,7 +385,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
     try {
       // Step 1: resolve author profiles
       const authorIds = [...new Set(rawPosts.map((p) => p.author_id).filter(Boolean))]
-      let profileMap: Record<string, any> = {}
+      const profileMap: Record<string, any> = {}
 
       if (authorIds.length > 0) {
         const { data: profiles, error } = await supabase
@@ -312,16 +411,16 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
 
       const [projectsData, sequencesData, shotsData, tasksData, usersData] = await Promise.all([
         allProjectIds.length > 0
-          ? supabase.from('projects').select('id, name').in('id', allProjectIds)
+          ? supabase.from('projects').select('id, name').in('id', allProjectIds).is('deleted_at', null)
           : { data: [] },
         allSequenceIds.length > 0
-          ? supabase.from('sequences').select('id, name, project_id').in('id', allSequenceIds)
+          ? supabase.from('sequences').select('id, name, project_id').in('id', allSequenceIds).is('deleted_at', null)
           : { data: [] },
         allShotIds.length > 0
-          ? supabase.from('shots').select('id, name, sequence_id').in('id', allShotIds)
+          ? supabase.from('shots').select('id, name, sequence_id').in('id', allShotIds).is('deleted_at', null)
           : { data: [] },
         allTaskIds.length > 0
-          ? supabase.from('tasks').select('id, name, entity_id, entity_type').in('id', allTaskIds)
+          ? supabase.from('tasks').select('id, name, entity_id, entity_type').in('id', allTaskIds).is('deleted_at', null)
           : { data: [] },
         allUserIds.length > 0
           ? supabase.from('profiles').select('id, display_name').in('id', allUserIds)
@@ -358,7 +457,7 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
   }
 
   useEffect(() => {
-    loadPosts(0)
+    loadPosts(null)
   }, [loadPosts])
 
   // Set up real-time subscription
@@ -375,7 +474,8 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
           table: 'posts',
         },
         () => {
-          loadPosts(0)
+          setNextCursorId(null)
+          loadPosts(null)
         }
       )
       .subscribe()
@@ -386,15 +486,14 @@ export function PostFeed({ filters, currentUserId, onEntityClick }: PostFeedProp
   }, [loadPosts])
 
   const handleLoadMore = () => {
-    const nextPage = page + 1
-    setPage(nextPage)
-    loadPosts(nextPage, true)
+    if (!nextCursorId) return
+    loadPosts(nextCursorId, true)
   }
 
   const handleRefresh = () => {
-    setPage(0)
+    setNextCursorId(null)
     setIsLoading(true)
-    loadPosts(0)
+    loadPosts(null)
   }
 
   if (isLoading) {

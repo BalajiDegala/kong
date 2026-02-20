@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 
 export async function createAsset(
   formData: Record<string, unknown> & {
@@ -134,22 +134,25 @@ export async function deleteAsset(assetId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
-  // Fetch before delete for logging
+  // Fetch before soft-delete for logging
   const { data: oldData } = await supabase
     .from('assets')
     .select('*')
     .eq('id', assetId)
     .maybeSingle()
 
-  const { error } = await supabase.from('assets').delete().eq('id', assetId)
+  // Soft-delete: set deleted_at instead of hard-deleting
+  const { error } = await supabase
+    .from('assets')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', assetId)
 
   if (error) {
     return { error: error.message }
   }
 
-  // Fire-and-forget activity logging
   if (oldData) {
-    logEntityDeleted('asset', assetId, projectId, oldData)
+    logEntityTrashed('asset', assetId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/assets`)

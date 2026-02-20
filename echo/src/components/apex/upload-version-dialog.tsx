@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Paperclip, Upload, X } from 'lucide-react'
 import { createVersion } from '@/actions/versions'
@@ -118,6 +118,101 @@ async function optimizeThumbnailDataUrl(file: File) {
   return canvas.toDataURL('image/jpeg', 0.84)
 }
 
+async function captureVideoThumbnailDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    let settled = false
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId)
+      video.removeAttribute('src')
+      video.load()
+      URL.revokeObjectURL(objectUrl)
+    }
+
+    const fail = (message: string) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(new Error(message))
+    }
+
+    const succeed = (value: string) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(value)
+    }
+
+    const captureFrame = () => {
+      const sourceWidth = video.videoWidth || 0
+      const sourceHeight = video.videoHeight || 0
+      if (sourceWidth <= 0 || sourceHeight <= 0) {
+        fail('Failed to read video frame')
+        return
+      }
+
+      try {
+        const maxSide = 256
+        const ratio = Math.min(maxSide / sourceWidth, maxSide / sourceHeight, 1)
+        const width = Math.max(1, Math.round(sourceWidth * ratio))
+        const height = Math.max(1, Math.round(sourceHeight * ratio))
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          fail('Failed to process video frame')
+          return
+        }
+        ctx.drawImage(video, 0, 0, width, height)
+        succeed(canvas.toDataURL('image/jpeg', 0.84))
+      } catch {
+        fail('Failed to process video frame')
+      }
+    }
+
+    const captureFromMiddleFrame = () => {
+      const duration = Number.isFinite(video.duration) ? Number(video.duration) : 0
+      const targetTime =
+        duration > 0 ? Math.max(0, Math.min(duration / 2, Math.max(duration - 0.05, 0))) : 0
+
+      if (targetTime <= 0) {
+        if (video.readyState >= 2) {
+          captureFrame()
+          return
+        }
+        video.addEventListener('loadeddata', captureFrame, { once: true })
+        return
+      }
+
+      video.addEventListener('seeked', captureFrame, { once: true })
+      try {
+        video.currentTime = targetTime
+      } catch {
+        if (video.readyState >= 2) {
+          captureFrame()
+          return
+        }
+        video.addEventListener('loadeddata', captureFrame, { once: true })
+      }
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      fail('Timed out while generating thumbnail')
+    }, 10000)
+
+    video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
+    video.addEventListener('loadedmetadata', captureFromMiddleFrame, { once: true })
+    video.addEventListener('error', () => fail('Invalid video file'), { once: true })
+    video.src = objectUrl
+    video.load()
+  })
+}
+
 async function uploadVersionFileFromClient(file: File, projectId: string) {
   const supabase = createClient()
   const timestamp = Date.now()
@@ -228,6 +323,7 @@ export function UploadVersionDialog({
   const [tagNames, setTagNames] = useState<string[]>([])
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null)
   const [thumbnailFileName, setThumbnailFileName] = useState('')
+  const thumbnailCaptureRequestRef = useRef(0)
 
   const [assets, setAssets] = useState<EntityOption[]>([])
   const [shots, setShots] = useState<EntityOption[]>([])
@@ -282,27 +378,32 @@ export function UploadVersionDialog({
         .from('assets')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('name'),
       supabase
         .from('shots')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('sequences')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('tasks')
         .select('id, name, entity_type, entity_id')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('name'),
       supabase.from('profiles').select('id, full_name, email').order('full_name'),
       supabase
         .from('projects')
         .select('name, code')
         .eq('id', projectId)
+        .is('deleted_at', null)
         .maybeSingle(),
       listStatusNames('version'),
       listTagNames(),
@@ -365,7 +466,7 @@ export function UploadVersionDialog({
       .map((value) => ({ value, label: value }))
   }, [formData.tags, tagNames])
 
-  const handleFileSelect = (file: File | null) => {
+  const handleFileSelect = async (file: File | null) => {
     if (!file) return
 
     const extension = file.name.split('.').pop()?.toLowerCase() || ''
@@ -380,9 +481,28 @@ export function UploadVersionDialog({
 
     setError(null)
     setSelectedFile(file)
+    setThumbnailDataUrl(null)
+    setThumbnailFileName('')
+
+    const requestId = thumbnailCaptureRequestRef.current + 1
+    thumbnailCaptureRequestRef.current = requestId
+
     if (!formData.code) {
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, '')
       setFormData((prev) => ({ ...prev, code: nameWithoutExt }))
+    }
+
+    try {
+      const autoThumbnail = await captureVideoThumbnailDataUrl(file)
+      if (thumbnailCaptureRequestRef.current !== requestId) return
+      setThumbnailDataUrl(autoThumbnail)
+      setThumbnailFileName('Auto-generated from video')
+    } catch (thumbnailError) {
+      if (thumbnailCaptureRequestRef.current !== requestId) return
+      console.warn(
+        'Failed to auto-generate thumbnail from uploaded video:',
+        thumbnailError
+      )
     }
   }
 
@@ -395,6 +515,7 @@ export function UploadVersionDialog({
     }
 
     try {
+      thumbnailCaptureRequestRef.current += 1
       const optimized = await optimizeThumbnailDataUrl(file)
       setThumbnailDataUrl(optimized)
       setThumbnailFileName(file.name)
@@ -439,6 +560,20 @@ export function UploadVersionDialog({
     }
 
     try {
+      let effectiveThumbnailDataUrl = thumbnailDataUrl
+      if (!effectiveThumbnailDataUrl) {
+        try {
+          effectiveThumbnailDataUrl = await captureVideoThumbnailDataUrl(selectedFile)
+          setThumbnailDataUrl(effectiveThumbnailDataUrl)
+          setThumbnailFileName('Auto-generated from video')
+        } catch (thumbnailError) {
+          console.warn(
+            'Failed to auto-generate thumbnail before creating version:',
+            thumbnailError
+          )
+        }
+      }
+
       setUploadProgress(25)
       const uploadResult = await uploadVersionFileFromClient(selectedFile, projectId)
       if (uploadResult.error) throw new Error(uploadResult.error)
@@ -458,7 +593,7 @@ export function UploadVersionDialog({
         link: formData.link || null,
         status: formData.status || undefined,
         tags: formData.tags,
-        thumbnail_url: thumbnailDataUrl || undefined,
+        thumbnail_url: effectiveThumbnailDataUrl || undefined,
         thumbnail_blur_hash: formData.thumbnail_blur_hash.trim() || undefined,
         uploaded_movie: uploadResult.data?.path || null,
         ...extraFields,
@@ -483,6 +618,7 @@ export function UploadVersionDialog({
       setSelectedFile(null)
       setThumbnailDataUrl(null)
       setThumbnailFileName('')
+      thumbnailCaptureRequestRef.current += 1
       setExtraFields({})
       setShowMoreFields(false)
       onOpenChange(false)
@@ -539,7 +675,7 @@ export function UploadVersionDialog({
                 <Input
                   id="file"
                   type="file"
-                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                  onChange={(e) => void handleFileSelect(e.target.files?.[0] || null)}
                   accept=".mp4,.mov,video/mp4,video/quicktime"
                   disabled={isLoading}
                   className="sr-only"
@@ -802,6 +938,7 @@ export function UploadVersionDialog({
                         <button
                           type="button"
                           onClick={() => {
+                            thumbnailCaptureRequestRef.current += 1
                             setThumbnailDataUrl(null)
                             setThumbnailFileName('')
                           }}

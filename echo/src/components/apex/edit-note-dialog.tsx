@@ -301,26 +301,31 @@ export function EditNoteDialog({ open, onOpenChange, projectId, note }: EditNote
         .from('assets')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('name'),
       supabase
         .from('shots')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('tasks')
         .select('id, name, entity_type, entity_id')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('name'),
       supabase
         .from('sequences')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('versions')
         .select('id, code, version_number, entity_type, entity_id')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false }),
       listStatusNames('note'),
       listTagNames(),

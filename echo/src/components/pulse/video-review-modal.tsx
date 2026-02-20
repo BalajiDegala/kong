@@ -112,6 +112,31 @@ function isImageAttachment(fileType: string, fileName: string) {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName)
 }
 
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message.trim()
+  if (typeof error === 'string') return error.trim()
+  if (!error || typeof error !== 'object') return ''
+
+  const errorRecord = error as Record<string, unknown>
+  const parts = [errorRecord.message, errorRecord.details, errorRecord.hint, errorRecord.code]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+
+  return Array.from(new Set(parts)).join(' | ')
+}
+
+function isMissingAnnotationNoteIdColumn(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase()
+  if (!message) return false
+
+  return (
+    (message.includes('note_id') &&
+      message.includes('column') &&
+      message.includes('does not exist')) ||
+    (message.includes('pgrst204') && message.includes('note_id'))
+  )
+}
+
 export function VideoReviewModal({ media, versionId, postId, projectId, onClose }: VideoReviewModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<AnnotationCanvasRef>(null)
@@ -197,10 +222,12 @@ export function VideoReviewModal({ media, versionId, postId, projectId, onClose 
         commentsQuery = commentsQuery
           .eq('entity_type', 'post')
           .eq('entity_id', postId)
+          .is('deleted_at', null)
       } else if (versionId) {
         commentsQuery = commentsQuery
           .eq('entity_type', 'version')
           .eq('entity_id', versionId)
+          .is('deleted_at', null)
       } else {
         setComments([])
         return
@@ -233,7 +260,14 @@ export function VideoReviewModal({ media, versionId, postId, projectId, onClose 
         : { data: [], error: null }
 
       if (annotationError) {
-        console.error('Failed to load annotation metadata for comments:', annotationError)
+        if (!isMissingAnnotationNoteIdColumn(annotationError)) {
+          const details = extractErrorMessage(annotationError)
+          if (details) {
+            console.warn(`Failed to load annotation metadata for comments: ${details}`)
+          } else {
+            console.warn('Failed to load annotation metadata for comments.')
+          }
+        }
       }
 
       const frameMetaByNote = new Map<number, { frame_number: number | null; timecode: string | null }>()

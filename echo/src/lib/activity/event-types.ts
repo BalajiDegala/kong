@@ -36,6 +36,23 @@ export const EVENT_TYPES = {
   project_created: 'project_created',
   project_updated: 'project_updated',
   project_deleted: 'project_deleted',
+  // Skull Island (trash/restore)
+  asset_trashed: 'asset_trashed',
+  asset_restored: 'asset_restored',
+  shot_trashed: 'shot_trashed',
+  shot_restored: 'shot_restored',
+  sequence_trashed: 'sequence_trashed',
+  sequence_restored: 'sequence_restored',
+  task_trashed: 'task_trashed',
+  task_restored: 'task_restored',
+  version_trashed: 'version_trashed',
+  version_restored: 'version_restored',
+  note_trashed: 'note_trashed',
+  note_restored: 'note_restored',
+  playlist_trashed: 'playlist_trashed',
+  playlist_restored: 'playlist_restored',
+  project_trashed: 'project_trashed',
+  project_restored: 'project_restored',
   // Special events
   status_changed: 'status_changed',
   task_assigned: 'task_assigned',
@@ -59,6 +76,8 @@ export const EXCLUDED_FIELDS = new Set([
   'created_by',
   'updated_by',
   'metadata',
+  'deleted_at',
+  'deleted_by',
 ])
 
 // Human-readable entity type labels

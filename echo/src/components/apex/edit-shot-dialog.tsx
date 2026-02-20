@@ -358,6 +358,7 @@ export function EditShotDialog({ open, onOpenChange, shot }: EditShotDialogProps
       .from('projects')
       .select('name, code')
       .eq('id', projectId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     setProjectLabel(asText(data?.code).trim() || asText(data?.name).trim() || projectId)

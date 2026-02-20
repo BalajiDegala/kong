@@ -47,6 +47,7 @@ const navItems = [
   { id: 'departments', label: 'Departments', href: '/departments' },
   { id: 'status', label: 'Status', href: '/status' },
   { id: 'tags', label: 'Tags', href: '/tags' },
+  { id: 'skull-island', label: 'Skull Island', href: '/skull-island' },
 ]
 
 const apexProjectPages = [
@@ -77,6 +78,7 @@ export function GlobalNav({ user, profile }: GlobalNavProps) {
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, code')
+        .is('deleted_at', null)
         .order('name', { ascending: true })
         .limit(20)
 
@@ -98,11 +100,24 @@ export function GlobalNav({ user, profile }: GlobalNavProps) {
       setProjectsLoading(false)
     }
 
-    loadProjects()
+    const handleProjectsChanged = () => {
+      void loadProjects()
+    }
+
+    const handleFocus = () => {
+      void loadProjects()
+    }
+
+    void loadProjects()
+    window.addEventListener('apex:projects-changed', handleProjectsChanged)
+    window.addEventListener('focus', handleFocus)
+
     return () => {
       active = false
+      window.removeEventListener('apex:projects-changed', handleProjectsChanged)
+      window.removeEventListener('focus', handleFocus)
     }
-  }, [user.id])
+  }, [user.id, pathname])
 
   // Poll unread notification count
   useEffect(() => {
@@ -125,7 +140,7 @@ export function GlobalNav({ user, profile }: GlobalNavProps) {
     <nav className="flex h-14 items-center justify-between border-b border-border bg-background px-6">
       {/* Left: Logo + Nav Links */}
       <div className="flex items-center gap-6">
-        <Link href="/apex" className="text-xl font-bold text-primary">
+        <Link href="/kong" className="text-xl font-bold text-primary">
           K O N G
         </Link>
 

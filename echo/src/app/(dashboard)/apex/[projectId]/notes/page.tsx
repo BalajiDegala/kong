@@ -2,75 +2,52 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { listStatusNames } from '@/lib/status/options'
-import { listTagNames } from '@/lib/tags/options'
+import { EntityTable } from '@/components/table/entity-table'
 import { CreateNoteDialog } from '@/components/apex/create-note-dialog'
 import { EditNoteDialog } from '@/components/apex/edit-note-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
-import { EntityTable } from '@/components/table/entity-table'
 import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
-import type { TableColumn } from '@/components/table/types'
 import { createNote, deleteNote, updateNote } from '@/actions/notes'
+import { useEntityData } from '@/hooks/use-entity-data'
+import { asText, parseTextArray } from '@/lib/fields'
+import type { TableColumn } from '@/components/table/types'
 import { MessageSquare, Plus } from 'lucide-react'
 
+type NoteRow = Record<string, unknown> & { id: string | number }
+
+// ---------------------------------------------------------------------------
+// Link Parsing — Notes have a `links` text-array field that can contain
+// URLs, Pulse post paths, Apex entity paths, or typed shorthand like
+// "task:123".  These get parsed into structured refs and then resolved
+// against the DB so we can show human-readable labels in the table.
+// ---------------------------------------------------------------------------
+
+type ParsedNoteLinkKind =
+  | 'asset' | 'shot' | 'sequence' | 'task' | 'version'
+  | 'project' | 'published_file' | 'post' | 'url' | 'unknown'
+
+type ParsedNoteLinkRef = { raw: string; kind: ParsedNoteLinkKind; id: string; url: string }
+type ResolvedNoteLinkRef = { label: string; url: string }
 type EntityRefMap = Record<string, { label: string; url: string }>
 type PostRefMap = Record<string, { label: string; url: string }>
 
-type ParsedNoteLinkKind =
-  | 'asset'
-  | 'shot'
-  | 'sequence'
-  | 'task'
-  | 'version'
-  | 'project'
-  | 'published_file'
-  | 'post'
-  | 'url'
-  | 'unknown'
-
-type ParsedNoteLinkRef = {
-  raw: string
-  kind: ParsedNoteLinkKind
-  id: string
-  url: string
+function buildFallbackLink(projectId: string, entityType: string, entityId: unknown) {
+  const id = asText(entityId).trim()
+  if (!entityType || !id) return ''
+  if (entityType === 'asset') return `/apex/${projectId}/assets/${id}`
+  if (entityType === 'shot') return `/apex/${projectId}/shots/${id}`
+  if (entityType === 'sequence') return `/apex/${projectId}/sequences/${id}`
+  if (entityType === 'task') return `/apex/${projectId}/tasks/${id}`
+  if (entityType === 'version') return `/apex/${projectId}/versions/${id}`
+  if (entityType === 'project') return `/apex/${id}`
+  if (entityType === 'published_file') return `/apex/${projectId}/published-files?selected=${id}`
+  return ''
 }
 
-type ResolvedNoteLinkRef = {
-  label: string
-  url: string
-}
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
-
-function parseListValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => asText(item).trim())
-      .filter(Boolean)
-  }
-
-  if (typeof value === 'string') {
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-
-  return []
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => value.trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b))
+function titleCaseEntityType(value: string) {
+  if (value === 'published_file') return 'Published File'
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : ''
 }
 
 function toEntityKey(entityType: string, entityId: unknown): string {
@@ -84,97 +61,36 @@ function toNumber(value: unknown): number | null {
   return Number.isNaN(parsed) ? null : parsed
 }
 
-function buildFallbackLink(projectId: string, entityType: string, entityId: unknown) {
-  const id = asText(entityId).trim()
-  if (!entityType || !id) return ''
-
-  if (entityType === 'asset') return `/apex/${projectId}/assets/${id}`
-  if (entityType === 'shot') return `/apex/${projectId}/shots/${id}`
-  if (entityType === 'sequence') return `/apex/${projectId}/sequences/${id}`
-  if (entityType === 'task') return `/apex/${projectId}/tasks/${id}`
-  if (entityType === 'version') return `/apex/${projectId}/versions/${id}`
-  if (entityType === 'project') return `/apex/${id}`
-  if (entityType === 'published_file') return `/apex/${projectId}/published-files?selected=${id}`
-  return ''
-}
-
-function normalizeNoteEntityType(
-  value: unknown
-): 'asset' | 'shot' | 'sequence' | 'task' | 'version' | 'project' | 'published_file' | null {
-  const normalized = asText(value).trim().toLowerCase()
-  if (
-    normalized === 'asset' ||
-    normalized === 'shot' ||
-    normalized === 'sequence' ||
-    normalized === 'task' ||
-    normalized === 'version' ||
-    normalized === 'project' ||
-    normalized === 'published_file'
-  ) {
-    return normalized
-  }
-  return null
-}
-
-function titleCaseEntityType(value: string) {
-  if (value === 'published_file') return 'Published File'
-  if (!value) return ''
-  return `${value[0].toUpperCase()}${value.slice(1)}`
-}
-
 function parseNoteLinkRef(rawValue: unknown, projectId: string): ParsedNoteLinkRef | null {
   const raw = asText(rawValue).trim()
   if (!raw) return null
 
-  if (/^https?:\/\//i.test(raw)) {
+  if (/^https?:\/\//i.test(raw))
     return { raw, kind: 'url', id: '', url: raw }
-  }
 
   const pulsePostMatch = raw.match(/^\/pulse\/post\/(\d+)/i)
-  if (pulsePostMatch) {
-    const id = pulsePostMatch[1]
-    return { raw, kind: 'post', id, url: `/pulse/post/${id}` }
-  }
+  if (pulsePostMatch)
+    return { raw, kind: 'post', id: pulsePostMatch[1], url: `/pulse/post/${pulsePostMatch[1]}` }
 
-  const apexEntityMatch = raw.match(
-    /^\/apex\/\d+\/(assets|shots|sequences|tasks|versions)\/(\d+)/i
-  )
+  const apexEntityMatch = raw.match(/^\/apex\/\d+\/(assets|shots|sequences|tasks|versions)\/(\d+)/i)
   if (apexEntityMatch) {
     const segment = apexEntityMatch[1].toLowerCase()
     const id = apexEntityMatch[2]
-    const kind =
-      segment === 'assets'
-        ? 'asset'
-        : segment === 'shots'
-          ? 'shot'
-          : segment === 'sequences'
-            ? 'sequence'
-            : segment === 'tasks'
-              ? 'task'
-              : 'version'
-    return {
-      raw,
-      kind,
-      id,
-      url: buildFallbackLink(projectId, kind, id),
-    }
+    const kind = segment === 'assets' ? 'asset'
+      : segment === 'shots' ? 'shot'
+      : segment === 'sequences' ? 'sequence'
+      : segment === 'tasks' ? 'task' : 'version'
+    return { raw, kind, id, url: buildFallbackLink(projectId, kind, id) }
   }
 
   const projectPathMatch = raw.match(/^\/apex\/(\d+)\/?$/i)
-  if (projectPathMatch) {
-    const id = projectPathMatch[1]
-    return { raw, kind: 'project', id, url: `/apex/${id}` }
-  }
+  if (projectPathMatch)
+    return { raw, kind: 'project', id: projectPathMatch[1], url: `/apex/${projectPathMatch[1]}` }
 
   const publishedFilePathMatch = raw.match(/^\/apex\/\d+\/published-files\?selected=(\d+)/i)
   if (publishedFilePathMatch) {
     const id = publishedFilePathMatch[1]
-    return {
-      raw,
-      kind: 'published_file',
-      id,
-      url: buildFallbackLink(projectId, 'published_file', id),
-    }
+    return { raw, kind: 'published_file', id, url: buildFallbackLink(projectId, 'published_file', id) }
   }
 
   const typedMatch = raw.match(
@@ -183,24 +99,15 @@ function parseNoteLinkRef(rawValue: unknown, projectId: string): ParsedNoteLinkR
   if (typedMatch) {
     const normalizedType = typedMatch[1].toLowerCase().replace('-', '_')
     const id = typedMatch[2]
-    if (normalizedType === 'post') {
+    if (normalizedType === 'post')
       return { raw, kind: 'post', id, url: `/pulse/post/${id}` }
-    }
     if (
-      normalizedType === 'asset' ||
-      normalizedType === 'shot' ||
-      normalizedType === 'sequence' ||
-      normalizedType === 'task' ||
-      normalizedType === 'version' ||
-      normalizedType === 'project' ||
+      normalizedType === 'asset' || normalizedType === 'shot' ||
+      normalizedType === 'sequence' || normalizedType === 'task' ||
+      normalizedType === 'version' || normalizedType === 'project' ||
       normalizedType === 'published_file'
     ) {
-      return {
-        raw,
-        kind: normalizedType,
-        id,
-        url: buildFallbackLink(projectId, normalizedType, id),
-      }
+      return { raw, kind: normalizedType, id, url: buildFallbackLink(projectId, normalizedType, id) }
     }
   }
 
@@ -213,24 +120,17 @@ function resolveNoteLinkRef(
   entityMap: EntityRefMap,
   postMap: PostRefMap
 ): ResolvedNoteLinkRef {
-  if (parsed.kind === 'url') {
+  if (parsed.kind === 'url')
     return { label: parsed.raw, url: parsed.url }
-  }
-
   if (parsed.kind === 'post') {
     const postRef = parsed.id ? postMap[parsed.id] : null
     if (postRef) return postRef
     if (parsed.id) return { label: `Post #${parsed.id}`, url: `/pulse/post/${parsed.id}` }
     return { label: parsed.raw, url: parsed.url }
   }
-
   if (
-    parsed.kind === 'asset' ||
-    parsed.kind === 'shot' ||
-    parsed.kind === 'sequence' ||
-    parsed.kind === 'task' ||
-    parsed.kind === 'version' ||
-    parsed.kind === 'project' ||
+    parsed.kind === 'asset' || parsed.kind === 'shot' || parsed.kind === 'sequence' ||
+    parsed.kind === 'task' || parsed.kind === 'version' || parsed.kind === 'project' ||
     parsed.kind === 'published_file'
   ) {
     const mapped = parsed.id ? entityMap[toEntityKey(parsed.kind, parsed.id)] : null
@@ -242,9 +142,231 @@ function resolveNoteLinkRef(
       }
     }
   }
-
   return { label: parsed.raw, url: parsed.url }
 }
+
+// ---------------------------------------------------------------------------
+// Attachment & link resolution (runs after initial load)
+// ---------------------------------------------------------------------------
+
+type ResolvedAttachment = {
+  id: string; file_name: string; file_type: string
+  storage_path: string; thumbnail_url: string
+  signed_url: string; preview_url: string
+}
+
+async function resolveNoteExtras(
+  rows: NoteRow[],
+  projId: string
+): Promise<{
+  linksByNoteId: Record<string, ResolvedNoteLinkRef[]>
+  attachmentsByNoteId: Record<string, ResolvedAttachment[]>
+}> {
+  const supabase = createClient()
+
+  // 1. Parse all link tokens and collect entity/post IDs to resolve
+  const entityIdsByType: Record<string, number[]> = {
+    asset: [], shot: [], sequence: [], task: [], version: [],
+    published_file: [], project: [],
+  }
+  const parsedByNote: Record<string, ParsedNoteLinkRef[]> = {}
+  const postIdsFromLinks = new Set<number>()
+  const allNoteIds: string[] = []
+
+  for (const note of rows) {
+    const noteId = asText(note.id).trim()
+    allNoteIds.push(noteId)
+    const parsed = parseTextArray(note.links)
+      .map((token) => parseNoteLinkRef(token, projId))
+      .filter((item): item is ParsedNoteLinkRef => Boolean(item))
+    parsedByNote[noteId] = parsed
+
+    for (const ref of parsed) {
+      const numId = toNumber(ref.id)
+      if (numId === null) continue
+      if (ref.kind === 'post') { postIdsFromLinks.add(numId); continue }
+      if (entityIdsByType[ref.kind]) entityIdsByType[ref.kind].push(numId)
+    }
+  }
+
+  // Deduplicate
+  for (const key of Object.keys(entityIdsByType)) {
+    entityIdsByType[key] = Array.from(new Set(entityIdsByType[key]))
+  }
+  const postIds = Array.from(postIdsFromLinks)
+
+  // 2. Batch-fetch all link-referenced entities + attachments + posts
+  const [
+    assetsRes, shotsRes, sequencesRes, tasksRes, versionsRes,
+    pubFilesRes, projectsRes, postsRes, attachRes,
+  ] = await Promise.all([
+    entityIdsByType.asset.length > 0
+      ? supabase.from('assets').select('id, code, name').in('id', entityIdsByType.asset).is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.shot.length > 0
+      ? supabase
+          .from('shots')
+          .select('id, code, name, sequence:sequences!shots_sequence_id_fkey(code)')
+          .in('id', entityIdsByType.shot)
+          .is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.sequence.length > 0
+      ? supabase.from('sequences').select('id, code, name').in('id', entityIdsByType.sequence).is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.task.length > 0
+      ? supabase.from('tasks').select('id, name').in('id', entityIdsByType.task).is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.version.length > 0
+      ? supabase
+          .from('versions')
+          .select('id, code, version_number')
+          .in('id', entityIdsByType.version)
+          .is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.published_file.length > 0
+      ? supabase.from('published_files').select('id, code, name').in('id', entityIdsByType.published_file)
+      : Promise.resolve({ data: [], error: null }),
+    entityIdsByType.project.length > 0
+      ? supabase.from('projects').select('id, code, name').in('id', entityIdsByType.project).is('deleted_at', null)
+      : Promise.resolve({ data: [], error: null }),
+    postIds.length > 0
+      ? supabase.from('posts').select('id, content').in('id', postIds)
+      : Promise.resolve({ data: [], error: null }),
+    allNoteIds.length > 0
+      ? supabase.from('attachments').select('id, file_name, file_type, storage_path, thumbnail_url, note_id').in('note_id', allNoteIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+
+  // 3. Build entity + post maps for link resolution
+  const entityMap: EntityRefMap = {}
+  const postMap: PostRefMap = {}
+
+  for (const row of (assetsRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    const label = `${asText(row.code).trim() || `Asset #${id}`}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
+    entityMap[toEntityKey('asset', id)] = { label, url: `/apex/${projId}/assets/${id}` }
+  }
+  for (const row of (shotsRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    const sequenceCode = Array.isArray(row.sequence)
+      ? asText((row.sequence as Record<string, unknown>[])[0]?.code).trim()
+      : asText((row.sequence as Record<string, unknown> | null)?.code).trim()
+    const shotCode = asText(row.code).trim()
+    const baseCode = sequenceCode && shotCode ? `${sequenceCode}${shotCode}` : shotCode || `Shot #${id}`
+    const label = `${baseCode}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
+    entityMap[toEntityKey('shot', id)] = { label, url: `/apex/${projId}/shots/${id}` }
+  }
+  for (const row of (sequencesRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    const label = `${asText(row.code).trim() || `Sequence #${id}`}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
+    entityMap[toEntityKey('sequence', id)] = { label, url: `/apex/${projId}/sequences/${id}` }
+  }
+  for (const row of (tasksRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    entityMap[toEntityKey('task', id)] = { label: asText(row.name).trim() || `Task #${id}`, url: `/apex/${projId}/tasks/${id}` }
+  }
+  for (const row of (versionsRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    const code = asText(row.code).trim() || `Version #${id}`
+    const vnum = toNumber(row.version_number)
+    entityMap[toEntityKey('version', id)] = { label: vnum !== null ? `${code} v${vnum}` : code, url: `/apex/${projId}/versions/${id}` }
+  }
+  for (const row of (pubFilesRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    entityMap[toEntityKey('published_file', id)] = {
+      label: asText(row.code).trim() || asText(row.name).trim() || `Published File #${id}`,
+      url: `/apex/${projId}/published-files?selected=${id}`,
+    }
+  }
+  for (const row of (projectsRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    entityMap[toEntityKey('project', id)] = { label: asText(row.name).trim() || asText(row.code).trim() || `Project #${id}`, url: `/apex/${id}` }
+  }
+  for (const row of (postsRes.data || []) as Record<string, unknown>[]) {
+    const id = asText(row.id)
+    const content = asText(row.content).replace(/\s+/g, ' ').trim()
+    const snippet = content.length > 64 ? `${content.slice(0, 61)}...` : content
+    postMap[id] = { label: snippet ? `Post #${id} - ${snippet}` : `Post #${id}`, url: `/pulse/post/${id}` }
+  }
+
+  // 4. Resolve links per note
+  const linksByNoteId: Record<string, ResolvedNoteLinkRef[]> = {}
+  for (const noteId of Object.keys(parsedByNote)) {
+    linksByNoteId[noteId] = parsedByNote[noteId].map((ref) =>
+      resolveNoteLinkRef(ref, projId, entityMap, postMap)
+    )
+  }
+
+  // 5. Resolve attachments per note with signed URLs
+  const attachmentRows = (attachRes.data || []) as Record<string, unknown>[]
+  const pathSet = new Set<string>()
+  for (const a of attachmentRows) {
+    const path = asText(a.storage_path).trim()
+    if (path) pathSet.add(path)
+  }
+
+  const signedUrlByPath = new Map<string, string>()
+  const paths = Array.from(pathSet)
+  if (paths.length > 0) {
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from('note-attachments')
+      .createSignedUrls(paths, 3600)
+
+    if (signedError) {
+      console.error('Error loading note attachment signed URLs:', signedError)
+    } else {
+      signedData?.forEach((item, index) => {
+        const itemRecord = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+        const signedUrl = asText(itemRecord.signedUrl).trim()
+        if (paths[index] && signedUrl) signedUrlByPath.set(paths[index], signedUrl)
+      })
+    }
+  }
+
+  const attachmentsByNoteId: Record<string, ResolvedAttachment[]> = {}
+  for (const a of attachmentRows) {
+    const noteId = asText(a.note_id).trim()
+    if (!noteId) continue
+    const storagePath = asText(a.storage_path).trim()
+    const signedUrl = storagePath ? signedUrlByPath.get(storagePath) || '' : ''
+    const thumbnailUrl = asText(a.thumbnail_url).trim()
+    const resolved: ResolvedAttachment = {
+      id: asText(a.id).trim(),
+      file_name: asText(a.file_name).trim() || (a.id ? `Attachment #${a.id}` : 'Attachment'),
+      file_type: asText(a.file_type).trim(),
+      storage_path: storagePath,
+      thumbnail_url: thumbnailUrl,
+      signed_url: signedUrl,
+      preview_url: signedUrl || thumbnailUrl,
+    }
+    if (resolved.id || resolved.storage_path || resolved.file_name || resolved.preview_url) {
+      if (!attachmentsByNoteId[noteId]) attachmentsByNoteId[noteId] = []
+      attachmentsByNoteId[noteId].push(resolved)
+    }
+  }
+
+  return { linksByNoteId, attachmentsByNoteId }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function normalizeNoteEntityType(
+  value: unknown
+): 'asset' | 'shot' | 'sequence' | 'task' | 'version' | 'project' | 'published_file' | null {
+  const normalized = asText(value).trim().toLowerCase()
+  if (
+    normalized === 'asset' || normalized === 'shot' || normalized === 'sequence' ||
+    normalized === 'task' || normalized === 'version' || normalized === 'project' ||
+    normalized === 'published_file'
+  ) return normalized
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Page Component
+// ---------------------------------------------------------------------------
 
 export default function NotesPage({
   params,
@@ -252,52 +374,25 @@ export default function NotesPage({
   params: Promise<{ projectId: string }>
 }) {
   const [projectId, setProjectId] = useState<string>('')
-  const [notes, setNotes] = useState<any[]>([])
-  const [statusNames, setStatusNames] = useState<string[]>([])
-  const [tagNames, setTagNames] = useState<string[]>([])
+  const [rawNotes, setRawNotes] = useState<NoteRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [cellError, setCellError] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [selectedNote, setSelectedNote] = useState<any>(null)
+  const [selectedNote, setSelectedNote] = useState<NoteRow | null>(null)
+
+  // Note-specific extras (links + attachments) resolved asynchronously
+  const [linksByNoteId, setLinksByNoteId] = useState<Record<string, ResolvedNoteLinkRef[]>>({})
+  const [attachmentsByNoteId, setAttachmentsByNoteId] = useState<Record<string, ResolvedAttachment[]>>({})
 
   useEffect(() => {
     params.then((p) => {
       setProjectId(p.projectId)
-      void refreshNotesData(p.projectId)
+      void loadNotes(p.projectId)
     })
   }, [params])
-
-  async function refreshNotesData(projId: string) {
-    if (!projId) return
-    await Promise.all([loadNotes(projId), loadStatusOptions(), loadTagOptions()])
-  }
-
-  async function loadStatusOptions() {
-    try {
-      const values = await listStatusNames('note')
-      setStatusNames(
-        Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) =>
-          a.localeCompare(b)
-        )
-      )
-    } catch (error) {
-      console.error('Error loading note status options:', error)
-      setStatusNames([])
-    }
-  }
-
-  async function loadTagOptions() {
-    try {
-      const values = await listTagNames()
-      setTagNames(uniqueSorted(values))
-    } catch (error) {
-      console.error('Error loading note tag options:', error)
-      setTagNames([])
-    }
-  }
 
   async function loadNotes(projId: string) {
     try {
@@ -305,470 +400,188 @@ export default function NotesPage({
       setLoadError(null)
       setCellError(null)
       const supabase = createClient()
-
       const { data, error } = await supabase
         .from('notes')
-        .select(`
-          *,
-          created_by_profile:profiles!notes_created_by_fkey(
-            full_name,
-            email
-          ),
-          project_ref:projects!notes_project_id_fkey(
-            id,
-            code,
-            name
-          ),
-          attachment_rows:attachments(
-            id,
-            file_name,
-            file_type,
-            storage_path,
-            thumbnail_url
-          )
-        `)
+        .select('*')
         .eq('project_id', projId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error loading notes:', error)
-        setLoadError(error.message)
-        setNotes([])
-        return
+      if (error) throw error
+      const rows = (data || []) as NoteRow[]
+      setRawNotes(rows)
+
+      // Resolve links + attachments (notes-specific)
+      if (rows.length > 0) {
+        const extras = await resolveNoteExtras(rows, projId)
+        setLinksByNoteId(extras.linksByNoteId)
+        setAttachmentsByNoteId(extras.attachmentsByNoteId)
+      } else {
+        setLinksByNoteId({})
+        setAttachmentsByNoteId({})
       }
-
-      const rows = data || []
-      const entityIdsByType: Record<string, number[]> = {
-        asset: [],
-        shot: [],
-        sequence: [],
-        task: [],
-        version: [],
-        published_file: [],
-        project: [],
-      }
-      const parsedLinkRefsByNoteId: Record<string, ParsedNoteLinkRef[]> = {}
-      const postIdsFromLinks = new Set<number>()
-      const attachmentPathSet = new Set<string>()
-
-      for (const note of rows) {
-        const noteId = asText(note.id).trim()
-        const entityType = asText(note.entity_type).trim().toLowerCase()
-        const entityId = toNumber(note.entity_id)
-        if (entityId !== null && entityIdsByType[entityType]) {
-          entityIdsByType[entityType].push(entityId)
-        }
-
-        const taskId = toNumber(note.task_id)
-        if (taskId !== null) {
-          entityIdsByType.task.push(taskId)
-        }
-
-        const parsedLinkRefs = parseListValue(note.links)
-          .map((token) => parseNoteLinkRef(token, projId))
-          .filter((item): item is ParsedNoteLinkRef => Boolean(item))
-        parsedLinkRefsByNoteId[noteId] = parsedLinkRefs
-
-        for (const parsedLinkRef of parsedLinkRefs) {
-          const parsedId = toNumber(parsedLinkRef.id)
-          if (parsedId === null) continue
-
-          if (parsedLinkRef.kind === 'post') {
-            postIdsFromLinks.add(parsedId)
-            continue
-          }
-
-          if (
-            parsedLinkRef.kind === 'asset' ||
-            parsedLinkRef.kind === 'shot' ||
-            parsedLinkRef.kind === 'sequence' ||
-            parsedLinkRef.kind === 'task' ||
-            parsedLinkRef.kind === 'version' ||
-            parsedLinkRef.kind === 'project' ||
-            parsedLinkRef.kind === 'published_file'
-          ) {
-            entityIdsByType[parsedLinkRef.kind].push(parsedId)
-          }
-        }
-
-        const noteAttachmentRows = Array.isArray(note.attachment_rows) ? note.attachment_rows : []
-        for (const attachment of noteAttachmentRows) {
-          const attachmentRecord =
-            attachment && typeof attachment === 'object'
-              ? (attachment as Record<string, unknown>)
-              : {}
-          const storagePath = asText(attachmentRecord.storage_path).trim()
-          if (storagePath) {
-            attachmentPathSet.add(storagePath)
-          }
-        }
-      }
-
-      for (const key of Object.keys(entityIdsByType)) {
-        entityIdsByType[key] = Array.from(new Set(entityIdsByType[key]))
-      }
-
-      const noteProjectIds = Array.from(
-        new Set(
-          rows
-            .map((note) => toNumber(note.project_id))
-            .filter((id): id is number => id !== null)
-        )
-      )
-
-      const projectIdsForLookup = Array.from(
-        new Set([...entityIdsByType.project, ...noteProjectIds])
-      )
-      const postIdsForLookup = Array.from(postIdsFromLinks)
-
-      const [
-        assetsResult,
-        shotsResult,
-        sequencesResult,
-        tasksResult,
-        versionsResult,
-        publishedFilesResult,
-        projectsResult,
-        postsResult,
-      ] = await Promise.all([
-        entityIdsByType.asset.length > 0
-          ? supabase.from('assets').select('id, code, name').in('id', entityIdsByType.asset)
-          : Promise.resolve({ data: [], error: null }),
-        entityIdsByType.shot.length > 0
-          ? supabase
-              .from('shots')
-              .select('id, code, name, sequence:sequences!shots_sequence_id_fkey(code)')
-              .in('id', entityIdsByType.shot)
-          : Promise.resolve({ data: [], error: null }),
-        entityIdsByType.sequence.length > 0
-          ? supabase
-              .from('sequences')
-              .select('id, code, name')
-              .in('id', entityIdsByType.sequence)
-          : Promise.resolve({ data: [], error: null }),
-        entityIdsByType.task.length > 0
-          ? supabase.from('tasks').select('id, name').in('id', entityIdsByType.task)
-          : Promise.resolve({ data: [], error: null }),
-        entityIdsByType.version.length > 0
-          ? supabase
-              .from('versions')
-              .select('id, code, version_number')
-              .in('id', entityIdsByType.version)
-          : Promise.resolve({ data: [], error: null }),
-        entityIdsByType.published_file.length > 0
-          ? supabase
-              .from('published_files')
-              .select('id, code, name')
-              .in('id', entityIdsByType.published_file)
-          : Promise.resolve({ data: [], error: null }),
-        projectIdsForLookup.length > 0
-          ? supabase
-              .from('projects')
-              .select('id, code, name')
-              .in('id', projectIdsForLookup)
-          : Promise.resolve({ data: [], error: null }),
-        postIdsForLookup.length > 0
-          ? supabase.from('posts').select('id, content').in('id', postIdsForLookup)
-          : Promise.resolve({ data: [], error: null }),
-      ])
-
-      if (assetsResult.error) throw assetsResult.error
-      if (shotsResult.error) throw shotsResult.error
-      if (sequencesResult.error) throw sequencesResult.error
-      if (tasksResult.error) throw tasksResult.error
-      if (versionsResult.error) throw versionsResult.error
-      if (publishedFilesResult.error) throw publishedFilesResult.error
-      if (projectsResult.error) throw projectsResult.error
-      if (postsResult.error) throw postsResult.error
-
-      const entityMap: EntityRefMap = {}
-      const postMap: PostRefMap = {}
-
-      for (const row of assetsResult.data || []) {
-        const id = asText(row.id)
-        const label = `${asText(row.code).trim() || `Asset #${id}`}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
-        entityMap[toEntityKey('asset', id)] = {
-          label,
-          url: `/apex/${projId}/assets/${id}`,
-        }
-      }
-
-      for (const row of shotsResult.data || []) {
-        const id = asText(row.id)
-        const sequenceCode = Array.isArray(row.sequence)
-          ? asText(row.sequence[0]?.code).trim()
-          : asText((row.sequence as any)?.code).trim()
-        const shotCode = asText(row.code).trim()
-        const baseCode = sequenceCode && shotCode ? `${sequenceCode}${shotCode}` : shotCode || `Shot #${id}`
-        const label = `${baseCode}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
-        entityMap[toEntityKey('shot', id)] = {
-          label,
-          url: `/apex/${projId}/shots/${id}`,
-        }
-      }
-
-      for (const row of sequencesResult.data || []) {
-        const id = asText(row.id)
-        const label = `${asText(row.code).trim() || `Sequence #${id}`}${asText(row.name).trim() ? ` - ${asText(row.name).trim()}` : ''}`
-        entityMap[toEntityKey('sequence', id)] = {
-          label,
-          url: `/apex/${projId}/sequences/${id}`,
-        }
-      }
-
-      for (const row of tasksResult.data || []) {
-        const id = asText(row.id)
-        const label = `${asText(row.name).trim() || `Task #${id}`}`
-        entityMap[toEntityKey('task', id)] = {
-          label,
-          url: `/apex/${projId}/tasks/${id}`,
-        }
-      }
-
-      for (const row of versionsResult.data || []) {
-        const id = asText(row.id)
-        const code = asText(row.code).trim() || `Version #${id}`
-        const versionNumber = toNumber(row.version_number)
-        const label = versionNumber === null ? code : `${code} v${versionNumber}`
-        entityMap[toEntityKey('version', id)] = {
-          label,
-          url: `/apex/${projId}/versions/${id}`,
-        }
-      }
-
-      for (const row of publishedFilesResult.data || []) {
-        const id = asText(row.id)
-        const label = `${asText(row.code).trim() || asText(row.name).trim() || `Published File #${id}`}`
-        entityMap[toEntityKey('published_file', id)] = {
-          label,
-          url: `/apex/${projId}/published-files?selected=${id}`,
-        }
-      }
-
-      for (const row of projectsResult.data || []) {
-        const id = asText(row.id)
-        const code = asText(row.code).trim()
-        const name = asText(row.name).trim()
-        const label = name || code || `Project #${id}`
-        entityMap[toEntityKey('project', id)] = {
-          label,
-          url: `/apex/${id}`,
-        }
-      }
-
-      for (const row of postsResult.data || []) {
-        const id = asText(row.id)
-        const content = asText(row.content).replace(/\s+/g, ' ').trim()
-        const snippet = content.length > 64 ? `${content.slice(0, 61)}...` : content
-        postMap[id] = {
-          label: snippet ? `Post #${id} - ${snippet}` : `Post #${id}`,
-          url: `/pulse/post/${id}`,
-        }
-      }
-
-      const attachmentPaths = Array.from(attachmentPathSet)
-      const signedUrlByPath = new Map<string, string>()
-      if (attachmentPaths.length > 0) {
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from('note-attachments')
-          .createSignedUrls(attachmentPaths, 3600)
-
-        if (signedError) {
-          console.error('Error loading note attachment signed URLs:', signedError)
-        } else {
-          signedData?.forEach((item, index) => {
-            const path = attachmentPaths[index]
-            const itemRecord =
-              item && typeof item === 'object'
-                ? (item as Record<string, unknown>)
-                : {}
-            const signedUrl = asText(itemRecord.signedUrl).trim()
-            if (path && signedUrl) {
-              signedUrlByPath.set(path, signedUrl)
-            }
-          })
-        }
-      }
-
-      const normalized =
-        rows.map((note) => {
-          const noteId = asText(note.id).trim()
-          const author =
-            note.created_by_profile?.full_name ||
-            note.created_by_profile?.email ||
-            'Unknown'
-
-          const entityType =
-            typeof note.entity_type === 'string' ? note.entity_type.trim().toLowerCase() : ''
-          const entityId = asText(note.entity_id).trim()
-          const entityRef = entityType && entityId ? entityMap[toEntityKey(entityType, entityId)] : null
-          const fallbackLabel =
-            entityType && entityId ? `${entityType} #${entityId}` : '-'
-          const fallbackUrl = buildFallbackLink(projId, entityType, entityId)
-          const noteProjectId = asText(note.project_id).trim()
-          const noteProjectName = asText(note.project_ref?.name).trim()
-          const noteProjectCode = asText(note.project_ref?.code).trim()
-          const noteProjectLabel = noteProjectName || noteProjectCode
-          const noteProjectRef = noteProjectId
-            ? entityMap[toEntityKey('project', noteProjectId)]
-            : null
-          const projectEntityFallbackLabel =
-            entityType === 'project' &&
-            entityId &&
-            noteProjectId &&
-            entityId === noteProjectId
-              ? noteProjectLabel
-              : ''
-          const noteEntityLabel = entityRef?.label || projectEntityFallbackLabel || fallbackLabel
-          const noteEntityUrl = entityRef?.url || fallbackUrl
-
-          const noteTaskId = asText(note.task_id).trim()
-          const noteTaskRef = noteTaskId
-            ? entityMap[toEntityKey('task', noteTaskId)]
-            : null
-
-          const parsedLinkRefs = parsedLinkRefsByNoteId[noteId] || []
-          const resolvedLinkRefs = parsedLinkRefs.map((parsedLinkRef) =>
-            resolveNoteLinkRef(parsedLinkRef, projId, entityMap, postMap)
-          )
-          const firstResolvedLink =
-            resolvedLinkRefs.find((link) => asText(link.url).trim()) ||
-            resolvedLinkRefs[0] ||
-            null
-          const linksSummary =
-            resolvedLinkRefs.length === 0
-              ? '-'
-              : resolvedLinkRefs.length === 1
-                ? resolvedLinkRefs[0].label
-                : `${resolvedLinkRefs[0].label} +${resolvedLinkRefs.length - 1} more`
-          const linksAllLabel = resolvedLinkRefs.map((link) => link.label).join(', ')
-
-          const noteAttachmentRows = Array.isArray(note.attachment_rows)
-            ? note.attachment_rows
-            : []
-          type ResolvedAttachment = {
-            id: string
-            file_name: string
-            file_type: string
-            storage_path: string
-            thumbnail_url: string
-            signed_url: string
-            preview_url: string
-          }
-          const resolvedAttachments: ResolvedAttachment[] = noteAttachmentRows
-            .map((attachment: unknown): ResolvedAttachment => {
-              const attachmentRecord =
-                attachment && typeof attachment === 'object'
-                  ? (attachment as Record<string, unknown>)
-                  : {}
-              const id = asText(attachmentRecord.id).trim()
-              const storagePath = asText(attachmentRecord.storage_path).trim()
-              const fileName =
-                asText(attachmentRecord.file_name).trim() ||
-                (id ? `Attachment #${id}` : 'Attachment')
-              const fileType = asText(attachmentRecord.file_type).trim()
-              const thumbnailUrl = asText(attachmentRecord.thumbnail_url).trim()
-              const signedUrl = storagePath ? signedUrlByPath.get(storagePath) || '' : ''
-              const previewUrl = signedUrl || thumbnailUrl
-              return {
-                id,
-                file_name: fileName,
-                file_type: fileType,
-                storage_path: storagePath,
-                thumbnail_url: thumbnailUrl,
-                signed_url: signedUrl,
-                preview_url: previewUrl,
-              }
-            })
-            .filter((attachment: ResolvedAttachment) =>
-              Boolean(
-                attachment.id ||
-                  attachment.storage_path ||
-                  attachment.file_name ||
-                  attachment.preview_url
-              )
-            )
-          const firstAttachmentPreview =
-            resolvedAttachments.find((attachment: ResolvedAttachment) => attachment.preview_url)?.preview_url || ''
-
-          return {
-            ...note,
-            author_label: author,
-            link_label: noteEntityLabel,
-            link_url: noteEntityUrl,
-            entity_label: noteEntityLabel,
-            entity_url: noteEntityUrl,
-            note_url: noteId ? `/apex/${projId}/notes/${noteId}` : '',
-            note_link_label: noteId ? 'Open' : '-',
-            task_label:
-              noteTaskRef?.label || (noteTaskId ? `Task #${noteTaskId}` : '-'),
-            task_url:
-              noteTaskRef?.url || (noteTaskId ? `/apex/${projId}/tasks/${noteTaskId}` : ''),
-            links_label: linksSummary,
-            links_full_label: linksAllLabel,
-            links_url: firstResolvedLink?.url || '',
-            links_open_label: firstResolvedLink?.url ? 'Open' : '-',
-            links_resolved: resolvedLinkRefs,
-            project_label: noteProjectRef?.label || noteProjectLabel || noteProjectId || '-',
-            attachment_rows: resolvedAttachments,
-            attachments_display:
-              resolvedAttachments.length > 0
-                ? resolvedAttachments.map((attachment) => attachment.file_name).join(', ')
-                : '-',
-            attachments_preview_url: firstAttachmentPreview,
-            attachments_count: resolvedAttachments.length,
-          }
-        }) || []
-
-      setNotes(normalized)
     } catch (error) {
       console.error('Error loading notes:', error)
       setLoadError(error instanceof Error ? error.message : 'Error loading notes')
-      setNotes([])
+      setRawNotes([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  function handleDelete(note: any) {
+  function refreshNotesData() {
+    if (!projectId) return
+    void loadNotes(projectId)
+  }
+
+  // Use the unified hook for schema-driven fields, options, entity resolution,
+  // and column generation.  The hook resolves: created_by, entity_id (polymorphic),
+  // task_id, and project_id automatically.
+  const columnOverrides = useMemo<Record<string, Partial<TableColumn>>>(() => ({
+    subject: { label: 'Subject', width: '220px', editable: true, editor: 'text' },
+    content: { label: 'Body', width: '420px', editable: true, editor: 'textarea' },
+    links: {
+      label: 'Links',
+      width: '280px',
+      editable: true,
+      editor: 'text',
+      formatValue: (value: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        const resolved = linksByNoteId[noteId]
+        if (resolved && resolved.length > 0) {
+          return resolved.length === 1
+            ? resolved[0].label
+            : `${resolved[0].label} +${resolved.length - 1} more`
+        }
+        return parseTextArray(value).join(', ')
+      },
+      parseValue: (value: unknown) => parseTextArray(value),
+    },
+  }), [projectId, linksByNoteId])
+
+  const noteOpenColumn: TableColumn = useMemo(() => ({
+    id: 'note_link_label',
+    label: 'Note',
+    type: 'link',
+    width: '90px',
+    linkHref: (row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      const noteId = asText(r.id).trim()
+      return noteId ? `/apex/${projectId}/notes/${noteId}` : ''
+    },
+    formatValue: (_v: unknown, row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      return asText(r.id).trim() ? 'Open' : '-'
+    },
+  }), [projectId])
+
+  const linksOpenColumn: TableColumn = useMemo(() => ({
+    id: 'links_open_label',
+    label: 'Link',
+    type: 'link',
+    width: '90px',
+    linkHref: (row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      const noteId = asText(r.id).trim()
+      const resolved = linksByNoteId[noteId]
+      if (resolved) {
+        const first = resolved.find((l) => asText(l.url).trim()) || resolved[0]
+        return first ? asText(first.url).trim() : ''
+      }
+      return ''
+    },
+    formatValue: (_v: unknown, row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      const noteId = asText(r.id).trim()
+      const resolved = linksByNoteId[noteId]
+      if (resolved) {
+        const first = resolved.find((l) => asText(l.url).trim())
+        return first ? 'Open' : '-'
+      }
+      return '-'
+    },
+  }), [linksByNoteId])
+
+  const attachmentColumns: TableColumn[] = useMemo(() => [
+    {
+      id: 'attachments_preview_url',
+      label: 'Preview',
+      type: 'thumbnail' as const,
+      width: '88px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        const attachments = attachmentsByNoteId[noteId] || []
+        const first = attachments.find(
+          (a) =>
+            asText(a.preview_url).trim() ||
+            asText(a.signed_url).trim() ||
+            asText(a.thumbnail_url).trim() ||
+            asText(a.storage_path).trim()
+        )
+        if (!first) return ''
+        return (
+          asText(first.preview_url).trim() ||
+          asText(first.signed_url).trim() ||
+          asText(first.thumbnail_url).trim() ||
+          asText(first.storage_path).trim()
+        )
+      },
+    },
+    {
+      id: 'attachments_display',
+      label: 'Attachments',
+      type: 'text' as const,
+      width: '260px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        const attachments = attachmentsByNoteId[noteId] || []
+        return attachments.length > 0 ? attachments.map((a) => a.file_name).join(', ') : '-'
+      },
+    },
+    {
+      id: 'attachments_count',
+      label: 'Attach Count',
+      type: 'number' as const,
+      width: '130px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        return String((attachmentsByNoteId[noteId] || []).length)
+      },
+    },
+  ], [attachmentsByNoteId])
+
+  const { data, columns, handleCellUpdate } = useEntityData({
+    entity: 'note',
+    rows: rawNotes,
+    projectId,
+    columnOverrides,
+    extraColumns: {
+      prepend: [noteOpenColumn],
+      append: [linksOpenColumn, ...attachmentColumns],
+    },
+  })
+
+  function handleDelete(note: NoteRow) {
     setSelectedNote(note)
     setShowDeleteDialog(true)
   }
 
-  function handleEdit(note: any) {
+  function handleEdit(note: NoteRow) {
     setSelectedNote(note)
     setShowEditDialog(true)
   }
 
   async function handleDeleteConfirm() {
     if (!selectedNote) return { error: 'No note selected' }
-    return await deleteNote(selectedNote.id, projectId)
+    return await deleteNote(String(selectedNote.id), projectId)
   }
 
-  async function handleCellUpdate(row: any, column: TableColumn, value: any) {
-    setCellError(null)
-    const result = await updateNote(row.id, { [column.id]: value })
-    if (result.error) {
-      throw new Error(result.error)
-    }
-    setNotes((prev) =>
-      prev.map((note) => {
-        if (note.id !== row.id) return note
-        const next = { ...note, [column.id]: value }
-        if (column.id === 'links') {
-          const nextLinks = parseListValue(value)
-          next.links_label = nextLinks.length > 0 ? nextLinks.join(', ') : '-'
-          next.links_full_label = next.links_label
-          next.links_url = ''
-        }
-        return next
-      })
-    )
-  }
-
-  async function handleBulkDelete(rows: any[]) {
+  async function handleBulkDelete(rows: NoteRow[]) {
     const failures: string[] = []
-
     for (const row of rows) {
       const rowId = asText(row?.id).trim()
       if (!rowId) continue
@@ -777,9 +590,7 @@ export default function NotesPage({
         failures.push(`${asText(row?.subject).trim() || rowId}: ${result.error}`)
       }
     }
-
-    void refreshNotesData(projectId)
-
+    refreshNotesData()
     if (failures.length > 0) {
       const preview = failures.slice(0, 3).join('; ')
       throw new Error(
@@ -795,12 +606,8 @@ export default function NotesPage({
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index]
       const content = asText(row.content).trim()
-
       if (!content) {
-        failed.push({
-          row: index + 2,
-          message: 'Note content is required.',
-        })
+        failed.push({ row: index + 2, message: 'Note content is required.' })
         continue
       }
 
@@ -818,13 +625,10 @@ export default function NotesPage({
           entity_type: entityType || undefined,
           entity_id: entityId || undefined,
           task_id: taskId || undefined,
-          tags: parseListValue(row.tags),
-          cc: parseListValue(row.cc),
+          tags: parseTextArray(row.tags),
+          cc: parseTextArray(row.cc),
         })
-
-        if (result?.error) {
-          throw new Error(result.error)
-        }
+        if (result?.error) throw new Error(result.error)
         imported += 1
       } catch (error) {
         failed.push({
@@ -834,176 +638,26 @@ export default function NotesPage({
       }
     }
 
-    void refreshNotesData(projectId)
+    refreshNotesData()
     return { imported, failed }
   }
 
-  const statusOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const status of statusNames) {
-      const normalized = status.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const note of notes) {
-      const normalized = asText(note.status).trim()
-      if (normalized) values.add(normalized)
-    }
-    return Array.from(values).map((value) => ({ value, label: value }))
-  }, [notes, statusNames])
-
-  const tagOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const tag of tagNames) {
-      const normalized = tag.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const note of notes) {
-      for (const tag of parseListValue(note.tags)) {
-        values.add(tag)
-      }
-    }
-    return Array.from(values)
-      .sort((a, b) => a.localeCompare(b))
-      .map((value) => ({ value, label: value }))
-  }, [notes, tagNames])
-
-  const columns: TableColumn[] = useMemo(
-    () => [
-      {
-        id: 'note_link_label',
-        label: 'Note',
-        type: 'link',
-        width: '90px',
-        linkHref: (row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          return asText(rowRecord.note_url).trim()
-        },
-      },
-      { id: 'subject', label: 'Subject', type: 'text', width: '220px', editable: true, editor: 'text' },
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'text',
-        width: '120px',
-        editable: true,
-        editor: 'select',
-        options: statusOptions,
-      },
-      {
-        id: 'entity_label',
-        label: 'Entity',
-        type: 'link',
-        width: '220px',
-        linkHref: (row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          return asText(rowRecord.entity_url).trim()
-        },
-      },
-      { id: 'author_label', label: 'Author', type: 'text', width: '180px' },
-      {
-        id: 'project_id',
-        label: 'Project',
-        type: 'text',
-        width: '180px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.project_label).trim()
-          if (label) return label
-          const fallback = asText(value).trim()
-          return fallback || '-'
-        },
-      },
-      {
-        id: 'task_id',
-        label: 'Task',
-        type: 'text',
-        width: '220px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.task_label).trim()
-          if (label) return label
-          const fallback = asText(value).trim()
-          return fallback || '-'
-        },
-      },
-      {
-        id: 'links',
-        label: 'Links',
-        type: 'text',
-        width: '280px',
-        editable: true,
-        editor: 'text',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.links_label).trim()
-          if (label) return label
-          return parseListValue(value).join(', ')
-        },
-        parseValue: (value: unknown) => parseListValue(value),
-      },
-      {
-        id: 'links_open_label',
-        label: 'Link',
-        type: 'link',
-        width: '90px',
-        linkHref: (row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          return asText(rowRecord.links_url).trim()
-        },
-      },
-      { id: 'content', label: 'Body', type: 'text', width: '420px', editable: true, editor: 'textarea' },
-      {
-        id: 'tags',
-        label: 'Tags',
-        type: 'text',
-        width: '180px',
-        editable: true,
-        editor: 'multiselect',
-        options: tagOptions,
-        formatValue: (value: unknown) => parseListValue(value).join(', '),
-        parseValue: (value: unknown) => parseListValue(value),
-      },
-      { id: 'entity_type', label: 'Type', type: 'text', width: '120px' },
-      { id: 'attachments_preview_url', label: 'Preview', type: 'thumbnail', width: '88px' },
-      {
-        id: 'attachments',
-        label: 'Attachments',
-        type: 'text',
-        width: '260px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.attachments_display).trim()
-          if (label) return label
-          return parseListValue(value).join(', ')
-        },
-      },
-      { id: 'created_at', label: 'Date Created', type: 'datetime', width: '190px' },
-      { id: 'attachments_count', label: 'Attach Count', type: 'number', width: '130px' },
-      { id: 'id', label: 'Id', type: 'text', width: '80px' },
-    ],
-    [statusOptions, tagOptions]
-  )
+  async function onCellUpdate(
+    row: Record<string, unknown>,
+    column: TableColumn,
+    value: unknown
+  ) {
+    setCellError(null)
+    // Note update action takes only (id, formData) — the hook's handleCellUpdate
+    // uses dispatchUpdate which wraps updateNote correctly.
+    await handleCellUpdate(row, column, value)
+    const rowId = String(row.id)
+    setRawNotes((prev) =>
+      prev.map((n) =>
+        String(n.id) === rowId ? { ...n, [column.id]: value } : n
+      )
+    )
+  }
 
   if (isLoading) {
     return (
@@ -1019,7 +673,7 @@ export default function NotesPage({
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) void refreshNotesData(projectId)
+          if (!open) refreshNotesData()
         }}
         projectId={projectId}
       />
@@ -1028,7 +682,7 @@ export default function NotesPage({
         open={showEditDialog}
         onOpenChange={(open) => {
           setShowEditDialog(open)
-          if (!open) void refreshNotesData(projectId)
+          if (!open) refreshNotesData()
         }}
         projectId={projectId}
         note={selectedNote}
@@ -1039,7 +693,7 @@ export default function NotesPage({
         onOpenChange={setShowDeleteDialog}
         title="Delete Note"
         description="Are you sure you want to delete this note?"
-        itemName={selectedNote?.subject || selectedNote?.content || ''}
+        itemName={asText(selectedNote?.subject) || asText(selectedNote?.content) || ''}
         onConfirm={handleDeleteConfirm}
       />
 
@@ -1067,7 +721,7 @@ export default function NotesPage({
           </div>
         )}
 
-        {notes.length === 0 ? (
+        {data.length === 0 ? (
           <ApexEmptyState
             icon={<MessageSquare className="h-12 w-12" />}
             title="No notes yet"
@@ -1084,15 +738,15 @@ export default function NotesPage({
         ) : (
           <EntityTable
             columns={columns}
-            data={notes}
+            data={data}
             entityType="notes"
             csvExportFilename="apex-notes"
             onCsvImport={handleCsvImport}
-            onBulkDelete={handleBulkDelete}
+            onBulkDelete={(rows) => handleBulkDelete(rows as NoteRow[])}
             onAdd={() => setShowCreateDialog(true)}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onCellUpdate={handleCellUpdate}
+            onEdit={(row) => handleEdit(row as NoteRow)}
+            onDelete={(row) => handleDelete(row as NoteRow)}
+            onCellUpdate={onCellUpdate}
             onCellUpdateError={setCellError}
           />
         )}

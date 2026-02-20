@@ -384,6 +384,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
         .from('projects')
         .select('name, code')
         .eq('id', projectId)
+        .is('deleted_at', null)
         .maybeSingle()
       setProjectLabel(data?.code || data?.name || projectId)
     } catch {

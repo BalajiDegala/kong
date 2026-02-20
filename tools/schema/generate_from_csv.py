@@ -200,6 +200,7 @@ ENTITY_FIELD_MAP: Dict[str, Dict[str, str]] = {
         "Published File <-> Link": "published_file_links",
     },
     "shot": {
+        "Shot Name": "name",
         "Shot Code": "code",
         "Sequence": "sequence_id",
         "Type": "shot_type",
@@ -391,6 +392,13 @@ def _build_entity_fields(entity_key: str) -> List[FieldDef]:
     entity_cfg = ENTITIES[entity_key]
     csv_path = CSV_DIR / entity_cfg["csv"]
     rows = _read_csv_fields(csv_path)
+
+    # Some snapshots of shots.csv do not include "Shot Name" explicitly even though
+    # the DB column exists and the UI expects it as the primary clickable field.
+    # Synthesize it so schema generation remains stable across environments.
+    if entity_key == "shot" and not any(name == "Shot Name" for name, _, _ in rows):
+        insert_at = next((i for i, (name, _, _) in enumerate(rows) if name == "Shot Code"), len(rows))
+        rows.insert(insert_at, ("Shot Name", "text", "permanent"))
 
     used_codes: Dict[str, int] = defaultdict(int)
     used_columns: Dict[str, int] = defaultdict(int)

@@ -25,12 +25,14 @@ export default async function SequencePostsRoute({
       .from('projects')
       .select('id, name, code')
       .eq('id', projectId)
+      .is('deleted_at', null)
       .single(),
     supabase
       .from('sequences')
       .select('id, name')
       .eq('id', sequenceId)
       .eq('project_id', projectId)
+      .is('deleted_at', null)
       .single(),
   ])
 

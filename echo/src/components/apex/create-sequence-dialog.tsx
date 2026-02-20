@@ -214,11 +214,12 @@ export function CreateSequenceDialog({
 
   const loadProject = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('projects')
-      .select('name, code')
-      .eq('id', projectId)
-      .maybeSingle()
+  const { data } = await supabase
+    .from('projects')
+    .select('name, code')
+    .eq('id', projectId)
+    .is('deleted_at', null)
+    .maybeSingle()
     setProjectLabel(data?.code || data?.name || projectId)
   }, [projectId])
 

@@ -45,6 +45,7 @@ export function CommentThread({ postId, projectId, currentUserId, commentCount =
         .select('id, content, created_at, parent_note_id, author_id, attachments(id, file_name, storage_path)')
         .eq('entity_type', 'post')
         .eq('entity_id', postId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
 
       if (error) {

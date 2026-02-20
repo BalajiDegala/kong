@@ -16,7 +16,10 @@ import {
 
 interface SidebarProps {
   user: User
-  profile: any
+  profile: {
+    display_name?: string | null
+    role?: string | null
+  } | null
 }
 
 const navigation = [
@@ -54,7 +57,10 @@ export function Sidebar({ user, profile }: SidebarProps) {
   return (
     <aside className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+      <Link
+        href="/kong"
+        className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6 transition hover:bg-sidebar-accent/50"
+      >
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />
         <div className="leading-none">
           <p className="font-[var(--font-display)] text-lg tracking-[0.35em] text-sidebar-primary">
@@ -64,7 +70,7 @@ export function Sidebar({ user, profile }: SidebarProps) {
             Rule Your Workflow
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4">

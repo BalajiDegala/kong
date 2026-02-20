@@ -34,6 +34,7 @@ export default async function VersionLayout({
     )
     .eq('id', versionId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!version) {
@@ -44,6 +45,7 @@ export default async function VersionLayout({
     .from('versions')
     .select('id, code, version_number')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('id', { ascending: true })
 
   const artistName =

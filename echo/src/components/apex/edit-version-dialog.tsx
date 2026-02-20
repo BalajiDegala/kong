@@ -283,12 +283,14 @@ export function EditVersionDialog({ open, onOpenChange, projectId, version }: Ed
           .from('tasks')
           .select('id, name, entity_type, entity_id')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('name'),
         supabase.from('profiles').select('id, full_name, email').order('full_name'),
         supabase
           .from('projects')
           .select('name, code')
           .eq('id', projectId)
+          .is('deleted_at', null)
           .maybeSingle(),
         listStatusNames('version'),
         listTagNames(),

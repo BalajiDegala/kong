@@ -184,6 +184,7 @@ export default function PeoplePage() {
           supabase
             .from('projects')
             .select('id, code, name, archived')
+            .is('deleted_at', null)
             .order('name'),
           supabase
             .from('project_members')
@@ -196,10 +197,10 @@ export default function PeoplePage() {
           supabase.from('departments').select('id, code, name').order('name'),
         ])
 
-      if (profilesResult.error) throw profilesResult.error
-      if (projectsResult.error) throw projectsResult.error
-      if (membershipsResult.error) throw membershipsResult.error
-      if (departmentsResult.error) throw departmentsResult.error
+      if (profilesResult.error) { console.error('[people] PROFILES:', profilesResult.error.message); throw profilesResult.error }
+      if (projectsResult.error) { console.error('[people] PROJECTS:', projectsResult.error.message); throw projectsResult.error }
+      if (membershipsResult.error) { console.error('[people] MEMBERSHIPS:', membershipsResult.error.message); throw membershipsResult.error }
+      if (departmentsResult.error) { console.error('[people] DEPARTMENTS:', departmentsResult.error.message); throw departmentsResult.error }
 
       const profileRows = profilesResult.data || []
       const projectRows = (projectsResult.data || []) as ProjectOption[]
@@ -252,6 +253,88 @@ export default function PeoplePage() {
       y: event.clientY,
       row,
     })
+  }
+
+  async function deleteUserIds(userIds: string[]) {
+    const uniqueIds = Array.from(
+      new Set(userIds.map((id) => String(id || '').trim()).filter(Boolean))
+    )
+    if (uniqueIds.length === 0) {
+      return { error: 'Missing user id' as const }
+    }
+
+    const failures: string[] = []
+    for (const userId of uniqueIds) {
+      const result = await deleteUser(userId)
+      if (result.error) failures.push(result.error)
+    }
+
+    if (failures.length > 0) {
+      return { error: failures[0] }
+    }
+
+    await loadPeopleData()
+    return { success: true as const }
+  }
+
+  async function handleBulkDelete(rows: Record<string, unknown>[]) {
+    const userIds = rows
+      .map((row) => String(row?.id || '').trim())
+      .filter(Boolean)
+    const result = await deleteUserIds(userIds)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const email = String(row.email ?? '').trim()
+      const password = String(row.password ?? '').trim()
+      const displayName = String(row.display_name ?? row.name ?? '').trim()
+      const firstname = String(row.firstname ?? row.first_name ?? '').trim()
+      const lastname = String(row.lastname ?? row.last_name ?? '').trim()
+      const departmentName = String(row.department_name ?? row.department ?? '').trim()
+      const role = String(row.role ?? '').trim() || 'member'
+      const avatarUrl = String(row.avatar_url ?? '').trim() || null
+
+      if (!email) {
+        failed.push({ row: index + 2, message: 'Email is required.' })
+        continue
+      }
+      if (!password) {
+        failed.push({ row: index + 2, message: 'Password is required for user creation.' })
+        continue
+      }
+
+      const resolvedDisplayName =
+        displayName || `${firstname} ${lastname}`.trim() || email
+
+      const result = await createUser({
+        email,
+        password,
+        display_name: resolvedDisplayName,
+        firstname: firstname || undefined,
+        lastname: lastname || undefined,
+        department_name: departmentName || undefined,
+        role,
+        avatar_url: avatarUrl,
+      })
+
+      if (result.error) {
+        failed.push({ row: index + 2, message: result.error })
+        continue
+      }
+
+      imported += 1
+    }
+
+    await loadPeopleData()
+    return { imported, failed }
   }
 
   const peopleRows = useMemo(
@@ -473,7 +556,7 @@ export default function PeoplePage() {
         }
         onConfirm={async () => {
           if (!deleteProfile?.id) return { error: 'Missing user id' }
-          return deleteUser(deleteProfile.id)
+          return await deleteUserIds([deleteProfile.id])
         }}
       />
 
@@ -498,32 +581,34 @@ export default function PeoplePage() {
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          {profiles.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
-                <h3 className="mb-2 text-lg font-semibold text-foreground">No users yet</h3>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Create users and assign project access to start using Kong.
-                </p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
-                >
-                  Create First User
-                </button>
+          <EntityTable
+            columns={columns}
+            data={peopleRows}
+            entityType="profiles"
+            csvExportFilename="people"
+            onCsvImport={handleCsvImport}
+            onAdd={() => setShowCreateDialog(true)}
+            onRowContextMenu={handleRowContextMenu}
+            onCellUpdate={handlePeopleCellUpdate}
+            onBulkDelete={(rows) => handleBulkDelete(rows as Record<string, unknown>[])}
+            emptyState={
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">No users yet</h3>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Create users and assign project access to start using Kong.
+                  </p>
+                  <button
+                    onClick={() => setShowCreateDialog(true)}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
+                  >
+                    Create First User
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={peopleRows}
-              entityType="profiles"
-              onAdd={() => setShowCreateDialog(true)}
-              onRowContextMenu={handleRowContextMenu}
-              onCellUpdate={handlePeopleCellUpdate}
-            />
-          )}
+            }
+          />
         </div>
       </div>
 

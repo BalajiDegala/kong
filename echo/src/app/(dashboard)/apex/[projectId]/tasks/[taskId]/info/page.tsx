@@ -25,6 +25,7 @@ export default async function TaskInfoPage({
     )
     .eq('id', taskId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!task) {

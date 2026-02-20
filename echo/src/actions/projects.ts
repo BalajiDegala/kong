@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 
 function sanitizeTags(value?: string[] | null): string[] {
   return (value || [])
@@ -124,14 +124,18 @@ export async function deleteProject(projectId: string) {
     .eq('id', projectId)
     .maybeSingle()
 
-  const { error } = await supabase.from('projects').delete().eq('id', projectId)
+  // Soft-delete via RPC — cascades to all children in the project
+  const { error } = await supabase.rpc('trash_entity', {
+    p_entity_type: 'project',
+    p_entity_id: Number(projectId),
+  })
 
   if (error) {
     return { error: error.message }
   }
 
   if (oldData) {
-    logEntityDeleted('project', projectId, projectId, oldData)
+    logEntityTrashed('project', projectId, projectId, oldData)
   }
 
   revalidatePath('/apex')

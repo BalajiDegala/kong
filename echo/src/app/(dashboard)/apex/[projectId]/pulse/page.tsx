@@ -24,6 +24,7 @@ export default async function ApexProjectPulsePage({
     .from('projects')
     .select('id, name, code')
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!project) {

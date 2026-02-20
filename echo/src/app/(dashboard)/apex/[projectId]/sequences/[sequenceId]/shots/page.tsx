@@ -54,6 +54,7 @@ export default function SequenceShotsPage({
         )
         .eq('project_id', projId)
         .eq('sequence_id', Number.isNaN(sequenceIdNum) ? seqId : sequenceIdNum)
+        .is('deleted_at', null)
         .order('code')
 
       const tableData = (data || []).map((shot) => ({
@@ -106,12 +107,19 @@ export default function SequenceShotsPage({
     { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '80px' },
     { id: 'sequence_code', label: 'Sequence', type: 'text' as const, width: '100px' },
     {
-      id: 'code',
-      label: 'Shot Code',
+      id: 'name',
+      label: 'Shot Name',
       type: 'link' as const,
       editable: true,
       editor: 'text' as const,
       linkHref: (row: any) => `/apex/${projectId}/shots/${row.id}`,
+    },
+    {
+      id: 'code',
+      label: 'Shot Code',
+      type: 'text' as const,
+      editable: true,
+      editor: 'text' as const,
     },
     { id: 'shot_type', label: 'Type', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },

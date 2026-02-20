@@ -48,6 +48,7 @@ export default function AssetShotsPage({
         .from('assets')
         .select('id, code, sequence_id, shot_id, shots')
         .eq('id', assetIdFilter)
+        .is('deleted_at', null)
         .maybeSingle()
 
       if (!asset) {
@@ -76,6 +77,7 @@ export default function AssetShotsPage({
           .from('shots')
           .select(baseSelect)
           .eq('project_id', projId)
+          .is('deleted_at', null)
           .in('id', [asset.shot_id])
         results.push(...(data || []))
       }
@@ -85,6 +87,7 @@ export default function AssetShotsPage({
           .from('shots')
           .select(baseSelect)
           .eq('project_id', projId)
+          .is('deleted_at', null)
           .in('code', asset.shots)
         results.push(...(data || []))
       }
@@ -94,6 +97,7 @@ export default function AssetShotsPage({
           .from('shots')
           .select(baseSelect)
           .eq('project_id', projId)
+          .is('deleted_at', null)
           .contains('assets', [asset.code])
         results.push(...(data || []))
       }
@@ -154,12 +158,19 @@ export default function AssetShotsPage({
     { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '80px' },
     { id: 'sequence_code', label: 'Sequence', type: 'text' as const, width: '100px' },
     {
-      id: 'code',
-      label: 'Shot Code',
+      id: 'name',
+      label: 'Shot Name',
       type: 'link' as const,
       editable: true,
       editor: 'text' as const,
       linkHref: (row: any) => `/apex/${projectId}/shots/${row.id}`,
+    },
+    {
+      id: 'code',
+      label: 'Shot Code',
+      type: 'text' as const,
+      editable: true,
+      editor: 'text' as const,
     },
     { id: 'shot_type', label: 'Type', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
     { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },

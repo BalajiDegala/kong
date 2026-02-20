@@ -64,6 +64,7 @@ export default function SequenceAssetsPage({
         .from('sequences')
         .select('id, code')
         .eq('id', sequenceIdFilter)
+        .is('deleted_at', null)
         .maybeSingle()
 
       let query = supabase
@@ -77,6 +78,7 @@ export default function SequenceAssetsPage({
         `
         )
         .eq('project_id', projId)
+        .is('deleted_at', null)
 
       if (sequenceRow?.code) {
         query = query.or(`sequence_id.eq.${sequenceIdFilter},sequences.cs.{${sequenceRow.code}}`)

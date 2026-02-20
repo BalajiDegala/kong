@@ -26,6 +26,7 @@ export default async function ProjectLayout({
     .from('projects')
     .select('*')
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!project) {

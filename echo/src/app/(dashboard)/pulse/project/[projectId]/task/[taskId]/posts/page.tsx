@@ -24,6 +24,7 @@ export default async function TaskPostsRoute({
     .from('tasks')
     .select('id, name, entity_type, entity_id')
     .eq('id', taskId)
+    .is('deleted_at', null)
     .single()
 
   if (!task) {
@@ -35,6 +36,7 @@ export default async function TaskPostsRoute({
     .from('projects')
     .select('id, name, code')
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!project) {
@@ -48,6 +50,7 @@ export default async function TaskPostsRoute({
       .from('shots')
       .select('id, name, sequence_id')
       .eq('id', task.entity_id)
+      .is('deleted_at', null)
       .single()
 
     if (shot && shot.sequence_id) {
@@ -55,6 +58,7 @@ export default async function TaskPostsRoute({
         .from('sequences')
         .select('id, name')
         .eq('id', shot.sequence_id)
+        .is('deleted_at', null)
         .single()
 
       entityDetails = { shot, sequence }
@@ -66,6 +70,7 @@ export default async function TaskPostsRoute({
       .from('assets')
       .select('id, name')
       .eq('id', task.entity_id)
+      .is('deleted_at', null)
       .single()
 
     entityDetails = { asset }

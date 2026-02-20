@@ -10,6 +10,8 @@ import {
 import { EntityTable } from '@/components/table/entity-table'
 import type { TableColumn } from '@/components/table/types'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
+import { listStatusNames } from '@/lib/status/options'
+import { listTagNames, parseTagsValue } from '@/lib/tags/options'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,18 @@ function asText(value: unknown): string {
   return String(value)
 }
 
+function toOptions(values: string[]): Array<{ value: string; label: string }> {
+  const unique = Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  )
+
+  return unique.map((value) => ({ value, label: value }))
+}
+
 function toPersonDisplayName(profile: any): string {
   const fullName = `${profile?.firstname || ''} ${profile?.lastname || ''}`.trim()
   return profile?.display_name || fullName || profile?.email || 'Unknown'
@@ -96,6 +110,8 @@ async function optimizeImageDataUrl(file: File) {
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
+  const [statusOptions, setStatusOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [tagOptions, setTagOptions] = useState<Array<{ value: string; label: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editDepartmentRow, setEditDepartmentRow] = useState<any | null>(null)
@@ -128,12 +144,20 @@ export default function DepartmentsPage() {
       setIsLoading(true)
       const supabase = createClient()
 
-      const [departmentsResult, profilesResult] = await Promise.all([
+      const [departmentsResult, profilesResult, loadedStatusNames, loadedTagNames] = await Promise.all([
         supabase.from('departments').select('*'),
         supabase
           .from('profiles')
           .select('id, display_name, firstname, lastname, email, department_id, active')
           .eq('active', true),
+        listStatusNames('department').catch((error) => {
+          console.error('Failed to load department status options:', error)
+          return [] as string[]
+        }),
+        listTagNames().catch((error) => {
+          console.error('Failed to load tag options for departments:', error)
+          return [] as string[]
+        }),
       ])
 
       if (departmentsResult.error) throw departmentsResult.error
@@ -150,6 +174,8 @@ export default function DepartmentsPage() {
 
       setDepartments(departmentRows)
       setProfiles(peopleRows)
+      setStatusOptions(toOptions(loadedStatusNames))
+      setTagOptions(toOptions(loadedTagNames))
     } catch (error) {
       console.error('Failed to load departments:', error)
     } finally {
@@ -211,11 +237,10 @@ export default function DepartmentsPage() {
               : `${people.slice(0, 2).join(', ')} +${people.length - 2} more`
 
         const statusValue = keys.status ? asText(row?.[keys.status]).trim() : ''
-        const statusLabel = statusValue || 'Active'
+        const statusLabel = statusValue
         const tagsRaw = keys.tags ? row?.[keys.tags] : null
-        const tagsLabel = Array.isArray(tagsRaw)
-          ? tagsRaw.join(', ')
-          : asText(tagsRaw)
+        const tagsValues = parseTagsValue(tagsRaw)
+        const tagsLabel = tagsValues.join(', ')
 
         return {
           ...row,
@@ -227,6 +252,7 @@ export default function DepartmentsPage() {
           status_label: statusLabel,
           color_value: keys.color ? row?.[keys.color] : null,
           order_value: keys.order ? row?.[keys.order] : null,
+          tags_values: tagsValues,
           tags_label: tagsLabel,
           thumbnail_value: keys.thumbnailUrl ? row?.[keys.thumbnailUrl] : null,
           people_count: people.length,
@@ -237,6 +263,14 @@ export default function DepartmentsPage() {
       }),
     [departments, keys, peopleByDepartment]
   )
+
+  const tagOptionLookup = useMemo(() => {
+    const lookup = new Map<string, string>()
+    for (const option of tagOptions) {
+      lookup.set(option.value.toLowerCase(), option.value)
+    }
+    return lookup
+  }, [tagOptions])
 
   const columns = useMemo<TableColumn[]>(
     () => [
@@ -269,13 +303,9 @@ export default function DepartmentsPage() {
         label: 'Status',
         type: 'status',
         width: '120px',
-        editable: true,
+        editable: statusOptions.length > 0,
         editor: 'select',
-        options: [
-          { value: 'Active', label: 'Active' },
-          { value: 'Inactive', label: 'Inactive' },
-          { value: 'Hold', label: 'Hold' },
-        ],
+        options: statusOptions,
       },
       { id: 'people_count', label: 'People', type: 'number', width: '100px' },
       { id: 'people_preview', label: 'People Preview', type: 'text', width: '260px' },
@@ -300,14 +330,15 @@ export default function DepartmentsPage() {
         label: 'Tags',
         type: 'text',
         width: '200px',
-        editable: true,
-        editor: 'text',
+        editable: tagOptions.length > 0,
+        editor: 'multiselect',
+        options: tagOptions,
       },
       { id: 'thumbnail_value', label: 'Thumbnail', type: 'thumbnail', width: '120px' },
       { id: 'created_at_value', label: 'Date Created', type: 'datetime', width: '190px' },
       { id: 'updated_at_value', label: 'Date Updated', type: 'datetime', width: '190px' },
     ],
-    []
+    [statusOptions, tagOptions]
   )
 
   async function handleInlineCellUpdate(row: any, column: TableColumn, value: any) {
@@ -335,7 +366,7 @@ export default function DepartmentsPage() {
         localPatch[keys.type] = nextValue
       }
     } else if (column.id === 'status_label') {
-      const nextValue = asText(value) || null
+      const nextValue = asText(value).trim() || null
       payload.status = nextValue
       if (keys.status) {
         localPatch[keys.status] = nextValue
@@ -353,10 +384,9 @@ export default function DepartmentsPage() {
         localPatch[keys.color] = nextValue
       }
     } else if (column.id === 'tags_label') {
-      const nextValue = asText(value)
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
+      const nextValue = parseTagsValue(value)
+        .map((item) => tagOptionLookup.get(item.toLowerCase()) || null)
+        .filter((item): item is string => Boolean(item))
       payload.tags = nextValue
       if (keys.tags) {
         localPatch[keys.tags] = nextValue
@@ -401,6 +431,113 @@ export default function DepartmentsPage() {
     })
   }
 
+  async function deleteDepartmentIds(departmentIds: number[]) {
+    const uniqueIds = Array.from(
+      new Set(
+        departmentIds.filter((id) => Number.isFinite(id))
+      )
+    )
+
+    if (uniqueIds.length === 0) {
+      return { error: 'Invalid department id' as const }
+    }
+
+    const failures: string[] = []
+    for (const departmentId of uniqueIds) {
+      const result = await deleteDepartment(departmentId)
+      if (result.error) failures.push(result.error)
+    }
+
+    if (failures.length > 0) {
+      return { error: failures[0] }
+    }
+
+    await loadDepartmentData()
+    return { success: true as const }
+  }
+
+  async function handleBulkDelete(rows: Record<string, unknown>[]) {
+    const departmentIds = rows
+      .map((row) => Number(row?._department_id))
+      .filter((id) => !Number.isNaN(id))
+    const result = await deleteDepartmentIds(departmentIds)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+    const statusOptionLookup = new Map<string, string>(
+      statusOptions.map((option) => [option.value.toLowerCase(), option.value] as const)
+    )
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = asText(row.department_name ?? row.name).trim()
+      if (!name) {
+        failed.push({ row: index + 2, message: 'Department name is required.' })
+        continue
+      }
+
+      const shortName = asText(row.department_short_name ?? row.short_name ?? row.code).trim() || null
+      const departmentType = asText(row.department_type ?? row.type).trim() || null
+      const rawStatus = asText(row.status ?? row.status_label).trim()
+      const status =
+        rawStatus === ''
+          ? null
+          : statusOptionLookup.get(rawStatus.toLowerCase()) || null
+      if (rawStatus && !status) {
+        failed.push({ row: index + 2, message: `Unknown status: ${rawStatus}` })
+        continue
+      }
+      const color = asText(row.color ?? row.color_value).trim() || null
+      const tags = parseTagsValue(row.tags ?? row.tags_label)
+        .map((item) => tagOptionLookup.get(item.toLowerCase()) || null)
+        .filter((item): item is string => Boolean(item))
+
+      const rawTags = parseTagsValue(row.tags ?? row.tags_label)
+      if (rawTags.length !== tags.length) {
+        const unknown = rawTags.filter((tag) => !tagOptionLookup.has(tag.toLowerCase()))
+        failed.push({ row: index + 2, message: `Unknown tags: ${unknown.join(', ')}` })
+        continue
+      }
+
+      const orderRaw = asText(row.order ?? row.order_index ?? row.sort_order ?? row.order_value).trim()
+      let order: number | null = null
+      if (orderRaw) {
+        const parsed = Number.parseInt(orderRaw, 10)
+        if (Number.isNaN(parsed)) {
+          failed.push({ row: index + 2, message: `Invalid order value: ${orderRaw}` })
+          continue
+        }
+        order = parsed
+      }
+
+      const thumbnailUrl = asText(row.thumbnail_url ?? row.thumbnail ?? row.thumbnail_value).trim() || null
+
+      const result = await createDepartment({
+        name,
+        short_name: shortName,
+        department_type: departmentType,
+        status,
+        color,
+        order,
+        tags,
+        thumbnail_url: thumbnailUrl,
+      })
+      if (result.error) {
+        failed.push({ row: index + 2, message: result.error })
+        continue
+      }
+      imported += 1
+    }
+
+    await loadDepartmentData()
+    return { imported, failed }
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -415,6 +552,8 @@ export default function DepartmentsPage() {
         mode="create"
         open={showCreateDialog}
         keys={keys}
+        statusOptions={statusOptions}
+        tagOptions={tagOptions}
         onSaved={loadDepartmentData}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
@@ -426,6 +565,8 @@ export default function DepartmentsPage() {
         mode="edit"
         open={Boolean(editDepartmentRow)}
         keys={keys}
+        statusOptions={statusOptions}
+        tagOptions={tagOptions}
         department={editDepartmentRow}
         onSaved={loadDepartmentData}
         onOpenChange={(open) => {
@@ -446,7 +587,7 @@ export default function DepartmentsPage() {
           if (Number.isNaN(departmentId)) {
             return { error: 'Invalid department id' }
           }
-          return deleteDepartment(departmentId)
+          return await deleteDepartmentIds([departmentId])
         }}
       />
 
@@ -471,35 +612,37 @@ export default function DepartmentsPage() {
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          {departments.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
-                <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  No departments yet
-                </h3>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Create departments to organize people and pipeline access.
-                </p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
-                >
-                  Create First Department
-                </button>
+          <EntityTable
+            columns={columns}
+            data={departmentRows}
+            entityType="departments"
+            csvExportFilename="departments"
+            onCsvImport={handleCsvImport}
+            onAdd={() => setShowCreateDialog(true)}
+            onRowContextMenu={handleRowContextMenu}
+            onCellUpdate={handleInlineCellUpdate}
+            onBulkDelete={(rows) => handleBulkDelete(rows as Record<string, unknown>[])}
+            cellEditTrigger="icon"
+            emptyState={
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">
+                    No departments yet
+                  </h3>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Create departments to organize people and pipeline access.
+                  </p>
+                  <button
+                    onClick={() => setShowCreateDialog(true)}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
+                  >
+                    Create First Department
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <EntityTable
-              columns={columns}
-              data={departmentRows}
-              entityType="departments"
-              onAdd={() => setShowCreateDialog(true)}
-              onRowContextMenu={handleRowContextMenu}
-              onCellUpdate={handleInlineCellUpdate}
-              cellEditTrigger="icon"
-            />
-          )}
+            }
+          />
         </div>
       </div>
 

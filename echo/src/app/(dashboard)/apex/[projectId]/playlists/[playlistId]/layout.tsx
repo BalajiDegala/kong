@@ -33,6 +33,7 @@ export default async function PlaylistLayout({
     )
     .eq('id', playlistId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!playlist) {
@@ -43,6 +44,7 @@ export default async function PlaylistLayout({
     .from('playlists')
     .select('id, code, name')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('code', { ascending: true })
 
   const title = `${playlist.code || playlist.name || `Playlist ${playlist.id}`}${

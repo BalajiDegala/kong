@@ -377,6 +377,7 @@ export function EditAssetDialog({ open, onOpenChange, asset }: EditAssetDialogPr
         .from('projects')
         .select('name, code')
         .eq('id', projectId)
+        .is('deleted_at', null)
         .maybeSingle()
       if (!data) {
         setProjectLabel(projectId)
@@ -396,11 +397,13 @@ export function EditAssetDialog({ open, onOpenChange, asset }: EditAssetDialogPr
           .from('sequences')
           .select('id, code, name')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code'),
         supabase
           .from('shots')
           .select('id, code, name, sequence_id, sequence:sequences!shots_sequence_id_fkey(code)')
           .eq('project_id', projectId)
+          .is('deleted_at', null)
           .order('code'),
         listTagNames(),
         listStatusNames('asset'),

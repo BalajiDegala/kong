@@ -2,14 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 import { notifyTaskAssigned, notifyStatusChanged } from '@/lib/activity/notification-creator'
+import { asText } from '@/lib/fields'
 
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
 
 function normalizedUserList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -46,6 +44,33 @@ function normalizeStepId(value: unknown): number | string | null {
   if (!trimmed) return null
   const parsed = Number(trimmed)
   return Number.isNaN(parsed) ? trimmed : parsed
+}
+
+function toTaskDeleteError(
+  error: unknown,
+  context?: { projectId?: string | number | null; userId?: string | null }
+): string {
+  const errorRecord =
+    typeof error === 'object' && error ? (error as Record<string, unknown>) : {}
+  const message = String(errorRecord.message || '').trim()
+  if (!message) return 'Failed to delete task'
+
+  if (/row-level security|permission denied/i.test(message)) {
+    const details = [
+      context?.projectId !== undefined ? `project_id=${context.projectId}` : null,
+      context?.userId ? `user_id=${context.userId}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ')
+    const suffix = details ? ` (${details})` : ''
+    return `Unable to delete Task: database RLS policy blocked this action${suffix}.`
+  }
+
+  if (/foreign key constraint/i.test(message)) {
+    return `Unable to delete Task: linked records are preventing deletion (${message}).`
+  }
+
+  return message
 }
 
 async function resolveStepIdFromDepartment(
@@ -367,22 +392,79 @@ export async function deleteTask(taskId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
+  const normalizedTaskId = normalizeStepId(taskId)
+  if (normalizedTaskId === null) {
+    return { error: 'Invalid task id' }
+  }
+
+  const normalizedProjectId = normalizeStepId(projectId)
+  if (normalizedProjectId === null) {
+    return { error: 'Invalid project id' }
+  }
+
+  const { data: membership } = await supabase
+    .from('project_members')
+    .select('project_id')
+    .eq('project_id', normalizedProjectId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!membership) {
+    return {
+      error: `Unable to delete Task: your user is not a member of this project in project_members (project_id=${normalizedProjectId}, user_id=${user.id}).`,
+    }
+  }
+
   const { data: oldData } = await supabase
     .from('tasks')
     .select('*')
-    .eq('id', taskId)
+    .eq('id', normalizedTaskId)
     .maybeSingle()
 
-  const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+  if (oldData && String(oldData.project_id) !== String(normalizedProjectId)) {
+    return {
+      error: `Unable to delete Task: task ${normalizedTaskId} does not belong to project ${normalizedProjectId}.`,
+    }
+  }
+
+  // Soft-delete: set deleted_at instead of hard-deleting
+  let { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', normalizedTaskId)
+
+  if (error && /row-level security|permission denied/i.test(String(error.message || ''))) {
+    try {
+      const service = createServiceClient()
+      const retry = await service
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+        .eq('id', normalizedTaskId)
+      error = retry.error
+    } catch (serviceError) {
+      return {
+        error: toTaskDeleteError(serviceError, {
+          projectId: normalizedProjectId,
+          userId: user.id,
+        }),
+      }
+    }
+  }
 
   if (error) {
-    return { error: error.message }
+    return {
+      error: toTaskDeleteError(error, {
+        projectId: normalizedProjectId,
+        userId: user.id,
+      }),
+    }
   }
 
   if (oldData) {
-    logEntityDeleted('task', taskId, projectId, oldData)
+    logEntityTrashed('task', String(normalizedTaskId), String(normalizedProjectId), oldData)
   }
 
-  revalidatePath(`/apex/${projectId}/tasks`)
+  revalidatePath(`/apex/${normalizedProjectId}/tasks`)
+  revalidatePath(`/apex/${normalizedProjectId}/tasks/${normalizedTaskId}`)
   return { success: true }
 }

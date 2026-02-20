@@ -31,6 +31,8 @@ type TagSemanticKeys = {
   updatedAt: string | null
 }
 
+type TagId = string | number
+
 function resolveColumn(columns: Set<string>, candidates: string[]): string | null {
   for (const candidate of candidates) {
     if (columns.has(candidate)) return candidate
@@ -81,6 +83,31 @@ function isValidColor(value: string) {
 
 function toTagUsageKey(value: unknown): string {
   return asText(value).trim().toLowerCase()
+}
+
+function resolveTagId(value: unknown): TagId | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+  return null
+}
+
+function toTagIdKey(value: unknown): string {
+  const tagId = resolveTagId(value)
+  if (tagId === null) return ''
+  return typeof tagId === 'number' ? `number:${tagId}` : `string:${tagId}`
+}
+
+function uniqueTagIds(ids: TagId[]): TagId[] {
+  const byKey = new Map<string, TagId>()
+  for (const id of ids) {
+    const key = toTagIdKey(id)
+    if (!key || byKey.has(key)) continue
+    byKey.set(key, id)
+  }
+  return Array.from(byKey.values())
 }
 
 export default function TagsPage() {
@@ -195,7 +222,7 @@ export default function TagsPage() {
   const tagRows = useMemo(
     () =>
       tags.map((row) => {
-        const tagId = Number(row?.[keys.id])
+        const tagId = resolveTagId(row?.[keys.id])
         return {
           ...row,
           _tag_id: tagId,
@@ -206,8 +233,8 @@ export default function TagsPage() {
             (keys.usageCount ? Number(row?.[keys.usageCount] || 0) : 0),
           color_value: keys.color ? asText(row?.[keys.color]) : '',
           description_value: keys.description ? asText(row?.[keys.description]) : '',
-          created_by_value: keys.createdBy ? asText(row?.[keys.createdBy]) : '',
-          updated_by_value: keys.updatedBy ? asText(row?.[keys.updatedBy]) : '',
+          created_by: keys.createdBy ? asText(row?.[keys.createdBy]) : '',
+          updated_by: keys.updatedBy ? asText(row?.[keys.updatedBy]) : '',
           created_at_value: keys.createdAt ? row?.[keys.createdAt] : null,
           updated_at_value: keys.updatedAt ? row?.[keys.updatedAt] : null,
         }
@@ -248,17 +275,17 @@ export default function TagsPage() {
         editable: Boolean(keys.description),
         editor: 'text',
       },
-      { id: 'created_by_value', label: 'Created by', type: 'text', width: '180px' },
+      { id: 'created_by', label: 'Created by', type: 'text', width: '180px' },
       { id: 'created_at_value', label: 'Date Created', type: 'datetime', width: '180px' },
-      { id: 'updated_by_value', label: 'Updated by', type: 'text', width: '180px' },
+      { id: 'updated_by', label: 'Updated by', type: 'text', width: '180px' },
       { id: 'updated_at_value', label: 'Date Updated', type: 'datetime', width: '180px' },
     ],
     [keys.color, keys.description]
   )
 
   async function handleInlineCellUpdate(row: RowRecord, column: TableColumn, value: unknown) {
-    const tagId = Number(row?._tag_id)
-    if (Number.isNaN(tagId)) {
+    const tagId = resolveTagId(row?._tag_id)
+    if (tagId === null) {
       throw new Error('Invalid tag id')
     }
 
@@ -291,8 +318,7 @@ export default function TagsPage() {
 
     setTags((previous) =>
       previous.map((tagRow) => {
-        const currentTagId = Number(tagRow?.[keys.id])
-        if (currentTagId !== tagId) {
+        if (toTagIdKey(tagRow?.[keys.id]) !== toTagIdKey(tagId)) {
           return tagRow
         }
         return {
@@ -304,7 +330,8 @@ export default function TagsPage() {
   }
 
   function openEditDialog(row: RowRecord) {
-    setEditTagRow((row as any)?._raw || row)
+    const rawRow = (row as RowRecord & { _raw?: unknown })._raw
+    setEditTagRow(rawRow && typeof rawRow === 'object' ? (rawRow as RowRecord) : row)
   }
 
   function openDeleteDialog(row: RowRecord) {
@@ -318,6 +345,69 @@ export default function TagsPage() {
       y: event.clientY,
       row,
     })
+  }
+
+  async function deleteTagIds(tagIds: TagId[]) {
+    const uniqueIds = uniqueTagIds(tagIds)
+    if (uniqueIds.length === 0) {
+      return { error: 'Invalid tag id' as const }
+    }
+
+    const failures: string[] = []
+    for (const tagId of uniqueIds) {
+      const result = await deleteTag(tagId)
+      if (result.error) failures.push(result.error)
+    }
+
+    if (failures.length > 0) {
+      return { error: failures[0] }
+    }
+
+    await loadTagsData()
+    return { success: true as const }
+  }
+
+  async function handleBulkDelete(rows: RowRecord[]) {
+    const tagIds = uniqueTagIds(
+      rows
+        .map((row) => resolveTagId((row as RowRecord & { _tag_id?: unknown })._tag_id))
+        .filter((id): id is TagId => id !== null)
+    )
+    const result = await deleteTagIds(tagIds)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+  }
+
+  async function handleCsvImport(rows: Record<string, unknown>[]) {
+    const failed: Array<{ row: number; message: string }> = []
+    let imported = 0
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const name = asText(row.tag_name ?? row.name ?? row.tag).trim()
+      if (!name) {
+        failed.push({ row: index + 2, message: 'Tag name is required.' })
+        continue
+      }
+
+      const color = asText(row.color ?? row.tag_color).trim() || null
+      const description = asText(row.description ?? row.tag_description).trim() || null
+
+      const result = await createTag({
+        name,
+        color,
+        description,
+      })
+      if (result.error) {
+        failed.push({ row: index + 2, message: result.error })
+        continue
+      }
+      imported += 1
+    }
+
+    await loadTagsData()
+    return { imported, failed }
   }
 
   if (isLoading) {
@@ -363,11 +453,11 @@ export default function TagsPage() {
         description="This will remove the tag row."
         itemName={String(deleteTagRow?.tag_name || 'Tag')}
         onConfirm={async () => {
-          const tagId = Number(deleteTagRow?._tag_id)
-          if (Number.isNaN(tagId)) {
+          const tagId = resolveTagId(deleteTagRow?._tag_id)
+          if (tagId === null) {
             return { error: 'Invalid tag id' }
           }
-          return deleteTag(tagId)
+          return await deleteTagIds([tagId])
         }}
       />
 
@@ -397,29 +487,33 @@ export default function TagsPage() {
               <p className="text-sm font-medium text-red-300">Unable to load tags</p>
               <p className="mt-1 text-xs text-red-200/80">{loadError}</p>
             </div>
-          ) : tags.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <Tag className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
-                <h3 className="mb-2 text-lg font-semibold text-foreground">No tags yet</h3>
-                <p className="mb-4 text-sm text-muted-foreground">Create tags to classify entities.</p>
-                <button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
-                >
-                  Create First Tag
-                </button>
-              </div>
-            </div>
           ) : (
             <EntityTable
               columns={columns}
               data={tagRows}
               entityType={resolvedTable || 'tags'}
+              csvExportFilename="tags"
+              onCsvImport={handleCsvImport}
               onAdd={() => setShowCreateDialog(true)}
               onRowContextMenu={handleRowContextMenu}
               onCellUpdate={handleInlineCellUpdate}
+              onBulkDelete={(rows) => handleBulkDelete(rows as RowRecord[])}
               cellEditTrigger="icon"
+              emptyState={
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <Tag className="mx-auto mb-4 h-12 w-12 text-muted-foreground/70" />
+                    <h3 className="mb-2 text-lg font-semibold text-foreground">No tags yet</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">Create tags to classify entities.</p>
+                    <button
+                      onClick={() => setShowCreateDialog(true)}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-black transition hover:bg-primary"
+                    >
+                      Create First Tag
+                    </button>
+                  </div>
+                </div>
+              }
             />
           )}
         </div>
@@ -511,11 +605,11 @@ function TagDialog({
     setIsSaving(true)
     setError('')
 
-    const tagId = Number(tagRow?.[keys.id])
+    const tagId = resolveTagId(tagRow?.[keys.id])
     const result =
       mode === 'create'
         ? await createTag(payload)
-        : Number.isNaN(tagId)
+        : tagId === null
           ? { error: 'Invalid tag id' }
           : await updateTag(tagId, payload)
 

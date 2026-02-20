@@ -1,28 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
+import { asText, isMissingTableError } from '@/lib/fields/utils'
 
 const STATUS_TABLE_CANDIDATES = ['statuses', 'status'] as const
 const STATUS_ENTITY_TYPES_TABLE = 'status_entity_types'
 
 type RowRecord = Record<string, unknown>
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
-
-function isMissingTableError(error: unknown): boolean {
-  if (!error) return false
-  const errorRecord = error as Record<string, unknown>
-  const code = String(errorRecord.code || '')
-  const message = String(errorRecord.message || '').toLowerCase()
-  const details = String(errorRecord.details || '').toLowerCase()
-  return (
-    code === 'PGRST205' ||
-    message.includes('could not find the table') ||
-    (message.includes('relation') && message.includes('does not exist')) ||
-    details.includes('does not exist')
-  )
-}
 
 function resolveColumn(columns: Set<string>, candidates: string[]): string | null {
   for (const candidate of candidates) {

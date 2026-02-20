@@ -94,11 +94,12 @@ export default function PlaylistVersionsPage({
             `
             *,
             task:tasks(id, name),
-            artist:profiles(id, display_name, full_name),
+            artist:profiles!versions_artist_id_fkey(id, display_name, full_name),
             project:projects(id, code, name)
           `
           )
           .eq('project_id', projId)
+          .is('deleted_at', null)
           .in('id', versionIds)
           .order('created_at', { ascending: false }),
         listStatusNames('version'),

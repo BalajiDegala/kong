@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProjects } from '@/lib/supabase/queries'
 import { EntityTable } from '@/components/table/entity-table'
@@ -22,12 +22,44 @@ export default function ApexPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedProject, setSelectedProject] = useState<any>(null)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [bulkDeleteRows, setBulkDeleteRows] = useState<any[] | null>(null)
+  const bulkDeleteResolver = useRef<(value: boolean) => void>(() => {})
 
   useEffect(() => {
     void loadProjects()
     void loadTagOptions()
     void loadStatusOptions()
   }, [])
+
+  const confirmBulkDelete = useCallback((rows: any[]) => {
+    return new Promise<boolean>((resolve) => {
+      bulkDeleteResolver.current = (value) => {
+        resolve(value)
+        bulkDeleteResolver.current = () => {}
+      }
+      setBulkDeleteRows(rows)
+      setBulkDeleteDialogOpen(true)
+    })
+  }, [])
+
+  const handleBulkDeleteDialogChange = useCallback((open: boolean) => {
+    if (!open) {
+      bulkDeleteResolver.current(false)
+      setBulkDeleteRows(null)
+    }
+    setBulkDeleteDialogOpen(open)
+  }, [])
+
+  const handleBulkDeleteDialogConfirm = useCallback(() => {
+    const resolver = bulkDeleteResolver.current
+    bulkDeleteResolver.current = () => {}
+    resolver(true)
+    setBulkDeleteDialogOpen(false)
+    setBulkDeleteRows(null)
+  }, [])
+
+  const bulkDeleteCount = bulkDeleteRows?.length ?? 0
 
   const tagOptions = useMemo(
     () =>
@@ -51,6 +83,10 @@ export default function ApexPage() {
       ),
     [availableStatuses, projects]
   )
+
+  function notifyProjectsChanged() {
+    window.dispatchEvent(new Event('apex:projects-changed'))
+  }
 
   async function loadProjects() {
     try {
@@ -99,7 +135,12 @@ export default function ApexPage() {
 
   async function handleDeleteConfirm() {
     if (!selectedProject) return { error: 'No project selected' }
-    return await deleteProject(selectedProject.id)
+    const result = await deleteProject(selectedProject.id)
+    if (!result?.error) {
+      await loadProjects()
+      notifyProjectsChanged()
+    }
+    return result
   }
 
   async function handleCellUpdate(row: any, column: TableColumn, value: any) {
@@ -133,6 +174,7 @@ export default function ApexPage() {
     }
 
     await loadProjects()
+    notifyProjectsChanged()
   }
 
   async function handleBulkDelete(rows: any[]) {
@@ -148,6 +190,7 @@ export default function ApexPage() {
     }
 
     await loadProjects()
+    notifyProjectsChanged()
 
     if (failures.length > 0) {
       const preview = failures.slice(0, 3).join('; ')
@@ -227,6 +270,7 @@ export default function ApexPage() {
     await loadProjects()
     await loadTagOptions()
     await loadStatusOptions()
+    notifyProjectsChanged()
 
     return { imported, failed }
   }
@@ -311,6 +355,7 @@ export default function ApexPage() {
             void loadProjects()
             void loadTagOptions()
             void loadStatusOptions()
+            notifyProjectsChanged()
           }
         }}
       />
@@ -323,6 +368,7 @@ export default function ApexPage() {
             void loadProjects()
             void loadTagOptions()
             void loadStatusOptions()
+            notifyProjectsChanged()
           }
         }}
         project={selectedProject}
@@ -336,6 +382,15 @@ export default function ApexPage() {
         itemName={selectedProject?.name || ''}
         onConfirm={handleDeleteConfirm}
         redirectTo="/apex"
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={handleBulkDeleteDialogChange}
+        title={`Delete ${bulkDeleteCount} project${bulkDeleteCount === 1 ? '' : 's'}`}
+        description={`This will delete ${bulkDeleteCount} selected project${bulkDeleteCount === 1 ? '' : 's'} and all related work items.`}
+        itemName={`${bulkDeleteCount} project${bulkDeleteCount === 1 ? '' : 's'}`}
+        onConfirm={handleBulkDeleteDialogConfirm}
       />
 
       <div className="flex h-full flex-col">
@@ -388,6 +443,7 @@ export default function ApexPage() {
             csvExportFilename="apex-projects"
             onCsvImport={handleCsvImport}
             onBulkDelete={handleBulkDelete}
+            onBulkDeleteConfirm={confirmBulkDelete}
             onAdd={() => setShowCreateDialog(true)}
             onEdit={handleEdit}
             onDelete={handleDelete}

@@ -24,6 +24,7 @@ export default async function ShotInfoPage({
     )
     .eq('id', shotId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!shot) {

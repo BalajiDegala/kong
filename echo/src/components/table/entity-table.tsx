@@ -502,6 +502,10 @@ async function fileToDataUrl(file: File): Promise<string> {
 
 const MAX_THUMBNAIL_UPLOAD_BYTES = 8 * 1024 * 1024
 const MAX_PROJECT_THUMBNAIL_SIDE = 640
+const SUPABASE_PUBLIC_URL = String(process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(
+  /\/+$/,
+  ''
+)
 
 async function optimizeThumbnailDataUrl(file: File): Promise<string> {
   const rawDataUrl = await fileToDataUrl(file)
@@ -581,8 +585,19 @@ function normalizeThumbnailSource(value: unknown): string | null {
     const candidateKeys = [
       'thumbnail_url',
       'thumbnailUrl',
-      'publicUrl',
+      'preview_url',
+      'previewUrl',
+      'signed_url',
       'signedUrl',
+      'publicUrl',
+      'storage_path',
+      'storagePath',
+      'file_path',
+      'filePath',
+      'movie_url',
+      'movieUrl',
+      'uploaded_movie_image',
+      'uploadedMovieImage',
       'url',
       'src',
       'path',
@@ -596,31 +611,163 @@ function normalizeThumbnailSource(value: unknown): string | null {
   return null
 }
 
+function isAbsoluteThumbnailSource(source: string): boolean {
+  return (
+    source.startsWith('data:') ||
+    source.startsWith('blob:') ||
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(source)
+  )
+}
+
+function toCurrentSupabaseStorageUrl(source: string): string | null {
+  const trimmed = source.trim()
+  if (!trimmed || !SUPABASE_PUBLIC_URL) return null
+
+  try {
+    const parsed = new URL(trimmed)
+    if (!parsed.pathname.startsWith('/storage/v1/object/')) return null
+    return `${SUPABASE_PUBLIC_URL}${parsed.pathname}${parsed.search}`
+  } catch {
+    return null
+  }
+}
+
+function toSupabasePublicObjectUrl(source: string): string | null {
+  const trimmed = source.trim()
+  if (!trimmed) return null
+
+  const marker = '/storage/v1/object/sign/'
+  const markerIndex = trimmed.indexOf(marker)
+  if (markerIndex === -1) return null
+
+  const base = trimmed.slice(0, markerIndex)
+  const signedPathAndQuery = trimmed.slice(markerIndex + marker.length)
+  const pathOnly = signedPathAndQuery.split('?')[0]?.trim()
+  if (!pathOnly) return null
+
+  return `${base}/storage/v1/object/public/${pathOnly}`
+}
+
+function toSupabasePublicObjectUrlsFromPath(source: string): string[] {
+  const trimmed = source.trim().replace(/^\/+/, '')
+  if (!trimmed || !SUPABASE_PUBLIC_URL) return []
+  if (isAbsoluteThumbnailSource(trimmed)) return []
+  if (trimmed.includes(' ')) return []
+
+  const knownBuckets = ['versions', 'note-attachments', 'post-media']
+  const firstSegment = trimmed.split('/')[0] || ''
+  const urls: string[] = []
+
+  if (firstSegment.startsWith('storage')) {
+    urls.push(`${SUPABASE_PUBLIC_URL}/${trimmed}`)
+    return urls
+  }
+
+  if (knownBuckets.includes(firstSegment)) {
+    urls.push(`${SUPABASE_PUBLIC_URL}/storage/v1/object/public/${trimmed}`)
+    return urls
+  }
+
+  for (const bucket of knownBuckets) {
+    urls.push(`${SUPABASE_PUBLIC_URL}/storage/v1/object/public/${bucket}/${trimmed}`)
+  }
+  return urls
+}
+
+function getThumbnailSourceCandidates(value: unknown, row?: Record<string, unknown>): string[] {
+  const candidates: string[] = []
+
+  const push = (candidate: string | null) => {
+    if (!candidate) return
+    const trimmed = candidate.trim()
+    if (!trimmed) return
+    if (!candidates.includes(trimmed)) candidates.push(trimmed)
+  }
+
+  const pushCandidate = (input: unknown) => {
+    const normalized = normalizeThumbnailSource(input)
+    if (!normalized) return
+    const absoluteLike =
+      isAbsoluteThumbnailSource(normalized) || normalized.startsWith('/')
+    if (absoluteLike) {
+      push(normalized)
+    }
+
+    push(toCurrentSupabaseStorageUrl(normalized))
+    push(toSupabasePublicObjectUrl(normalized))
+    for (const converted of toSupabasePublicObjectUrlsFromPath(normalized)) {
+      push(converted)
+    }
+
+    if (!absoluteLike) {
+      push(normalized)
+    }
+  }
+
+  pushCandidate(value)
+  if (row) {
+    pushCandidate(row.thumbnail_url)
+    pushCandidate(row.filmstrip_thumbnail_url)
+    pushCandidate(row.entity_thumbnail_url)
+    pushCandidate(row.thumbnail)
+    pushCandidate(row.preview_url)
+    pushCandidate(row.signed_url)
+    pushCandidate(row.storage_path)
+    pushCandidate(row.uploaded_movie_image)
+    pushCandidate(row.attachments_preview_url)
+  }
+
+  return candidates
+}
+
 function ThumbnailPreview({
-  source,
+  sources,
   className,
   alt = '',
   fallback = null,
 }: {
-  source: unknown
+  sources: unknown[]
   className: string
   alt?: string
   fallback?: React.ReactNode
 }) {
-  const normalizedSource = normalizeThumbnailSource(source)
-  const [failedSource, setFailedSource] = useState<string | null>(null)
-  const hasError = normalizedSource !== null && failedSource === normalizedSource
+  const normalizedSources = useMemo(() => {
+    const all: string[] = []
+    for (const source of sources) {
+      for (const candidate of getThumbnailSourceCandidates(source)) {
+        if (!all.includes(candidate)) all.push(candidate)
+      }
+    }
+    return all
+  }, [sources])
+  const sourceKey = useMemo(
+    () =>
+      normalizedSources
+        .map((source) => `${source.length}:${source.slice(0, 96)}`)
+        .join('|'),
+    [normalizedSources]
+  )
+  const [sourceState, setSourceState] = useState<{ key: string; index: number }>(
+    () => ({ key: '', index: 0 })
+  )
+  const sourceIndex = sourceState.key === sourceKey ? sourceState.index : 0
 
-  if (!normalizedSource || hasError) {
+  const currentSource = normalizedSources[sourceIndex]
+  if (!currentSource) {
     return <>{fallback}</>
   }
 
   return (
     <img
-      src={normalizedSource}
+      src={currentSource}
       alt={alt}
       className={className}
-      onError={() => setFailedSource(normalizedSource)}
+      onError={() =>
+        setSourceState((previous) => {
+          const currentIndex = previous.key === sourceKey ? previous.index : 0
+          return { key: sourceKey, index: currentIndex + 1 }
+        })
+      }
     />
   )
 }
@@ -936,7 +1083,18 @@ function resolveSchemaEntityKey(entityType: string): EntityKey | null {
   return null
 }
 
+function isThumbnailColumnName(columnName?: string | null): boolean {
+  const normalized = String(columnName || '').trim().toLowerCase()
+  if (!normalized) return false
+  if (!normalized.includes('thumbnail')) return false
+  // Keep metadata/hash columns as plain text.
+  if (normalized.includes('blur_hash')) return false
+  return true
+}
+
 function inferSchemaColumnType(field: SchemaField): TableColumn['type'] {
+  if (isThumbnailColumnName(field.column)) return 'thumbnail'
+
   const dataType = field.dataType.toLowerCase()
 
   if (dataType === 'checkbox') return 'boolean'
@@ -955,7 +1113,7 @@ function inferSchemaColumnType(field: SchemaField): TableColumn['type'] {
   if (dataType === 'color') return 'color'
   if (dataType === 'status_list') return 'status'
   if (dataType === 'image') {
-    if (field.column?.includes('thumbnail')) return 'thumbnail'
+    if (isThumbnailColumnName(field.column)) return 'thumbnail'
     return 'url'
   }
 
@@ -1093,9 +1251,18 @@ function withSchemaColumns(
   runtimeFields: SchemaField[] = []
 ): TableColumn[] {
   const schemaEntity = resolveSchemaEntityKey(entityType)
-  if (!schemaEntity) return columns
+  const normalizedColumns = columns.map((column) => {
+    if (column.type === 'thumbnail') return column
+    if (!isThumbnailColumnName(column.id)) return column
+    return {
+      ...column,
+      type: 'thumbnail' as const,
+    }
+  })
 
-  const existing = new Set(columns.map((column) => column.id))
+  if (!schemaEntity) return normalizedColumns
+
+  const existing = new Set(normalizedColumns.map((column) => column.id))
   const schemaColumns: TableColumn[] = []
   const schema = getEntitySchema(schemaEntity)
   const mergedFields = [...schema.fields, ...runtimeFields]
@@ -1109,7 +1276,7 @@ function withSchemaColumns(
     existing.add(column.id)
   }
 
-  return [...columns, ...schemaColumns]
+  return [...normalizedColumns, ...schemaColumns]
 }
 
 function buildVisibleColumnSet(
@@ -1169,6 +1336,7 @@ interface EntityTableProps {
     failed?: Array<{ row: number; message: string }>
   } | void
   onBulkDelete?: (rows: any[]) => Promise<void> | void
+  onBulkDeleteConfirm?: (rows: any[]) => Promise<boolean> | boolean
   enableRowSelection?: boolean
 }
 
@@ -1201,6 +1369,7 @@ export function EntityTable({
   csvExportFilename,
   onCsvImport,
   onBulkDelete,
+  onBulkDeleteConfirm,
   enableRowSelection = true,
 }: EntityTableProps) {
   const [runtimeSchemaFields, setRuntimeSchemaFields] = useState<SchemaField[]>([])
@@ -2649,9 +2818,20 @@ export function EntityTable({
     if (!onBulkDelete) return
     if (selectedRows.length === 0) return
     if (isBulkDeleting) return
-    const confirmed = window.confirm(
-      `Delete ${selectedRows.length} selected item${selectedRows.length === 1 ? '' : 's'}?`
-    )
+    let confirmed = true
+    if (onBulkDeleteConfirm) {
+      try {
+        confirmed = await onBulkDeleteConfirm(selectedRows)
+      } catch (error) {
+        reportCellUpdateError(error)
+        return
+      }
+    } else {
+      confirmed = window.confirm(
+        `Delete ${selectedRows.length} selected item${selectedRows.length === 1 ? '' : 's'}?`
+      )
+    }
+
     if (!confirmed) return
 
     setIsBulkDeleting(true)
@@ -3030,7 +3210,11 @@ export function EntityTable({
         )
       }
       case 'thumbnail': {
-        const thumbnailSource = normalizeThumbnailSource(value)
+        const thumbnailValue =
+          typeof column.formatValue === 'function'
+            ? column.formatValue(value, row)
+            : value
+        const thumbnailSources = getThumbnailSourceCandidates(thumbnailValue, row)
 
         if (column.editable && onCellUpdate) {
           return (
@@ -3068,7 +3252,7 @@ export function EntityTable({
                 }}
               />
               <ThumbnailPreview
-                source={thumbnailSource}
+                sources={thumbnailSources}
                 className="h-10 w-10 rounded object-cover ring-1 ring-ring transition hover:ring-primary"
                 fallback={
                   <div className="flex h-10 w-10 items-center justify-center rounded bg-accent text-[10px] text-muted-foreground transition hover:text-foreground/80">
@@ -3082,25 +3266,32 @@ export function EntityTable({
         return (
           <div className="flex items-center justify-center">
             <ThumbnailPreview
-              source={thumbnailSource}
+              sources={thumbnailSources}
               className="h-10 w-10 rounded object-cover"
               fallback={
-                <div className="flex h-10 w-10 items-center justify-center rounded bg-accent text-xs text-muted-foreground">
-                  Upload
-                </div>
+                <span className="text-muted-foreground">-</span>
               }
             />
           </div>
         )
       }
-      case 'link':
+      case 'link': {
+        // Resolve display text: use formatValue, option label, or raw value
+        let linkDisplay = value
+        if (typeof column.formatValue === 'function') {
+          linkDisplay = column.formatValue(value, row)
+        } else if (column.options?.length && value !== null && value !== undefined && value !== '') {
+          const optLabel = resolveColumnOptionLabel(column, String(value).trim())
+          if (optLabel) linkDisplay = optLabel
+        }
+
         if (column.linkHref) {
           const href = column.linkHref(row)
-          if (!href) {
-            if (value === null || value === undefined || value === '') {
+          if (!href || href === '#') {
+            if (linkDisplay === null || linkDisplay === undefined || linkDisplay === '') {
               return <span className="text-muted-foreground">-</span>
             }
-            return <span className="text-foreground">{String(value)}</span>
+            return <span className="text-foreground">{String(linkDisplay)}</span>
           }
           return (
             <Link
@@ -3110,7 +3301,7 @@ export function EntityTable({
                 e.stopPropagation()
               }}
             >
-              {value}
+              {linkDisplay}
             </Link>
           )
         }
@@ -3122,9 +3313,10 @@ export function EntityTable({
               e.stopPropagation()
             }}
           >
-            {value}
+            {linkDisplay}
           </a>
         )
+      }
       case 'status':
         return (
           <div className="flex items-center gap-2">
@@ -3272,6 +3464,10 @@ export function EntityTable({
 
         if (typeof formatted === 'boolean') {
           return <span className="text-foreground">{formatted ? 'Yes' : 'No'}</span>
+        }
+
+        if (React.isValidElement(formatted)) {
+          return formatted
         }
 
         if (typeof formatted === 'object') {
@@ -3799,7 +3995,10 @@ export function EntityTable({
                       const canEditProjectThumbnail = Boolean(
                         thumbnailColumn.editable && onCellUpdate
                       )
-                      const projectThumbnail = normalizeThumbnailSource(row?.thumbnail_url)
+                      const projectThumbnailSources = getThumbnailSourceCandidates(
+                        row?.thumbnail_url,
+                        row
+                      )
                       return (
                         <div
                           key={row.id || index}
@@ -3862,7 +4061,7 @@ export function EntityTable({
                                   }}
                                 />
                                 <ThumbnailPreview
-                                  source={projectThumbnail}
+                                  sources={projectThumbnailSources}
                                   className="absolute inset-0 block h-full w-full object-cover"
                                   fallback={
                                     <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
@@ -3876,7 +4075,7 @@ export function EntityTable({
                               </label>
                             ) : (
                               <ThumbnailPreview
-                                source={projectThumbnail}
+                                sources={projectThumbnailSources}
                                 className="absolute inset-0 block h-full w-full object-cover"
                                 fallback={
                                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">

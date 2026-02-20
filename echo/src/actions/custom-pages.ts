@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { asText } from '@/lib/fields'
 
 export type CustomPageVisibility = 'private' | 'shared_project' | 'shared_global'
 export type CustomPageScopeType = 'global' | 'project' | 'multi_project'
@@ -55,12 +56,6 @@ export interface UpdateCustomPageInput {
   definition?: RecordValue | null
   default_state?: RecordValue | null
   is_archived?: boolean
-}
-
-function asText(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (value === null || value === undefined) return ''
-  return String(value)
 }
 
 function asInt(value: unknown): number | null {

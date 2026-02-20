@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 import { notifyMention, notifyNoteReply } from '@/lib/activity/notification-creator'
 
 export async function createNote(
@@ -11,7 +11,7 @@ export async function createNote(
     project_id: string
     subject?: string
     content: string
-    entity_type?: 'asset' | 'shot' | 'sequence' | 'task' | 'version' | 'project' | 'published_file'
+    entity_type?: 'asset' | 'shot' | 'sequence' | 'task' | 'version' | 'project' | 'published_file' | 'post'
     entity_id?: string
     task_id?: string
     status?: string
@@ -166,14 +166,18 @@ export async function deleteNote(noteId: string, projectId: string) {
     .eq('id', noteId)
     .maybeSingle()
 
-  const { error } = await supabase.from('notes').delete().eq('id', noteId)
+  // Soft-delete: set deleted_at instead of hard-deleting
+  const { error } = await supabase
+    .from('notes')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', noteId)
 
   if (error) {
     return { error: error.message }
   }
 
   if (oldData) {
-    logEntityDeleted('note', noteId, projectId, oldData)
+    logEntityTrashed('note', noteId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/notes`)

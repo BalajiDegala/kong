@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Loader2, Pencil, Upload, X } from 'lucide-react'
@@ -78,6 +79,7 @@ interface EntityDetailHeaderProps {
   descriptionColumn?: string | null
   thumbnailUrl?: string | null
   thumbnailColumn?: string | null
+  thumbnailLinkHref?: string | null
   thumbnailPlaceholder?: string
   switchOptions: EntitySwitchOption[]
   tabPaths: string[]
@@ -578,7 +580,19 @@ export function EntityDetailHeader(props: EntityDetailHeaderProps) {
         <div className="w-full xl:w-[300px] xl:flex-shrink-0">
           <div className="group/thumb relative overflow-hidden rounded-md border border-border bg-card">
             <div className="aspect-[16/9] w-full">
-              {thumbnailValue ? (
+              {thumbnailValue && props.thumbnailLinkHref && !editingThumbnail ? (
+                <Link
+                  href={props.thumbnailLinkHref}
+                  className="block h-full w-full"
+                  title="Open linked version"
+                >
+                  <img
+                    src={thumbnailValue}
+                    alt=""
+                    className="h-full w-full cursor-pointer object-cover transition hover:opacity-95"
+                  />
+                </Link>
+              ) : thumbnailValue ? (
                 <img
                   src={thumbnailValue}
                   alt=""

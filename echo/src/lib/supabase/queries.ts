@@ -41,6 +41,7 @@ export async function getUserProjects(supabase: SupabaseClient, userId: string) 
   const { data, error } = await supabase
     .from('projects')
     .select('*')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -55,6 +56,7 @@ export async function getProject(supabase: SupabaseClient, projectId: number) {
       created_by_profile:profiles!projects_created_by_fkey(id, display_name, avatar_url)
     `)
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (error) throw error
@@ -95,6 +97,7 @@ export async function getProjectAssets(
       created_by_profile:profiles!assets_created_by_fkey(id, display_name, avatar_url)
     `)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   if (options?.assetType) {
     query = query.eq('asset_type', options.assetType)
@@ -125,6 +128,7 @@ export async function getAsset(supabase: SupabaseClient, assetId: number) {
       created_by_profile:profiles!assets_created_by_fkey(id, display_name, avatar_url)
     `)
     .eq('id', assetId)
+    .is('deleted_at', null)
     .single()
 
   if (error) throw error
@@ -152,6 +156,7 @@ export async function getProjectShots(
       created_by_profile:profiles!shots_created_by_fkey(id, display_name, avatar_url)
     `)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   if (options?.sequenceId) {
     query = query.eq('sequence_id', options.sequenceId)
@@ -181,6 +186,7 @@ export async function getProjectSequences(
     .from('sequences')
     .select('*')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('code')
 
   if (error) throw error
@@ -213,6 +219,7 @@ export async function getProjectTasks(
       )
     `)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   if (options?.status) {
     query = query.eq('status', options.status)
@@ -251,6 +258,7 @@ export async function getTask(supabase: SupabaseClient, taskId: number) {
       )
     `)
     .eq('id', taskId)
+    .is('deleted_at', null)
     .single()
 
   if (error) throw error
@@ -327,6 +335,7 @@ export async function getEntityNotes(
     `)
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -379,6 +388,7 @@ export async function getEntityVersions(
     `)
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
+    .is('deleted_at', null)
     .order('version_number', { ascending: false })
 
   if (error) throw error
@@ -400,6 +410,7 @@ export async function getProjectVersions(
       created_by_profile:profiles!versions_created_by_fkey(id, display_name, avatar_url)
     `)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   if (options?.status) {
     query = query.eq('status', options.status)
@@ -718,6 +729,7 @@ export async function getPostComments(
     `)
     .eq('entity_type', 'post')
     .eq('entity_id', postId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) throw error

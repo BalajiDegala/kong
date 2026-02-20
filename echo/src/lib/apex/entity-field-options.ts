@@ -65,7 +65,7 @@ async function readRowsFromCandidates(
     const result = await supabase.from(table).select('*')
     if (!result.error) return (result.data || []) as Array<Record<string, unknown>>
     if (!isMissingTableError(result.error)) {
-      throw new Error(asText((result.error as Record<string, unknown>).message) || 'Failed to load options')
+      throw new Error(String(result.error.message || 'Failed to load options'))
     }
   }
   return []
@@ -109,8 +109,7 @@ async function loadStatusOptions(supabase: SupabaseClient, entityType: HeaderEnt
     }
   } else if (!isMissingTableError(mappingResult.error)) {
     throw new Error(
-      asText((mappingResult.error as Record<string, unknown>).message) ||
-        'Failed to load status mappings'
+      String(mappingResult.error?.message || 'Failed to load status mappings')
     )
   }
 
@@ -177,7 +176,7 @@ async function loadDepartmentOptions(supabase: SupabaseClient) {
   if (result.error) {
     if (isMissingTableError(result.error)) return []
     throw new Error(
-      asText((result.error as Record<string, unknown>).message) ||
+      asText((result.error as unknown as Record<string, unknown>).message) ||
         'Failed to load departments'
     )
   }
@@ -203,7 +202,7 @@ async function loadProfileOptions(supabase: SupabaseClient) {
   if (result.error) {
     if (isMissingTableError(result.error)) return []
     throw new Error(
-      asText((result.error as Record<string, unknown>).message) || 'Failed to load users'
+      asText((result.error as unknown as Record<string, unknown>).message) || 'Failed to load users'
     )
   }
 

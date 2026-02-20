@@ -2,56 +2,19 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { listStatusNames } from '@/lib/status/options'
-import { listTagNames } from '@/lib/tags/options'
 import { EntityTable } from '@/components/table/entity-table'
 import { UploadVersionDialog } from '@/components/apex/upload-version-dialog'
 import { EditVersionDialog } from '@/components/apex/edit-version-dialog'
 import { ApexPageShell } from '@/components/apex/apex-page-shell'
 import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
-import { createVersion, deleteVersion, updateVersion } from '@/actions/versions'
+import { createVersion, deleteVersion } from '@/actions/versions'
+import { useEntityData } from '@/hooks/use-entity-data'
+import { asText, parseTextArray } from '@/lib/fields'
+import type { TableColumn } from '@/components/table/types'
 import { Upload } from 'lucide-react'
 
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
-
-function parseListValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => asText(item).trim())
-      .filter(Boolean)
-  }
-
-  if (typeof value === 'string') {
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-
-  return []
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => value.trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b))
-}
-
-function listToString(value: unknown): string {
-  return parseListValue(value).join(', ')
-}
-
-function stringToList(value: string): string[] {
-  return parseListValue(value)
-}
+type VersionRow = Record<string, unknown> & { id: string | number }
 
 function normalizeVersionEntityType(
   value: unknown
@@ -69,20 +32,18 @@ export default function VersionsPage({
   params: Promise<{ projectId: string }>
 }) {
   const [projectId, setProjectId] = useState<string>('')
-  const [versions, setVersions] = useState<any[]>([])
-  const [statusNames, setStatusNames] = useState<string[]>([])
-  const [tagNames, setTagNames] = useState<string[]>([])
+  const [rawVersions, setRawVersions] = useState<VersionRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [selectedVersion, setSelectedVersion] = useState<any>(null)
+  const [selectedVersion, setSelectedVersion] = useState<VersionRow | null>(null)
 
   useEffect(() => {
     params.then((p) => {
       setProjectId(p.projectId)
-      loadVersions(p.projectId)
+      void loadVersions(p.projectId)
     })
   }, [params])
 
@@ -91,72 +52,56 @@ export default function VersionsPage({
       setIsLoading(true)
       setLoadError(null)
       const supabase = createClient()
+      const { data, error } = await supabase
+        .from('versions')
+        .select('*')
+        .eq('project_id', projId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
-      const [versionsResult, nextStatusNames, nextTagNames] = await Promise.all([
-        supabase
-          .from('versions')
-          .select(`
-            *,
-            task:tasks(id, name),
-            artist:profiles!versions_created_by_fkey(id, display_name, full_name),
-            project:projects(id, code, name)
-          `)
-          .eq('project_id', projId)
-          .order('created_at', { ascending: false }),
-        listStatusNames('version'),
-        listTagNames(),
-      ])
-
-      const { data: versionsData, error } = versionsResult
-
-      if (error) {
-        console.error('Error loading versions:', error)
-        setLoadError(error.message)
-        setVersions([])
-        return
-      }
-
-      setStatusNames(uniqueSorted(nextStatusNames))
-      setTagNames(uniqueSorted(nextTagNames))
-
-      const normalized =
-        versionsData?.map((version) => ({
-          ...version,
-          task_label: version.task?.name || '',
-          artist_label: version.artist?.display_name || version.artist?.full_name || '',
-          project_label: version.project ? version.project.code || version.project.name : '',
-        })) || []
-
-      setVersions(normalized)
+      if (error) throw error
+      setRawVersions((data || []) as VersionRow[])
     } catch (error) {
       console.error('Error loading versions:', error)
       setLoadError(error instanceof Error ? error.message : 'Error loading versions')
-      setVersions([])
-      setStatusNames([])
-      setTagNames([])
+      setRawVersions([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  function handleDelete(version: any) {
+  const columnOverrides = useMemo<Record<string, Partial<TableColumn>>>(() => ({
+    code: {
+      label: 'Version Name',
+      type: 'link',
+      linkHref: (row: Record<string, unknown>) => `/apex/${projectId}/versions/${row.id}`,
+    },
+  }), [projectId])
+
+  const { data, columns, handleCellUpdate } = useEntityData({
+    entity: 'version',
+    rows: rawVersions,
+    projectId,
+    columnOverrides,
+  })
+
+  function handleDelete(version: VersionRow) {
     setSelectedVersion(version)
     setShowDeleteDialog(true)
   }
 
-  function handleEdit(version: any) {
+  function handleEdit(version: VersionRow) {
     setSelectedVersion(version)
     setShowEditDialog(true)
   }
 
   async function handleDeleteConfirm() {
     if (!selectedVersion) return { error: 'No version selected' }
-    return await deleteVersion(selectedVersion.id, projectId)
+    return await deleteVersion(String(selectedVersion.id), projectId)
   }
 
-  async function handleBulkDelete(rows: any[]) {
+  async function handleBulkDelete(rows: VersionRow[]) {
     const failures: string[] = []
-
     for (const row of rows) {
       const rowId = asText(row?.id).trim()
       if (!rowId) continue
@@ -165,9 +110,7 @@ export default function VersionsPage({
         failures.push(`${asText(row?.code).trim() || rowId}: ${result.error}`)
       }
     }
-
-    loadVersions(projectId)
-
+    void loadVersions(projectId)
     if (failures.length > 0) {
       const preview = failures.slice(0, 3).join('; ')
       throw new Error(
@@ -196,10 +139,7 @@ export default function VersionsPage({
         : parsedVersionNumber
 
       if (!entityType || !entityId) {
-        failed.push({
-          row: index + 2,
-          message: 'entity_type (asset/shot/sequence) and entity_id are required.',
-        })
+        failed.push({ row: index + 2, message: 'entity_type (asset/shot/sequence) and entity_id are required.' })
         continue
       }
 
@@ -216,15 +156,13 @@ export default function VersionsPage({
           file_path: asText(row.file_path).trim() || undefined,
           movie_url: asText(row.movie_url || row.link).trim() || undefined,
           status: asText(row.status).trim() || undefined,
-          tags: parseListValue(row.tags),
-          cuts: parseListValue(row.cuts),
-          playlists: parseListValue(row.playlists),
-          published_files: parseListValue(row.published_files),
+          tags: parseTextArray(row.tags),
+          cuts: parseTextArray(row.cuts),
+          playlists: parseTextArray(row.playlists),
+          published_files: parseTextArray(row.published_files),
         })
 
-        if (result?.error) {
-          throw new Error(result.error)
-        }
+        if (result?.error) throw new Error(result.error)
         imported += 1
       } catch (error) {
         failed.push({
@@ -234,125 +172,23 @@ export default function VersionsPage({
       }
     }
 
-    loadVersions(projectId)
+    void loadVersions(projectId)
     return { imported, failed }
   }
 
-  const statusOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const status of statusNames) {
-      const normalized = status.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const version of versions) {
-      const normalized = asText(version.status).trim()
-      if (normalized) values.add(normalized)
-    }
-    return Array.from(values).map((value) => ({ value, label: value }))
-  }, [statusNames, versions])
-
-  const tagOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const tag of tagNames) {
-      const normalized = tag.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const version of versions) {
-      for (const tag of parseListValue(version.tags)) {
-        values.add(tag)
-      }
-    }
-    return Array.from(values)
-      .sort((a, b) => a.localeCompare(b))
-      .map((value) => ({ value, label: value }))
-  }, [tagNames, versions])
-
-  const columns = useMemo(
-    () => [
-      { id: 'thumbnail_url', label: 'Thumbnail', type: 'thumbnail' as const, width: '80px' },
-      {
-        id: 'code',
-        label: 'Version Name',
-        type: 'link' as const,
-        linkHref: (row: any) => `/apex/${projectId}/versions/${row.id}`,
-      },
-      { id: 'link', label: 'Link', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-      { id: 'task_label', label: 'Task', type: 'text' as const, width: '140px' },
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'status' as const,
-        width: '90px',
-        editable: true,
-        editor: 'select' as const,
-        options: statusOptions,
-      },
-      { id: 'artist_label', label: 'Artist', type: 'text' as const, width: '140px' },
-      { id: 'description', label: 'Description', type: 'text' as const, editable: true, editor: 'textarea' as const },
-      { id: 'created_at', label: 'Date Created', type: 'datetime' as const, width: '140px' },
-      {
-        id: 'cuts',
-        label: 'Cuts',
-        type: 'text' as const,
-        width: '120px',
-        editable: true,
-        editor: 'text' as const,
-        formatValue: listToString,
-        parseValue: stringToList,
-      },
-      { id: 'date_viewed', label: 'Date Viewed', type: 'datetime' as const, width: '140px', editable: true, editor: 'datetime' as const },
-      { id: 'department', label: 'Department', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-      { id: 'editorial_qc', label: 'Editorial QC', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-      { id: 'first_frame', label: 'First Frame', type: 'number' as const, width: '110px', editable: true, editor: 'text' as const },
-      { id: 'flagged', label: 'Flagged', type: 'text' as const, width: '110px', editable: true, editor: 'checkbox' as const },
-      { id: 'id', label: 'Id', type: 'text' as const, width: '80px' },
-      { id: 'last_frame', label: 'Last Frame', type: 'number' as const, width: '110px', editable: true, editor: 'text' as const },
-      { id: 'movie_aspect_ratio', label: 'Movie Aspect Ratio', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-      { id: 'movie_has_slate', label: 'Movie Has Slate', type: 'text' as const, width: '150px', editable: true, editor: 'checkbox' as const },
-      { id: 'nuke_script', label: 'Nuke Script', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-      { id: 'frames_path', label: 'Path to Frames', type: 'text' as const, width: '200px', editable: true, editor: 'text' as const },
-      { id: 'movie_url', label: 'Path to Movie', type: 'text' as const, width: '200px', editable: true, editor: 'text' as const },
-      {
-        id: 'playlists',
-        label: 'Playlists',
-        type: 'text' as const,
-        width: '160px',
-        editable: true,
-        editor: 'text' as const,
-        formatValue: listToString,
-        parseValue: stringToList,
-      },
-      { id: 'project_label', label: 'Project', type: 'text' as const, width: '120px' },
-      {
-        id: 'published_files',
-        label: 'Published Files',
-        type: 'text' as const,
-        width: '160px',
-        editable: true,
-        editor: 'text' as const,
-        formatValue: listToString,
-        parseValue: stringToList,
-      },
-      { id: 'send_exrs', label: 'Send EXRs', type: 'text' as const, width: '120px', editable: true, editor: 'checkbox' as const },
-      { id: 'source_clip', label: 'Source Clip', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-      {
-        id: 'tags',
-        label: 'Tags',
-        type: 'text' as const,
-        width: '140px',
-        editable: true,
-        editor: 'multiselect' as const,
-        options: tagOptions,
-        formatValue: listToString,
-        parseValue: (value: unknown) => parseListValue(value),
-      },
-      { id: 'task_template', label: 'Task Template', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-      { id: 'version_type', label: 'Type', type: 'text' as const, width: '120px', editable: true, editor: 'text' as const },
-      { id: 'uploaded_movie', label: 'Uploaded Movie', type: 'text' as const, width: '160px', editable: true, editor: 'text' as const },
-      { id: 'viewed_status', label: 'Viewed/Unviewed', type: 'text' as const, width: '140px', editable: true, editor: 'text' as const },
-    ],
-    [projectId, statusOptions, tagOptions]
-  )
+  async function onCellUpdate(
+    row: Record<string, unknown>,
+    column: TableColumn,
+    value: unknown
+  ) {
+    await handleCellUpdate(row, column, value)
+    const rowId = String(row.id)
+    setRawVersions((prev) =>
+      prev.map((v) =>
+        String(v.id) === rowId ? { ...v, [column.id]: value } : v
+      )
+    )
+  }
 
   if (isLoading) {
     return (
@@ -368,7 +204,7 @@ export default function VersionsPage({
         open={showUploadDialog}
         onOpenChange={(open) => {
           setShowUploadDialog(open)
-          if (!open) loadVersions(projectId)
+          if (!open) void loadVersions(projectId)
         }}
         projectId={projectId}
       />
@@ -377,7 +213,7 @@ export default function VersionsPage({
         open={showEditDialog}
         onOpenChange={(open) => {
           setShowEditDialog(open)
-          if (!open) loadVersions(projectId)
+          if (!open) void loadVersions(projectId)
         }}
         projectId={projectId}
         version={selectedVersion}
@@ -388,7 +224,7 @@ export default function VersionsPage({
         onOpenChange={setShowDeleteDialog}
         title="Delete Version"
         description="Are you sure you want to delete this version? This will remove any linked publishes."
-        itemName={selectedVersion?.code || ''}
+        itemName={asText(selectedVersion?.code)}
         onConfirm={handleDeleteConfirm}
       />
 
@@ -410,7 +246,7 @@ export default function VersionsPage({
           </div>
         )}
 
-        {versions.length === 0 ? (
+        {data.length === 0 ? (
           <ApexEmptyState
             icon={<Upload className="h-12 w-12" />}
             title="No versions yet"
@@ -427,25 +263,15 @@ export default function VersionsPage({
         ) : (
           <EntityTable
             columns={columns}
-            data={versions}
+            data={data}
             entityType="versions"
             csvExportFilename="apex-versions"
             onCsvImport={handleCsvImport}
-            onBulkDelete={handleBulkDelete}
+            onBulkDelete={(rows) => handleBulkDelete(rows as VersionRow[])}
             onAdd={() => setShowUploadDialog(true)}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onCellUpdate={async (row, column, value) => {
-              const result = await updateVersion(row.id, { [column.id]: value }, { revalidate: false })
-              if (result.error) {
-                throw new Error(result.error)
-              }
-              setVersions((prev) =>
-                prev.map((version) =>
-                  version.id === row.id ? { ...version, [column.id]: value } : version
-                )
-              )
-            }}
+            onEdit={(row) => handleEdit(row as VersionRow)}
+            onDelete={(row) => handleDelete(row as VersionRow)}
+            onCellUpdate={onCellUpdate}
           />
         )}
       </ApexPageShell>

@@ -259,21 +259,23 @@ export function CreateShotDialog({
 
   const loadProject = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('projects')
-      .select('name, code')
-      .eq('id', projectId)
-      .maybeSingle()
+  const { data } = await supabase
+    .from('projects')
+    .select('name, code')
+    .eq('id', projectId)
+    .is('deleted_at', null)
+    .maybeSingle()
     setProjectLabel(data?.code || data?.name || projectId)
   }, [projectId])
 
   const loadSequences = useCallback(async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from('sequences')
-      .select('id, code, name')
-      .eq('project_id', projectId)
-      .order('code')
+  const { data, error } = await supabase
+    .from('sequences')
+    .select('id, code, name')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('code')
     if (error) {
       console.error('Failed to load sequences:', error)
       setSequences([])

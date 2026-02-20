@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 
 export async function createPlaylist(formData: {
   project_id: string
@@ -131,14 +131,18 @@ export async function deletePlaylist(playlistId: string, projectId: string) {
     .eq('id', playlistId)
     .maybeSingle()
 
-  const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
+  // Soft-delete: set deleted_at instead of hard-deleting
+  const { error } = await supabase
+    .from('playlists')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', playlistId)
 
   if (error) {
     return { error: error.message }
   }
 
   if (oldData) {
-    logEntityDeleted('playlist', playlistId, projectId, oldData)
+    logEntityTrashed('playlist', playlistId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/playlists`)

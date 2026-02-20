@@ -1,16 +1,12 @@
 'use client'
 
 import { formatDateForDisplay, formatDateTimeForDisplay } from '@/lib/date-display'
+import { asText } from '@/lib/fields'
 import type { MyTaskRow } from './my-tasks-types'
 
 type MyTasksContextTab = {
   id: string
   label: string
-}
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
 }
 
 function entityTitle(task: MyTaskRow): string {

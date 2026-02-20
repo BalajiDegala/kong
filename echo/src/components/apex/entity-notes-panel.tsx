@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { listStatusNames } from '@/lib/status/options'
-import { listTagNames } from '@/lib/tags/options'
 import { CreateNoteDialog } from '@/components/apex/create-note-dialog'
 import { EditNoteDialog } from '@/components/apex/edit-note-dialog'
 import { DeleteConfirmDialog } from '@/components/apex/delete-confirm-dialog'
 import { EntityTable } from '@/components/table/entity-table'
 import type { TableColumn } from '@/components/table/types'
-import { deleteNote, updateNote } from '@/actions/notes'
+import { deleteNote } from '@/actions/notes'
+import { useEntityData } from '@/hooks/use-entity-data'
+import { asText, parseTextArray } from '@/lib/fields'
 
 interface EntityNotesPanelProps {
   projectId: string
@@ -17,36 +17,12 @@ interface EntityNotesPanelProps {
   entityId: string
 }
 
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
+type NoteRow = Record<string, unknown> & { id: string | number }
 
-function parseListValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => asText(item).trim())
-      .filter(Boolean)
-  }
-
-  if (typeof value === 'string') {
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-
-  return []
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => value.trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b))
+type ResolvedAttachment = {
+  id: string; file_name: string; file_type: string
+  storage_path: string; thumbnail_url: string
+  signed_url: string; preview_url: string
 }
 
 export function EntityNotesPanel({
@@ -54,384 +30,225 @@ export function EntityNotesPanel({
   entityType,
   entityId,
 }: EntityNotesPanelProps) {
-  const [notes, setNotes] = useState<any[]>([])
-  const [statusNames, setStatusNames] = useState<string[]>([])
-  const [tagNames, setTagNames] = useState<string[]>([])
+  const [rawNotes, setRawNotes] = useState<NoteRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [cellError, setCellError] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [selectedNote, setSelectedNote] = useState<any>(null)
+  const [selectedNote, setSelectedNote] = useState<NoteRow | null>(null)
+
+  // Attachment data resolved separately (notes-specific)
+  const [attachmentsByNoteId, setAttachmentsByNoteId] = useState<Record<string, ResolvedAttachment[]>>({})
 
   useEffect(() => {
     if (!projectId || !entityId) return
-    loadNotes(projectId, entityType, entityId)
+    void loadNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, entityType, entityId])
 
-  async function loadNotes(projId: string, type: string, id: string) {
+  async function loadNotes() {
     try {
       setIsLoading(true)
       setCellError(null)
       const supabase = createClient()
-      const numericId = Number(id)
-      const normalizedId = Number.isNaN(numericId) ? id : numericId
+      const numericId = Number(entityId)
+      const idFilter = Number.isNaN(numericId) ? entityId : numericId
 
-      const [notesResult, nextStatusNames, nextTagNames] = await Promise.all([
-        supabase
-          .from('notes')
-          .select(
-            `
-            *,
-            created_by_profile:profiles!notes_created_by_fkey(full_name, email),
-            project_ref:projects!notes_project_id_fkey(id, code, name),
-            attachment_rows:attachments(
-              id,
-              file_name,
-              file_type,
-              storage_path,
-              thumbnail_url
-            )
-          `
-          )
-          .eq('project_id', projId)
-          .eq('entity_type', type)
-          .eq('entity_id', normalizedId)
-          .order('created_at', { ascending: false }),
-        listStatusNames('note'),
-        listTagNames(),
-      ])
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('entity_type', entityType)
+        .eq('entity_id', idFilter)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
-      const { data, error } = notesResult
+      if (error) throw error
+      const rows = (data || []) as NoteRow[]
+      setRawNotes(rows)
 
-      if (error) {
-        console.error(`Error loading ${type} notes:`, error)
-        setNotes([])
-        return
+      // Resolve attachments
+      if (rows.length > 0) {
+        await resolveAttachments(rows)
+      } else {
+        setAttachmentsByNoteId({})
       }
-
-      setStatusNames(uniqueSorted(nextStatusNames))
-      setTagNames(uniqueSorted(nextTagNames))
-
-      const taskIds = Array.from(
-        new Set(
-          (data || [])
-            .map((note) => {
-              const parsed = Number(asText(note.task_id).trim())
-              return Number.isNaN(parsed) ? null : parsed
-            })
-            .filter((id): id is number => id !== null)
-        )
-      )
-
-      const taskMap: Record<string, string> = {}
-      if (taskIds.length > 0) {
-        const { data: taskRows, error: taskError } = await supabase
-          .from('tasks')
-          .select('id, name')
-          .in('id', taskIds)
-
-        if (taskError) {
-          console.error('Error loading note task labels:', taskError)
-        } else {
-          for (const task of taskRows || []) {
-            const taskId = asText(task.id).trim()
-            if (!taskId) continue
-            taskMap[taskId] = asText(task.name).trim() || `Task #${taskId}`
-          }
-        }
-      }
-
-      const attachmentPathSet = new Set<string>()
-      for (const note of data || []) {
-        const noteAttachmentRows = Array.isArray(note.attachment_rows)
-          ? note.attachment_rows
-          : []
-        for (const attachment of noteAttachmentRows) {
-          const attachmentRecord =
-            attachment && typeof attachment === 'object'
-              ? (attachment as Record<string, unknown>)
-              : {}
-          const storagePath = asText(attachmentRecord.storage_path).trim()
-          if (storagePath) {
-            attachmentPathSet.add(storagePath)
-          }
-        }
-      }
-
-      const attachmentPaths = Array.from(attachmentPathSet)
-      const signedUrlByPath = new Map<string, string>()
-      if (attachmentPaths.length > 0) {
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from('note-attachments')
-          .createSignedUrls(attachmentPaths, 3600)
-
-        if (signedError) {
-          console.error('Error loading note attachment signed URLs:', signedError)
-        } else {
-          signedData?.forEach((item, index) => {
-            const path = attachmentPaths[index]
-            const itemRecord =
-              item && typeof item === 'object'
-                ? (item as Record<string, unknown>)
-                : {}
-            const signedUrl = asText(itemRecord.signedUrl).trim()
-            if (path && signedUrl) {
-              signedUrlByPath.set(path, signedUrl)
-            }
-          })
-        }
-      }
-
-      const normalized =
-        data?.map((note) => {
-          const noteProjectName = asText(note.project_ref?.name).trim()
-          const noteProjectCode = asText(note.project_ref?.code).trim()
-          const noteProjectId = asText(note.project_id).trim()
-          const noteTaskId = asText(note.task_id).trim()
-          const noteAttachmentRows = Array.isArray(note.attachment_rows)
-            ? note.attachment_rows
-            : []
-          type ResolvedAttachment = {
-            id: string
-            file_name: string
-            file_type: string
-            storage_path: string
-            thumbnail_url: string
-            signed_url: string
-            preview_url: string
-          }
-          const resolvedAttachments: ResolvedAttachment[] = noteAttachmentRows
-            .map((attachment: unknown): ResolvedAttachment => {
-              const attachmentRecord =
-                attachment && typeof attachment === 'object'
-                  ? (attachment as Record<string, unknown>)
-                  : {}
-              const id = asText(attachmentRecord.id).trim()
-              const storagePath = asText(attachmentRecord.storage_path).trim()
-              const fileName =
-                asText(attachmentRecord.file_name).trim() ||
-                (id ? `Attachment #${id}` : 'Attachment')
-              const fileType = asText(attachmentRecord.file_type).trim()
-              const thumbnailUrl = asText(attachmentRecord.thumbnail_url).trim()
-              const signedUrl = storagePath ? signedUrlByPath.get(storagePath) || '' : ''
-              const previewUrl = signedUrl || thumbnailUrl
-              return {
-                id,
-                file_name: fileName,
-                file_type: fileType,
-                storage_path: storagePath,
-                thumbnail_url: thumbnailUrl,
-                signed_url: signedUrl,
-                preview_url: previewUrl,
-              }
-            })
-            .filter((attachment: ResolvedAttachment) =>
-              Boolean(
-                attachment.id ||
-                  attachment.storage_path ||
-                  attachment.file_name ||
-                  attachment.preview_url
-              )
-            )
-          const firstAttachmentPreview =
-            resolvedAttachments.find((attachment: ResolvedAttachment) => attachment.preview_url)?.preview_url || ''
-
-          return {
-            ...note,
-            note_url: asText(note.id).trim() ? `/apex/${projId}/notes/${asText(note.id).trim()}` : '',
-            note_link_label: asText(note.id).trim() ? 'Open' : '-',
-            author_label:
-              note.created_by_profile?.full_name ||
-              note.created_by_profile?.email ||
-              'Unknown',
-            project_label: noteProjectName || noteProjectCode || noteProjectId || '-',
-            task_label: taskMap[noteTaskId] || (noteTaskId ? `Task #${noteTaskId}` : '-'),
-            attachment_rows: resolvedAttachments,
-            attachments_display:
-              resolvedAttachments.length > 0
-                ? resolvedAttachments.map((attachment: ResolvedAttachment) => attachment.file_name).join(', ')
-                : '-',
-            attachments_preview_url: firstAttachmentPreview,
-            attachments_count: resolvedAttachments.length,
-          }
-        }) || []
-
-      setNotes(normalized)
     } catch (error) {
-      console.error(`Error loading ${type} notes:`, error)
-      setNotes([])
-      setStatusNames([])
-      setTagNames([])
+      console.error(`Error loading ${entityType} notes:`, error)
+      setRawNotes([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  function handleDelete(note: any) {
+  async function resolveAttachments(notes: NoteRow[]) {
+    const supabase = createClient()
+    const noteIds = notes.map((n) => asText(n.id).trim()).filter(Boolean)
+
+    const { data: attachRows } = await supabase
+      .from('attachments')
+      .select('id, file_name, file_type, storage_path, thumbnail_url, note_id')
+      .in('note_id', noteIds)
+
+    const rows = (attachRows || []) as Record<string, unknown>[]
+    const pathSet = new Set<string>()
+    for (const a of rows) {
+      const path = asText(a.storage_path).trim()
+      if (path) pathSet.add(path)
+    }
+
+    const signedUrlByPath = new Map<string, string>()
+    const paths = Array.from(pathSet)
+    if (paths.length > 0) {
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('note-attachments')
+        .createSignedUrls(paths, 3600)
+
+      if (signedError) {
+        console.error('Error loading note attachment signed URLs:', signedError)
+      } else {
+        signedData?.forEach((item, index) => {
+          const itemRecord = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+          const signedUrl = asText(itemRecord.signedUrl).trim()
+          if (paths[index] && signedUrl) signedUrlByPath.set(paths[index], signedUrl)
+        })
+      }
+    }
+
+    const byNote: Record<string, ResolvedAttachment[]> = {}
+    for (const a of rows) {
+      const noteId = asText(a.note_id).trim()
+      if (!noteId) continue
+      const storagePath = asText(a.storage_path).trim()
+      const signedUrl = storagePath ? signedUrlByPath.get(storagePath) || '' : ''
+      const thumbnailUrl = asText(a.thumbnail_url).trim()
+      const resolved: ResolvedAttachment = {
+        id: asText(a.id).trim(),
+        file_name: asText(a.file_name).trim() || (a.id ? `Attachment #${a.id}` : 'Attachment'),
+        file_type: asText(a.file_type).trim(),
+        storage_path: storagePath,
+        thumbnail_url: thumbnailUrl,
+        signed_url: signedUrl,
+        preview_url: signedUrl || thumbnailUrl,
+      }
+      if (resolved.id || resolved.storage_path || resolved.file_name || resolved.preview_url) {
+        if (!byNote[noteId]) byNote[noteId] = []
+        byNote[noteId].push(resolved)
+      }
+    }
+
+    setAttachmentsByNoteId(byNote)
+  }
+
+  // Note-open link column + attachment columns as extras
+  const noteOpenColumn: TableColumn = useMemo(() => ({
+    id: 'note_link_label',
+    label: 'Note',
+    type: 'link',
+    width: '90px',
+    linkHref: (row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      const noteId = asText(r.id).trim()
+      return noteId ? `/apex/${projectId}/notes/${noteId}` : ''
+    },
+    formatValue: (_v: unknown, row: unknown) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      return asText(r.id).trim() ? 'Open' : '-'
+    },
+  }), [projectId])
+
+  const attachmentColumns: TableColumn[] = useMemo(() => [
+    {
+      id: 'attachments_preview_url',
+      label: 'Preview',
+      type: 'thumbnail' as const,
+      width: '88px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        const attachments = attachmentsByNoteId[noteId] || []
+        return attachments.find((a) => a.preview_url)?.preview_url || ''
+      },
+    },
+    {
+      id: 'attachments_display',
+      label: 'Attachments',
+      type: 'text' as const,
+      width: '260px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        const attachments = attachmentsByNoteId[noteId] || []
+        return attachments.length > 0 ? attachments.map((a) => a.file_name).join(', ') : '-'
+      },
+    },
+    {
+      id: 'attachments_count',
+      label: 'Attach Count',
+      type: 'number' as const,
+      width: '130px',
+      formatValue: (_v: unknown, row: unknown) => {
+        const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+        const noteId = asText(r.id).trim()
+        return String((attachmentsByNoteId[noteId] || []).length)
+      },
+    },
+  ], [attachmentsByNoteId])
+
+  const columnOverrides = useMemo<Record<string, Partial<TableColumn>>>(() => ({
+    subject: { label: 'Subject', width: '220px', editable: true, editor: 'text' },
+    content: { label: 'Body', width: '420px', editable: true, editor: 'textarea' },
+    links: {
+      label: 'Links',
+      width: '260px',
+      editable: true,
+      editor: 'text',
+      formatValue: (value: unknown) => parseTextArray(value).join(', '),
+      parseValue: (value: unknown) => parseTextArray(value),
+    },
+  }), [])
+
+  const { data, columns, handleCellUpdate } = useEntityData({
+    entity: 'note',
+    rows: rawNotes,
+    projectId,
+    columnOverrides,
+    extraColumns: {
+      prepend: [noteOpenColumn],
+      append: attachmentColumns,
+    },
+  })
+
+  async function onCellUpdate(
+    row: Record<string, unknown>,
+    column: TableColumn,
+    value: unknown
+  ) {
+    setCellError(null)
+    await handleCellUpdate(row, column, value)
+    const rowId = String(row.id)
+    setRawNotes((prev) =>
+      prev.map((n) =>
+        String(n.id) === rowId ? { ...n, [column.id]: value } : n
+      )
+    )
+  }
+
+  function handleDelete(note: NoteRow) {
     setSelectedNote(note)
     setShowDeleteDialog(true)
   }
 
-  function handleEdit(note: any) {
+  function handleEdit(note: NoteRow) {
     setSelectedNote(note)
     setShowEditDialog(true)
   }
 
   async function handleDeleteConfirm() {
     if (!selectedNote) return { error: 'No note selected' }
-    return await deleteNote(selectedNote.id, projectId)
+    return await deleteNote(String(selectedNote.id), projectId)
   }
-
-  async function handleCellUpdate(row: any, column: any, value: any) {
-    setCellError(null)
-    const result = await updateNote(row.id, { [column.id]: value })
-    if (result.error) {
-      throw new Error(result.error)
-    }
-    setNotes((prev) =>
-      prev.map((note) => {
-        if (note.id !== row.id) return note
-        const next = { ...note, [column.id]: value }
-        if (column.id === 'links') {
-          next.links = parseListValue(value)
-        }
-        return next
-      })
-    )
-  }
-
-  const statusOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const status of statusNames) {
-      const normalized = status.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const note of notes) {
-      const normalized = asText(note.status).trim()
-      if (normalized) values.add(normalized)
-    }
-    return Array.from(values).map((value) => ({ value, label: value }))
-  }, [notes, statusNames])
-
-  const tagOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const tag of tagNames) {
-      const normalized = tag.trim()
-      if (normalized) values.add(normalized)
-    }
-    for (const note of notes) {
-      for (const tag of parseListValue(note.tags)) {
-        values.add(tag)
-      }
-    }
-    return Array.from(values)
-      .sort((a, b) => a.localeCompare(b))
-      .map((value) => ({ value, label: value }))
-  }, [notes, tagNames])
-
-  const columns: TableColumn[] = useMemo(
-    () => [
-      {
-        id: 'note_link_label',
-        label: 'Note',
-        type: 'link',
-        width: '90px',
-        linkHref: (row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          return asText(rowRecord.note_url).trim()
-        },
-      },
-      { id: 'subject', label: 'Subject', type: 'text', width: '220px', editable: true, editor: 'text' },
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'text',
-        width: '120px',
-        editable: true,
-        editor: 'select',
-        options: statusOptions,
-      },
-      { id: 'author_label', label: 'Author', type: 'text', width: '180px' },
-      {
-        id: 'project_id',
-        label: 'Project',
-        type: 'text',
-        width: '180px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.project_label).trim()
-          if (label) return label
-          const fallback = asText(value).trim()
-          return fallback || '-'
-        },
-      },
-      {
-        id: 'task_id',
-        label: 'Task',
-        type: 'text',
-        width: '200px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.task_label).trim()
-          if (label) return label
-          const fallback = asText(value).trim()
-          return fallback || '-'
-        },
-      },
-      {
-        id: 'links',
-        label: 'Links',
-        type: 'text',
-        width: '260px',
-        editable: true,
-        editor: 'text',
-        formatValue: (value: unknown) => parseListValue(value).join(', '),
-        parseValue: (value: unknown) => parseListValue(value),
-      },
-      { id: 'content', label: 'Body', type: 'text', width: '420px', editable: true, editor: 'textarea' },
-      {
-        id: 'tags',
-        label: 'Tags',
-        type: 'text',
-        width: '180px',
-        editable: true,
-        editor: 'multiselect',
-        options: tagOptions,
-        formatValue: (value: unknown) => parseListValue(value).join(', '),
-        parseValue: (value: unknown) => parseListValue(value),
-      },
-      { id: 'attachments_preview_url', label: 'Preview', type: 'thumbnail', width: '88px' },
-      {
-        id: 'attachments',
-        label: 'Attachments',
-        type: 'text',
-        width: '260px',
-        formatValue: (value: unknown, row: unknown) => {
-          const rowRecord =
-            row && typeof row === 'object'
-              ? (row as Record<string, unknown>)
-              : {}
-          const label = asText(rowRecord.attachments_display).trim()
-          if (label) return label
-          return parseListValue(value).join(', ')
-        },
-      },
-      { id: 'created_at', label: 'Date Created', type: 'datetime', width: '190px' },
-      { id: 'attachments_count', label: 'Attach Count', type: 'number', width: '130px' },
-      { id: 'id', label: 'Id', type: 'text', width: '80px' },
-    ],
-    [statusOptions, tagOptions]
-  )
 
   return (
     <>
@@ -439,7 +256,7 @@ export function EntityNotesPanel({
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
-          if (!open) loadNotes(projectId, entityType, entityId)
+          if (!open) void loadNotes()
         }}
         projectId={projectId}
         defaultEntityType={entityType}
@@ -452,7 +269,7 @@ export function EntityNotesPanel({
         open={showEditDialog}
         onOpenChange={(open) => {
           setShowEditDialog(open)
-          if (!open) loadNotes(projectId, entityType, entityId)
+          if (!open) void loadNotes()
         }}
         projectId={projectId}
         note={selectedNote}
@@ -463,7 +280,7 @@ export function EntityNotesPanel({
         onOpenChange={setShowDeleteDialog}
         title="Delete Note"
         description="Are you sure you want to delete this note?"
-        itemName={selectedNote?.subject || selectedNote?.content || ''}
+        itemName={asText(selectedNote?.subject) || asText(selectedNote?.content) || ''}
         onConfirm={handleDeleteConfirm}
       />
 
@@ -478,7 +295,7 @@ export function EntityNotesPanel({
           <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             Loading notes...
           </div>
-        ) : notes.length === 0 ? (
+        ) : data.length === 0 ? (
           <div className="rounded-md border border-border bg-background/70 p-6">
             <h3 className="text-sm font-semibold text-foreground">Notes</h3>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -495,12 +312,12 @@ export function EntityNotesPanel({
           <div className="min-h-0 flex-1">
             <EntityTable
               columns={columns}
-              data={notes}
+              data={data}
               entityType={`notes_${entityType}`}
               onAdd={() => setShowCreateDialog(true)}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onCellUpdate={handleCellUpdate}
+              onEdit={(row) => handleEdit(row as NoteRow)}
+              onDelete={(row) => handleDelete(row as NoteRow)}
+              onCellUpdate={onCellUpdate}
               onCellUpdateError={setCellError}
             />
           </div>

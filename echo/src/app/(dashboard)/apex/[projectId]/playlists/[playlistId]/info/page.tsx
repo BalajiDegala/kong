@@ -22,6 +22,7 @@ export default async function PlaylistInfoPage({
     )
     .eq('id', playlistId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!playlist) {

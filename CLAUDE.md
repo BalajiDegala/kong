@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Kong is a workflow management platform for production (VFX/animation) built on Supabase. Three product pillars:
 - **Apex** (Projects): Project management — sequences, assets, shots, tasks, pipeline steps
-- **Echo** (Chat): Team communication (future)
-- **Pulse** (Reviews): Versions, playlists, activity feed (future)
+- **Echo** (Chat): Team communication 
+- **Pulse** (Reviews): Versions, playlists, activity feed 
 
 The UI follows ShotGrid patterns — horizontal tabs per project, entity tables with grouping/sorting, and widget dashboards. See `UI_ARCHITECTURE_SHOTGRID.md` for detailed layout specs.
 
@@ -80,12 +80,9 @@ app/auth/                     # Login, OAuth callback, error
 ## Database
 
 ### Schema
-- **Current schema**: `kong-schema-migration-v2.sql` (32 tables)
-- **Seed data**: `kong-seed-data.sql` (pipeline steps)
-- **Setup instructions**: `DATABASE_SETUP.md`
+- **Current schema**: `/dd/ayon/git/kong/supabase/supabase-kubernetes/charts/kong2173.sql`
 
 ### Critical Constraints (CHECK constraints — will reject invalid values)
-- `project_members.role`: `'lead'`, `'member'`, `'viewer'` (NOT 'alpha', 'admin', 'beta')
 - `notes.entity_type` and `versions.entity_type`: `'asset'`, `'shot'`
 
 Query constraints before implementing features:
@@ -99,9 +96,8 @@ WHERE rel.relname = 'table_name' AND con.contype = 'c';
 Notes and versions link to entities via `entity_type` ('asset'|'shot') + `entity_id`, with optional `task_id`.
 
 ### Storage Buckets
-- `versions` — 50MB limit (images, videos, PDFs, ZIPs)
-- `note-attachments` — 10MB limit (images, PDFs)
-- Private buckets with signed URLs (1-hour expiry)
+- `versions` — 500MB limit (images, videos, PDFs, ZIPs)
+- `note-attachments` — 100MB limit (images, PDFs)
 
 ## Environment
 

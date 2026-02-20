@@ -1,4 +1,5 @@
 import { formatDateForDisplay } from '@/lib/date-display'
+import { asText } from '@/lib/fields'
 import type {
   MyTaskRow,
   MyTasksDateGroup,
@@ -22,11 +23,6 @@ const GROUP_ORDER: MyTasksDateGroupId[] = [
   'this_week',
   'later',
 ]
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
 
 function toDateOnly(value: unknown): Date | null {
   const raw = asText(value).trim()

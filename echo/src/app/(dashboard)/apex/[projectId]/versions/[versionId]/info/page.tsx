@@ -24,6 +24,7 @@ export default async function VersionInfoPage({
     )
     .eq('id', versionId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!version) {

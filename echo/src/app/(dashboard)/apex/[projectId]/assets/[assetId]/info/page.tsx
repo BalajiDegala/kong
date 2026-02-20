@@ -24,6 +24,7 @@ export default async function AssetInfoPage({
     )
     .eq('id', assetId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!asset) {

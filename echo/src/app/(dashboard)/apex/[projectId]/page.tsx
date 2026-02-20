@@ -22,6 +22,7 @@ export default async function ProjectOverviewPage({
     .from('projects')
     .select('*')
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!project) {
@@ -33,27 +34,32 @@ export default async function ProjectOverviewPage({
     .from('assets')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   const { count: shotCount } = await supabase
     .from('shots')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   const { count: taskCount } = await supabase
     .from('tasks')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   const { count: sequenceCount } = await supabase
     .from('sequences')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   // Get task stats by status
   const { data: taskStats } = await supabase
     .from('tasks')
     .select('status')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
 
   const tasksByStatus = (taskStats || []).reduce((acc: any, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1

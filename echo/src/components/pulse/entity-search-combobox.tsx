@@ -89,6 +89,7 @@ export function EntitySearchCombobox({
           query = await supabase
             .from('projects')
             .select('id, name')
+            .is('deleted_at', null)
             .in('id', selectedIds)
           data = query.data?.map((p) => ({ id: p.id, label: p.name })) || []
           break
@@ -97,6 +98,7 @@ export function EntitySearchCombobox({
           query = await supabase
             .from('sequences')
             .select('id, name, project:projects(name)')
+            .is('deleted_at', null)
             .in('id', selectedIds)
           data =
             query.data?.map((s) => ({
@@ -110,6 +112,7 @@ export function EntitySearchCombobox({
           query = await supabase
             .from('shots')
             .select('id, name, sequence:sequences(name)')
+            .is('deleted_at', null)
             .in('id', selectedIds)
           data =
             query.data?.map((s) => ({
@@ -123,6 +126,7 @@ export function EntitySearchCombobox({
           query = await supabase
             .from('tasks')
             .select('id, name')
+            .is('deleted_at', null)
             .in('id', selectedIds)
           data = query.data?.map((t) => ({ id: t.id, label: t.name })) || []
           break
@@ -157,6 +161,7 @@ export function EntitySearchCombobox({
           query = supabase
             .from('projects')
             .select('id, name')
+            .is('deleted_at', null)
             .order('name')
             .limit(limit)
 
@@ -173,6 +178,7 @@ export function EntitySearchCombobox({
           query = supabase
             .from('sequences')
             .select('id, name, project_id, project:projects(name)')
+            .is('deleted_at', null)
             .order('name')
             .limit(limit)
 
@@ -197,6 +203,7 @@ export function EntitySearchCombobox({
           query = supabase
             .from('shots')
             .select('id, name, sequence_id, sequence:sequences(name, project_id)')
+            .is('deleted_at', null)
             .order('name')
             .limit(limit)
 
@@ -211,6 +218,7 @@ export function EntitySearchCombobox({
             const seqsInProject = await supabase
               .from('sequences')
               .select('id')
+              .is('deleted_at', null)
               .in('project_id', filterByProjectIds)
 
             const seqIds = seqsInProject.data?.map((s) => s.id) || []
@@ -232,6 +240,7 @@ export function EntitySearchCombobox({
           query = supabase
             .from('tasks')
             .select('id, name, entity_type, entity_id')
+            .is('deleted_at', null)
             .order('name')
             .limit(limit)
 

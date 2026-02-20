@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 
 function normalizeCodeToken(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -180,21 +180,25 @@ export async function deleteShot(shotId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
-  // Fetch before delete for logging
+  // Fetch before soft-delete for logging
   const { data: oldData } = await supabase
     .from('shots')
     .select('*')
     .eq('id', shotId)
     .maybeSingle()
 
-  const { error } = await supabase.from('shots').delete().eq('id', shotId)
+  // Soft-delete: set deleted_at instead of hard-deleting
+  const { error } = await supabase
+    .from('shots')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', shotId)
 
   if (error) {
     return { error: error.message }
   }
 
   if (oldData) {
-    logEntityDeleted('shot', shotId, projectId, oldData)
+    logEntityTrashed('shot', shotId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/shots`)

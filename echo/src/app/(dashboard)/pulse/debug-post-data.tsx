@@ -41,10 +41,10 @@ export function DebugPostData() {
     const taskIds = taskLinks.map(l => l.task_id)
 
     const [projects, sequences, shots, tasks] = await Promise.all([
-      projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds).then(r => r.data || []) : [],
-      seqIds.length > 0 ? supabase.from('sequences').select('id, name, project_id').in('id', seqIds).then(r => r.data || []) : [],
-      shotIds.length > 0 ? supabase.from('shots').select('id, name, sequence_id').in('id', shotIds).then(r => r.data || []) : [],
-      taskIds.length > 0 ? supabase.from('tasks').select('id, name, entity_id, entity_type').in('id', taskIds).then(r => r.data || []) : [],
+      projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds).is('deleted_at', null).then(r => r.data || []) : [],
+      seqIds.length > 0 ? supabase.from('sequences').select('id, name, project_id').in('id', seqIds).is('deleted_at', null).then(r => r.data || []) : [],
+      shotIds.length > 0 ? supabase.from('shots').select('id, name, sequence_id').in('id', shotIds).is('deleted_at', null).then(r => r.data || []) : [],
+      taskIds.length > 0 ? supabase.from('tasks').select('id, name, entity_id, entity_type').in('id', taskIds).is('deleted_at', null).then(r => r.data || []) : [],
     ])
 
     setPostData({

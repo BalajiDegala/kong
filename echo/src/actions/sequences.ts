@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { pickEntityColumnsForWrite } from '@/actions/schema-columns'
-import { logEntityCreated, logEntityUpdated, logEntityDeleted } from '@/lib/activity/activity-logger'
+import { logEntityCreated, logEntityUpdated, logEntityTrashed } from '@/lib/activity/activity-logger'
 
 function normalizeCodeToken(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -159,14 +159,18 @@ export async function deleteSequence(sequenceId: string, projectId: string) {
     .eq('id', sequenceId)
     .maybeSingle()
 
-  const { error } = await supabase.from('sequences').delete().eq('id', sequenceId)
+  // Soft-delete: set deleted_at instead of hard-deleting
+  const { error } = await supabase
+    .from('sequences')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', sequenceId)
 
   if (error) {
     return { error: error.message }
   }
 
   if (oldData) {
-    logEntityDeleted('sequence', sequenceId, projectId, oldData)
+    logEntityTrashed('sequence', sequenceId, projectId, oldData)
   }
 
   revalidatePath(`/apex/${projectId}/sequences`)

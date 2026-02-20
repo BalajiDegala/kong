@@ -92,6 +92,7 @@ export function EntityHierarchySelector({
           query = supabase
             .from('projects')
             .select('id, name')
+            .is('deleted_at', null)
             .order('name')
             .limit(5)
 
@@ -115,6 +116,7 @@ export function EntityHierarchySelector({
             .from('sequences')
             .select('id, name')
             .eq('project_id', parentProject.id)
+            .is('deleted_at', null)
             .order('name')
             .limit(5)
 
@@ -138,6 +140,7 @@ export function EntityHierarchySelector({
             .from('shots')
             .select('id, name')
             .eq('sequence_id', parentSeq.id)
+            .is('deleted_at', null)
             .order('name')
             .limit(5)
 
@@ -161,6 +164,7 @@ export function EntityHierarchySelector({
           query = supabase
             .from('tasks')
             .select('id, name')
+            .is('deleted_at', null)
             .order('name')
             .limit(5)
 

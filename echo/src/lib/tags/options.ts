@@ -1,25 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
+import { asText, isMissingTableError } from '@/lib/fields/utils'
 
 const TAG_TABLE_CANDIDATES = ['tags', 'tag'] as const
-
-function isMissingTableError(error: unknown): boolean {
-  if (!error) return false
-  const errorRecord = error as Record<string, unknown>
-  const code = String(errorRecord.code || '')
-  const message = String(errorRecord.message || '').toLowerCase()
-  const details = String(errorRecord.details || '').toLowerCase()
-  return (
-    code === 'PGRST205' ||
-    message.includes('could not find the table') ||
-    (message.includes('relation') && message.includes('does not exist')) ||
-    details.includes('does not exist')
-  )
-}
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
 
 export async function listTagNames(): Promise<string[]> {
   const supabase = createClient()

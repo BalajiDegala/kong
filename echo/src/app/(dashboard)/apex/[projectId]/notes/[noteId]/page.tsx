@@ -322,6 +322,7 @@ export default function NoteDetailPage({
           )
           .eq('project_id', nextProjectId)
           .eq('id', nextNoteId)
+          .is('deleted_at', null)
           .maybeSingle(),
         supabase
           .from('notes')
@@ -342,6 +343,7 @@ export default function NoteDetailPage({
           )
           .eq('project_id', nextProjectId)
           .eq('parent_note_id', nextNoteId)
+          .is('deleted_at', null)
           .order('created_at', { ascending: true }),
       ])
 
@@ -437,28 +439,31 @@ export default function NoteDetailPage({
         postsResult,
       ] = await Promise.all([
         entityIdsByType.asset.length > 0
-          ? supabase.from('assets').select('id, code, name').in('id', entityIdsByType.asset)
+          ? supabase.from('assets').select('id, code, name').in('id', entityIdsByType.asset).is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         entityIdsByType.shot.length > 0
           ? supabase
               .from('shots')
               .select('id, code, name, sequence:sequences!shots_sequence_id_fkey(code)')
               .in('id', entityIdsByType.shot)
+              .is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         entityIdsByType.sequence.length > 0
           ? supabase
               .from('sequences')
               .select('id, code, name')
               .in('id', entityIdsByType.sequence)
+              .is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         entityIdsByType.task.length > 0
-          ? supabase.from('tasks').select('id, name').in('id', entityIdsByType.task)
+          ? supabase.from('tasks').select('id, name').in('id', entityIdsByType.task).is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         entityIdsByType.version.length > 0
           ? supabase
               .from('versions')
               .select('id, code, version_number')
               .in('id', entityIdsByType.version)
+              .is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         entityIdsByType.published_file.length > 0
           ? supabase
@@ -471,6 +476,7 @@ export default function NoteDetailPage({
               .from('projects')
               .select('id, code, name')
               .in('id', entityIdsByType.project)
+              .is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         postIdsForLookup.length > 0
           ? supabase.from('posts').select('id, content').in('id', postIdsForLookup)

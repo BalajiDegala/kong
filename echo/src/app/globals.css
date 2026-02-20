@@ -44,6 +44,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --animate-highlight: highlight 0.6s ease forwards;
+  --animate-flash: flash 0.6s ease forwards;
 }
 
 /* ── OLED Black ── Pure black + electric blue accent ── */
@@ -227,5 +229,26 @@
   72% {
     opacity: 0.85;
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+  }
+}
+
+@keyframes highlight {
+  0% {
+    background-color: transparent;
+  }
+  100% {
+    background-color: var(--highlight);
+  }
+}
+
+@keyframes flash {
+  0% {
+    background-color: var(--card);
+  }
+  50% {
+    background-color: var(--highlight);
+  }
+  100% {
+    background-color: var(--card);
   }
 }

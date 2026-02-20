@@ -1,9 +1,17 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
-import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
-import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
+import { buildDetailFields } from '@/lib/fields/detail-builder'
+import { asText, parseTextArray } from '@/lib/fields'
 import { TaskTabs } from '@/components/layout/task-tabs'
+
+function resolveLatestTaskVersionId(task: Record<string, unknown>): string | null {
+  const versions = parseTextArray(task.versions)
+  if (versions.length > 0) return versions[versions.length - 1]
+  const fallback = parseTextArray(task.version_link)
+  if (fallback.length > 0) return fallback[fallback.length - 1]
+  return null
+}
 
 export default async function TaskLayout({
   children,
@@ -34,6 +42,7 @@ export default async function TaskLayout({
     )
     .eq('id', taskId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!task) {
@@ -44,38 +53,41 @@ export default async function TaskLayout({
     .from('tasks')
     .select('id, name')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('name', { ascending: true })
 
+  // buildDetailFields resolves entity_id (polymorphic) automatically via
+  // the entity resolver, replacing the manual N+1 asset/shot/sequence queries.
+  const { fields, enrichedRow } = await buildDetailFields({
+    entity: 'task',
+    row: task as Record<string, unknown>,
+    supabase,
+    projectId,
+    manualFields: ['status', 'department', 'priority', 'due_date'],
+    excludeFields: ['step_id'],
+  })
+
+  // Build entity label from the enriched row's resolved entity data
+  const entityCode = asText(enrichedRow.entity_code).trim()
+  const entityName = asText(enrichedRow.entity_name).trim()
   let entityLabel = '-'
-  if (task.entity_type === 'asset' && task.entity_id) {
-    const { data: asset } = await supabase
-      .from('assets')
-      .select('id, code, name')
-      .eq('id', task.entity_id)
-      .single()
-    if (asset) {
-      entityLabel = `${asset.code} ${asset.name ? `· ${asset.name}` : ''}`
-    }
+  if (entityCode && entityName) entityLabel = `${entityCode} · ${entityName}`
+  else if (entityCode) entityLabel = entityCode
+  else if (entityName) entityLabel = entityName
+  else if (enrichedRow.entity_link_label) entityLabel = asText(enrichedRow.entity_link_label)
+
+  // Insert the computed entity label after status
+  const entityField = {
+    id: 'entity',
+    label: 'Entity',
+    type: 'readonly' as const,
+    value: entityLabel,
   }
-  if (task.entity_type === 'shot' && task.entity_id) {
-    const { data: shot } = await supabase
-      .from('shots')
-      .select('id, code, name')
-      .eq('id', task.entity_id)
-      .single()
-    if (shot) {
-      entityLabel = `${shot.code} ${shot.name ? `· ${shot.name}` : ''}`
-    }
-  }
-  if (task.entity_type === 'sequence' && task.entity_id) {
-    const { data: sequence } = await supabase
-      .from('sequences')
-      .select('id, code, name')
-      .eq('id', task.entity_id)
-      .single()
-    if (sequence) {
-      entityLabel = `${sequence.code} ${sequence.name ? `· ${sequence.name}` : ''}`
-    }
+  const statusIndex = fields.findIndex((f) => f.id === 'status')
+  if (statusIndex >= 0) {
+    fields.splice(statusIndex + 1, 0, entityField)
+  } else {
+    fields.unshift(entityField)
   }
 
   const title = task.name || `Task ${task.id}`
@@ -83,60 +95,7 @@ export default async function TaskLayout({
     id: String(option.id),
     label: option.name || `Task ${option.id}`,
   }))
-  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'task')
-  const fields = applyFieldOptionMap(
-    appendAutoHeaderFields(
-      'task',
-      task as Record<string, unknown>,
-      [
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'text',
-        value: task.status || null,
-        editable: true,
-        column: 'status',
-      },
-      {
-        id: 'entity',
-        label: 'Entity',
-        type: 'readonly',
-        value: entityLabel,
-      },
-      {
-        id: 'department',
-        label: 'Pipeline Step',
-        type: 'select',
-        value:
-          (task.department ? String(task.department) : '') ||
-          (task.step?.department_id ? String(task.step.department_id) : '') ||
-          null,
-        editable: true,
-        column: 'department',
-      },
-      {
-        id: 'priority',
-        label: 'Priority',
-        type: 'text',
-        value: task.priority || null,
-        editable: true,
-        column: 'priority',
-      },
-      {
-        id: 'due_date',
-        label: 'Due Date',
-        type: 'date',
-        value: task.due_date || null,
-        editable: true,
-        column: 'due_date',
-      },
-    ],
-      {
-        excludeColumns: ['step', 'project'],
-      }
-    ),
-    fieldOptionMap
-  )
+  const linkedTaskVersionId = resolveLatestTaskVersionId(task as Record<string, unknown>)
 
   return (
     <div className="flex h-full flex-col">
@@ -151,6 +110,9 @@ export default async function TaskLayout({
         descriptionColumn="description"
         thumbnailUrl={task.thumbnail_url}
         thumbnailColumn="thumbnail_url"
+        thumbnailLinkHref={
+          linkedTaskVersionId ? `/apex/${projectId}/versions/${linkedTaskVersionId}/activity` : null
+        }
         thumbnailPlaceholder="Task"
         switchOptions={switchOptions}
         tabPaths={['activity', 'info', 'versions', 'notes', 'publishes', 'history']}

@@ -1,4 +1,4 @@
-import type { MyTasksBucket } from '@/lib/tasks/my-tasks-buckets'
+import type { MyTasksBucket, DateFilterBucket, FilterOption } from '@/lib/fields'
 
 export type MyTasksDateGroupId =
   | 'overdue'
@@ -43,15 +43,8 @@ export interface MyTasksDateGroup {
   tasks: MyTaskRow[]
 }
 
-export type MyTasksDateFilterBucket =
-  | 'today'
-  | 'yesterday'
-  | 'tomorrow'
-  | 'this_week'
-  | 'last_week'
-  | 'older'
-  | 'future'
-  | 'no_date'
+/** Reuse DateFilterBucket from the unified field system */
+export type MyTasksDateFilterBucket = DateFilterBucket
 
 export interface MyTasksFilterState {
   status: string[]
@@ -65,11 +58,8 @@ export interface MyTasksFilterState {
 
 export type MyTasksFilterKey = keyof MyTasksFilterState
 
-export interface MyTasksFilterOption {
-  value: string
-  label: string
-  count: number
-}
+/** Reuse FilterOption from the unified field system */
+export type MyTasksFilterOption = FilterOption
 
 export interface MyTasksFilterSection {
   key: MyTasksFilterKey

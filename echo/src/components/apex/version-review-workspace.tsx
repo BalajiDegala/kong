@@ -99,6 +99,31 @@ function isImageAttachment(fileType: string, fileName: string) {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName)
 }
 
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message.trim()
+  if (typeof error === 'string') return error.trim()
+  if (!error || typeof error !== 'object') return ''
+
+  const errorRecord = error as Record<string, unknown>
+  const parts = [errorRecord.message, errorRecord.details, errorRecord.hint, errorRecord.code]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+
+  return Array.from(new Set(parts)).join(' | ')
+}
+
+function isMissingAnnotationNoteIdColumn(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase()
+  if (!message) return false
+
+  return (
+    (message.includes('note_id') &&
+      message.includes('column') &&
+      message.includes('does not exist')) ||
+    (message.includes('pgrst204') && message.includes('note_id'))
+  )
+}
+
 const VERSION_ANNOTATION_COLORS = [
   '#ef4444',
   '#f97316',
@@ -211,6 +236,7 @@ export function VersionReviewWorkspace({
         .select('id, content, created_at, author_id, attachments(id, file_name, file_type, storage_path)')
         .eq('entity_type', 'version')
         .eq('entity_id', version.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -233,7 +259,14 @@ export function VersionReviewWorkspace({
           .order('created_at', { ascending: false })
 
         if (annotationError) {
-          console.error('Failed to load annotation metadata for comments:', annotationError)
+          if (!isMissingAnnotationNoteIdColumn(annotationError)) {
+            const details = extractErrorMessage(annotationError)
+            if (details) {
+              console.warn(`Failed to load annotation metadata for comments: ${details}`)
+            } else {
+              console.warn('Failed to load annotation metadata for comments.')
+            }
+          }
         } else {
           for (const row of (annotationRows || []) as AnnotationMetaRow[]) {
             if (!row.note_id || frameMetaByNote.has(row.note_id)) continue

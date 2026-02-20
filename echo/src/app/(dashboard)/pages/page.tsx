@@ -140,10 +140,15 @@ function parseProjectIds(value: string): number[] {
   return Array.from(new Set(ids))
 }
 
-function ownerLabel(page: CustomPageRow): string {
+function isLikelyUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+function ownerLabel(page: CustomPageRow, currentUserId: string | null): string {
   if (page.owner?.display_name) return page.owner.display_name
   if (page.owner?.full_name) return page.owner.full_name
-  return page.owner_id
+  if (currentUserId && page.owner_id === currentUserId) return 'You'
+  return isLikelyUuid(page.owner_id) ? 'Unknown user' : page.owner_id
 }
 
 export default function CustomPagesPage() {
@@ -155,6 +160,7 @@ export default function CustomPagesPage() {
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => new Set())
   const [createOpen, setCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [projectLabelsById, setProjectLabelsById] = useState<Record<number, string>>({})
   const [name, setName] = useState('')
   const [entityType, setEntityType] = useState('tasks')
   const [scopeType, setScopeType] = useState<CustomPageScopeType>('global')
@@ -210,9 +216,10 @@ export default function CustomPagesPage() {
 
     setCurrentUserId(user.id)
 
-    const [pagesResult, favoritesResult] = await Promise.all([
+    const [pagesResult, favoritesResult, projectsResult] = await Promise.all([
       listCustomPages(),
       listMyCustomPageFavorites(),
+      supabase.from('projects').select('id, code, name').is('deleted_at', null),
     ])
 
     if (pagesResult.error) {
@@ -237,6 +244,21 @@ export default function CustomPagesPage() {
       if (favoritesResult.available === false) {
         setError((previous) => previous || 'custom_page_favorites table not found. Run migration first.')
       }
+    }
+
+    if (projectsResult.error) {
+      console.error('Failed to load projects for custom page labels:', projectsResult.error)
+      setProjectLabelsById({})
+    } else {
+      const nextMap: Record<number, string> = {}
+      for (const project of projectsResult.data || []) {
+        const projectId = Number(project.id)
+        if (!Number.isFinite(projectId) || projectId <= 0) continue
+        const code = String(project.code || '').trim()
+        const name = String(project.name || '').trim()
+        nextMap[projectId] = code || name || `Project ${projectId}`
+      }
+      setProjectLabelsById(nextMap)
     }
   }, [])
 
@@ -541,11 +563,19 @@ export default function CustomPagesPage() {
 
   function renderPageCard(page: CustomPageRow, isOwner: boolean) {
     const isFavorite = favoriteIds.has(page.id)
+    const projectLabelFor = (id: number | null) => {
+      if (!id || id <= 0) return '-'
+      return projectLabelsById[id] || `Project ${id}`
+    }
+    const multiProjectPreview =
+      page.project_ids.length > 0
+        ? page.project_ids.slice(0, 2).map((id) => projectLabelFor(id)).join(', ')
+        : '-'
     const scopeLabel =
       page.scope_type === 'multi_project'
-        ? `Multi Project (${page.project_ids.length})`
+        ? `Multi Project (${multiProjectPreview}${page.project_ids.length > 2 ? ` +${page.project_ids.length - 2}` : ''})`
         : page.scope_type === 'project'
-          ? `Project ${page.project_id ?? '-'}`
+          ? projectLabelFor(page.project_id)
           : 'Global'
 
     return (
@@ -560,7 +590,7 @@ export default function CustomPagesPage() {
               {page.entity_type} • {scopeLabel} • {page.visibility}
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Owner: {ownerLabel(page)}
+              Owner: {ownerLabel(page, currentUserId)}
             </p>
             <Link
               href={`/pages/${page.id}`}

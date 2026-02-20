@@ -8,249 +8,54 @@ import { ApexEmptyState } from '@/components/apex/apex-empty-state'
 import { EntityTable } from '@/components/table/entity-table'
 import type { TableColumn, TableSort } from '@/components/table/types'
 import { createClient } from '@/lib/supabase/client'
-import { getEntityColumns, getEntitySchema, type EntityKey, type SchemaField } from '@/lib/schema'
+import { getEntityColumns, getEntitySchema, type EntityKey } from '@/lib/schema'
 import { getCustomPage, updateCustomPage, type CustomPageRow } from '@/actions/custom-pages'
+import { useEntityData } from '@/hooks/use-entity-data'
+import { asText } from '@/lib/fields'
+import type { ExtendedEntityKey } from '@/lib/fields/types'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 
-type RuntimeEntityConfig = {
+// ---------------------------------------------------------------------------
+// Entity type mapping — maps stored entity_type values to field system keys
+// ---------------------------------------------------------------------------
+
+type EntityConfigEntry = {
   table: string
-  entityType: string
+  entityType: string  // EntityTable preference scope
   label: string
   schemaKey: EntityKey | null
-  defaultColumns: string[]
+  fieldKey: ExtendedEntityKey | null
 }
 
-type FilterQueryLike = {
-  eq: (column: string, value: unknown) => FilterQueryLike
-  neq: (column: string, value: unknown) => FilterQueryLike
-  gt: (column: string, value: unknown) => FilterQueryLike
-  gte: (column: string, value: unknown) => FilterQueryLike
-  lt: (column: string, value: unknown) => FilterQueryLike
-  lte: (column: string, value: unknown) => FilterQueryLike
-  ilike: (column: string, value: string) => FilterQueryLike
-  in: (column: string, values: unknown[]) => FilterQueryLike
-  contains: (column: string, value: unknown) => FilterQueryLike
-  overlaps: (column: string, values: unknown[]) => FilterQueryLike
-  is: (column: string, value: unknown) => FilterQueryLike
-  order: (column: string, options: { ascending: boolean }) => FilterQueryLike
+const ENTITY_CONFIG: Record<string, EntityConfigEntry> = {
+  task:            { table: 'tasks',           entityType: 'tasks',           label: 'Tasks',           schemaKey: 'task',           fieldKey: 'task' },
+  tasks:           { table: 'tasks',           entityType: 'tasks',           label: 'Tasks',           schemaKey: 'task',           fieldKey: 'task' },
+  asset:           { table: 'assets',          entityType: 'assets',          label: 'Assets',          schemaKey: 'asset',          fieldKey: 'asset' },
+  assets:          { table: 'assets',          entityType: 'assets',          label: 'Assets',          schemaKey: 'asset',          fieldKey: 'asset' },
+  shot:            { table: 'shots',           entityType: 'shots',           label: 'Shots',           schemaKey: 'shot',           fieldKey: 'shot' },
+  shots:           { table: 'shots',           entityType: 'shots',           label: 'Shots',           schemaKey: 'shot',           fieldKey: 'shot' },
+  sequence:        { table: 'sequences',       entityType: 'sequences',       label: 'Sequences',       schemaKey: 'sequence',       fieldKey: 'sequence' },
+  sequences:       { table: 'sequences',       entityType: 'sequences',       label: 'Sequences',       schemaKey: 'sequence',       fieldKey: 'sequence' },
+  version:         { table: 'versions',        entityType: 'versions',        label: 'Versions',        schemaKey: 'version',        fieldKey: 'version' },
+  versions:        { table: 'versions',        entityType: 'versions',        label: 'Versions',        schemaKey: 'version',        fieldKey: 'version' },
+  note:            { table: 'notes',           entityType: 'notes',           label: 'Notes',           schemaKey: 'note',           fieldKey: 'note' },
+  notes:           { table: 'notes',           entityType: 'notes',           label: 'Notes',           schemaKey: 'note',           fieldKey: 'note' },
+  published_file:  { table: 'published_files', entityType: 'published_files', label: 'Published Files', schemaKey: 'published_file', fieldKey: 'published_file' },
+  published_files: { table: 'published_files', entityType: 'published_files', label: 'Published Files', schemaKey: 'published_file', fieldKey: 'published_file' },
+  'published-files': { table: 'published_files', entityType: 'published_files', label: 'Published Files', schemaKey: 'published_file', fieldKey: 'published_file' },
+  publishes:       { table: 'published_files', entityType: 'published_files', label: 'Published Files', schemaKey: 'published_file', fieldKey: 'published_file' },
+  playlists:       { table: 'playlists',       entityType: 'playlists',       label: 'Playlists',       schemaKey: null,             fieldKey: 'playlist' },
 }
 
-const DEFAULT_LIMIT = 500
-const MAX_LIMIT = 2000
-const FILTER_OPERATOR_OPTIONS = [
-  { value: 'eq', label: 'Equals' },
-  { value: 'neq', label: 'Not Equals' },
-  { value: 'ilike', label: 'Contains' },
-  { value: 'in', label: 'In List' },
-]
-
-const SCHEMA_ENTITY_CONFIG: Record<string, RuntimeEntityConfig> = {
-  tasks: {
-    table: 'tasks',
-    entityType: 'tasks',
-    label: 'Tasks',
-    schemaKey: 'task',
-    defaultColumns: [
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'assigned_to',
-      'start_date',
-      'due_date',
-      'updated_at',
-    ],
-  },
-  task: {
-    table: 'tasks',
-    entityType: 'tasks',
-    label: 'Tasks',
-    schemaKey: 'task',
-    defaultColumns: [
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'assigned_to',
-      'start_date',
-      'due_date',
-      'updated_at',
-    ],
-  },
-  published_files: {
-    table: 'published_files',
-    entityType: 'published_files',
-    label: 'Published Files',
-    schemaKey: 'published_file',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'file_type',
-      'published_by',
-      'created_at',
-    ],
-  },
-  'published-files': {
-    table: 'published_files',
-    entityType: 'published_files',
-    label: 'Published Files',
-    schemaKey: 'published_file',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'file_type',
-      'published_by',
-      'created_at',
-    ],
-  },
-  published_file: {
-    table: 'published_files',
-    entityType: 'published_files',
-    label: 'Published Files',
-    schemaKey: 'published_file',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'file_type',
-      'published_by',
-      'created_at',
-    ],
-  },
-  publishes: {
-    table: 'published_files',
-    entityType: 'published_files',
-    label: 'Published Files',
-    schemaKey: 'published_file',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'file_type',
-      'published_by',
-      'created_at',
-    ],
-  },
-  versions: {
-    table: 'versions',
-    entityType: 'versions',
-    label: 'Versions',
-    schemaKey: 'version',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'version_number',
-      'created_by',
-      'created_at',
-    ],
-  },
-  version: {
-    table: 'versions',
-    entityType: 'versions',
-    label: 'Versions',
-    schemaKey: 'version',
-    defaultColumns: [
-      'code',
-      'name',
-      'status',
-      'project_id',
-      'entity_type',
-      'entity_id',
-      'version_number',
-      'created_by',
-      'created_at',
-    ],
-  },
-  assets: {
-    table: 'assets',
-    entityType: 'assets',
-    label: 'Assets',
-    schemaKey: 'asset',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'asset_type', 'updated_at'],
-  },
-  asset: {
-    table: 'assets',
-    entityType: 'assets',
-    label: 'Assets',
-    schemaKey: 'asset',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'asset_type', 'updated_at'],
-  },
-  sequences: {
-    table: 'sequences',
-    entityType: 'sequences',
-    label: 'Sequences',
-    schemaKey: 'sequence',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'updated_at'],
-  },
-  sequence: {
-    table: 'sequences',
-    entityType: 'sequences',
-    label: 'Sequences',
-    schemaKey: 'sequence',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'updated_at'],
-  },
-  shots: {
-    table: 'shots',
-    entityType: 'shots',
-    label: 'Shots',
-    schemaKey: 'shot',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'sequence_id', 'updated_at'],
-  },
-  shot: {
-    table: 'shots',
-    entityType: 'shots',
-    label: 'Shots',
-    schemaKey: 'shot',
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'sequence_id', 'updated_at'],
-  },
-  notes: {
-    table: 'notes',
-    entityType: 'notes',
-    label: 'Notes',
-    schemaKey: 'note',
-    defaultColumns: ['subject', 'status', 'project_id', 'entity_type', 'entity_id', 'created_at'],
-  },
-  note: {
-    table: 'notes',
-    entityType: 'notes',
-    label: 'Notes',
-    schemaKey: 'note',
-    defaultColumns: ['subject', 'status', 'project_id', 'entity_type', 'entity_id', 'created_at'],
-  },
-  playlists: {
-    table: 'playlists',
-    entityType: 'playlists',
-    label: 'Playlists',
-    schemaKey: null,
-    defaultColumns: ['name', 'code', 'status', 'project_id', 'created_at', 'updated_at'],
-  },
+function resolveEntityConfig(rawEntityType: unknown): EntityConfigEntry | null {
+  const key = asText(rawEntityType).trim().toLowerCase()
+  if (!key) return null
+  return ENTITY_CONFIG[key] || null
 }
 
-function asText(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (value === null || value === undefined) return ''
-  return String(value)
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function asInt(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
@@ -270,19 +75,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function uniqueStrings(values: string[]): string[] {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
+  return Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)))
 }
 
 function parseProjectIdsCsv(value: string): number[] {
-  return uniqueStrings(value.split(',').map((entry) => entry.trim()))
-    .map((entry) => Number.parseInt(entry, 10))
-    .filter((entry) => Number.isFinite(entry) && entry > 0)
+  return uniqueStrings(value.split(',').map((e) => e.trim()))
+    .map((e) => Number.parseInt(e, 10))
+    .filter((e) => Number.isFinite(e) && e > 0)
 }
 
 function stringifyFilterValue(value: unknown): string {
-  if (Array.isArray(value)) {
-    return value.map((entry) => asText(entry).trim()).filter(Boolean).join(', ')
-  }
+  if (Array.isArray(value)) return value.map((e) => asText(e).trim()).filter(Boolean).join(', ')
   if (value === null || value === undefined) return ''
   if (typeof value === 'object') return JSON.stringify(value)
   return asText(value)
@@ -292,10 +95,7 @@ function parseFilterInputValue(rawValue: string, operator: string): unknown {
   const trimmed = rawValue.trim()
   if (!trimmed) return null
   if (operator === 'in') {
-    return trimmed
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean)
+    return trimmed.split(',').map((e) => e.trim()).filter(Boolean)
   }
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
     const numeric = Number(trimmed)
@@ -306,191 +106,36 @@ function parseFilterInputValue(rawValue: string, operator: string): unknown {
   return trimmed
 }
 
-function normalizeEntityConfig(rawEntityType: unknown): RuntimeEntityConfig | null {
-  const key = asText(rawEntityType).trim().toLowerCase()
-  if (!key) return null
-  return SCHEMA_ENTITY_CONFIG[key] || null
-}
-
 function toTitleCaseColumn(columnId: string): string {
-  return columnId
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+  return columnId.split('_').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 }
 
-function mapSchemaFieldToColumnType(field: SchemaField): TableColumn['type'] {
-  const dataType = field.dataType.toLowerCase()
-  if (dataType === 'checkbox') return 'boolean'
-  if (dataType === 'date') return 'date'
-  if (dataType === 'date_time') return 'datetime'
-  if (dataType === 'number' || dataType === 'float' || dataType === 'duration' || dataType === 'percent') {
-    return 'number'
-  }
-  if (dataType === 'url') return 'url'
-  if (dataType === 'status_list') return 'status'
-  if (dataType === 'serializable') return 'json'
-  return 'text'
-}
+// ---------------------------------------------------------------------------
+// Filter / Definition system
+// ---------------------------------------------------------------------------
 
-function mapDefaultDataTypeForColumn(columnId: string): TableColumn['type'] {
-  const lower = columnId.toLowerCase()
-  if (lower.endsWith('_at') || lower.includes('datetime')) return 'datetime'
-  if (lower.includes('date')) return 'date'
-  if (
-    lower.endsWith('_id') ||
-    lower === 'id' ||
-    lower.includes('count') ||
-    lower.includes('number') ||
-    lower.includes('size')
-  ) {
-    return 'number'
-  }
-  if (lower.includes('url') || lower.includes('link') || lower.includes('path')) return 'url'
-  if (lower.startsWith('is_') || lower.startsWith('has_')) return 'boolean'
-  if (lower === 'status') return 'status'
-  return 'text'
-}
+const DEFAULT_LIMIT = 500
+const MAX_LIMIT = 2000
+const FILTER_OPERATOR_OPTIONS = [
+  { value: 'eq', label: 'Equals' },
+  { value: 'neq', label: 'Not Equals' },
+  { value: 'ilike', label: 'Contains' },
+  { value: 'in', label: 'In List' },
+]
 
-function buildInitialColumns(config: RuntimeEntityConfig, rows: Record<string, unknown>[]): TableColumn[] {
-  if (config.schemaKey) {
-    const schema = getEntitySchema(config.schemaKey)
-    const fieldByColumn = new Map<string, SchemaField>()
-    for (const field of schema.fields) {
-      if (field.virtual || !field.column) continue
-      fieldByColumn.set(field.column, field)
-    }
-
-    const preferred = uniqueStrings(config.defaultColumns)
-    const fallback = schema.fields
-      .filter((field) => !field.virtual && field.column)
-      .map((field) => field.column as string)
-    const candidateColumns = uniqueStrings([...preferred, ...fallback])
-
-    const columns: TableColumn[] = []
-    for (const columnId of candidateColumns) {
-      const field = fieldByColumn.get(columnId)
-      if (!field) continue
-      columns.push({
-        id: columnId,
-        label: field.name || toTitleCaseColumn(columnId),
-        type: mapSchemaFieldToColumnType(field),
-      })
-      if (columns.length >= 16) break
-    }
-
-    return columns
-  }
-
-  const rowColumns =
-    rows.length > 0
-      ? Object.keys(rows[0]).filter((columnId) => !columnId.startsWith('_'))
-      : []
-
-  const candidates = uniqueStrings([...config.defaultColumns, ...rowColumns])
-  return candidates.slice(0, 16).map((columnId) => ({
-    id: columnId,
-    label: toTitleCaseColumn(columnId),
-    type: mapDefaultDataTypeForColumn(columnId),
-  }))
-}
-
-function isSortDirection(value: unknown): value is 'asc' | 'desc' {
-  return value === 'asc' || value === 'desc'
-}
-
-function normalizeSortPreference(
-  value: unknown,
-  allowedColumnIds: Set<string>
-): TableSort | null {
-  if (!value) return null
-
-  let raw: unknown = value
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim()
-    if (!trimmed) return null
-    if (trimmed.includes(':')) {
-      const [idPart, dirPart] = trimmed.split(':')
-      const id = asText(idPart).trim()
-      const direction = asText(dirPart).trim().toLowerCase()
-      if (!id || !allowedColumnIds.has(id) || !isSortDirection(direction)) return null
-      return { id, direction }
-    }
-
-    if (
-      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-      (trimmed.startsWith('[') && trimmed.endsWith(']'))
-    ) {
-      try {
-        raw = JSON.parse(trimmed)
-      } catch {
-        return null
-      }
-    } else {
-      return null
-    }
-  }
-
-  if (!raw || typeof raw !== 'object') return null
-  const sortRecord = raw as Record<string, unknown>
-  const id = asText(sortRecord.id).trim()
-  const direction = asText(sortRecord.direction).trim().toLowerCase()
-  if (!id || !allowedColumnIds.has(id) || !isSortDirection(direction)) return null
-  return { id, direction }
-}
-
-function normalizeGroupPreference(
-  value: unknown,
-  allowedColumnIds: Set<string>
-): string | null {
-  const next = asText(value).trim()
-  if (!next) return null
-  return allowedColumnIds.has(next) ? next : null
-}
-
-function normalizeVisibilityList(
-  value: unknown,
-  allowedColumnIds: Set<string>,
-  fallback: string[]
-): string[] {
-  if (!Array.isArray(value)) {
-    return fallback.filter((columnId) => allowedColumnIds.has(columnId))
-  }
-  const normalized = uniqueStrings(value.map((entry) => asText(entry)))
-  const filtered = normalized.filter((columnId) => allowedColumnIds.has(columnId))
-  return filtered.length > 0 ? filtered : fallback.filter((columnId) => allowedColumnIds.has(columnId))
-}
-
-function normalizeColumnOrder(
-  value: unknown,
-  allowedColumnIds: Set<string>,
-  fallback: string[]
-): string[] {
-  const preferred = Array.isArray(value)
-    ? uniqueStrings(value.map((entry) => asText(entry))).filter((columnId) => allowedColumnIds.has(columnId))
-    : []
-
-  const next = [...preferred]
-  for (const columnId of fallback) {
-    if (!allowedColumnIds.has(columnId)) continue
-    if (next.includes(columnId)) continue
-    next.push(columnId)
-  }
-  return next
-}
-
-function normalizeLimit(definition: Record<string, unknown>): number {
-  const direct = asInt(definition.limit)
-  if (direct !== null) {
-    return Math.max(1, Math.min(MAX_LIMIT, direct))
-  }
-  return DEFAULT_LIMIT
-}
-
-function hasDefinitionOrderBy(definition: Record<string, unknown>): boolean {
-  const orderBy = asRecord(definition.order_by)
-  const column = asText(orderBy.column).trim()
-  return Boolean(column)
+type FilterQueryLike = {
+  eq: (column: string, value: unknown) => FilterQueryLike
+  neq: (column: string, value: unknown) => FilterQueryLike
+  gt: (column: string, value: unknown) => FilterQueryLike
+  gte: (column: string, value: unknown) => FilterQueryLike
+  lt: (column: string, value: unknown) => FilterQueryLike
+  lte: (column: string, value: unknown) => FilterQueryLike
+  ilike: (column: string, value: string) => FilterQueryLike
+  in: (column: string, values: unknown[]) => FilterQueryLike
+  contains: (column: string, value: unknown) => FilterQueryLike
+  overlaps: (column: string, values: unknown[]) => FilterQueryLike
+  is: (column: string, value: unknown) => FilterQueryLike
+  order: (column: string, options: { ascending: boolean }) => FilterQueryLike
 }
 
 function normalizeFilterOperator(value: unknown): string {
@@ -503,6 +148,17 @@ function normalizeEditorFilterOperator(value: unknown): string {
     return normalized
   }
   return 'eq'
+}
+
+function hasDefinitionOrderBy(definition: Record<string, unknown>): boolean {
+  const orderBy = asRecord(definition.order_by)
+  return Boolean(asText(orderBy.column).trim())
+}
+
+function normalizeLimit(definition: Record<string, unknown>): number {
+  const direct = asInt(definition.limit)
+  if (direct !== null) return Math.max(1, Math.min(MAX_LIMIT, direct))
+  return DEFAULT_LIMIT
 }
 
 function applyDefinitionFilters<T extends FilterQueryLike>(
@@ -518,9 +174,9 @@ function applyDefinitionFilters<T extends FilterQueryLike>(
   }
 
   const projectIdsRaw = Array.isArray(definition.project_ids) ? definition.project_ids : []
-  const projectIds = uniqueStrings(projectIdsRaw.map((value) => asText(value)))
-    .map((value) => Number.parseInt(value, 10))
-    .filter((value) => Number.isFinite(value) && value > 0)
+  const projectIds = uniqueStrings(projectIdsRaw.map((v) => asText(v)))
+    .map((v) => Number.parseInt(v, 10))
+    .filter((v) => Number.isFinite(v) && v > 0)
   if (projectIds.length > 0 && allowedColumnIds.has('project_id')) {
     next = next.in('project_id', projectIds)
   }
@@ -530,34 +186,15 @@ function applyDefinitionFilters<T extends FilterQueryLike>(
     const filter = asRecord(filterRaw)
     const column = asText(filter.column).trim()
     if (!column || !allowedColumnIds.has(column)) continue
-
     const op = normalizeFilterOperator(filter.op || filter.operator)
     const value = filter.value
 
-    if (op === 'eq') {
-      next = next.eq(column, value)
-      continue
-    }
-    if (op === 'neq') {
-      next = next.neq(column, value)
-      continue
-    }
-    if (op === 'gt') {
-      next = next.gt(column, value)
-      continue
-    }
-    if (op === 'gte') {
-      next = next.gte(column, value)
-      continue
-    }
-    if (op === 'lt') {
-      next = next.lt(column, value)
-      continue
-    }
-    if (op === 'lte') {
-      next = next.lte(column, value)
-      continue
-    }
+    if (op === 'eq') { next = next.eq(column, value); continue }
+    if (op === 'neq') { next = next.neq(column, value); continue }
+    if (op === 'gt') { next = next.gt(column, value); continue }
+    if (op === 'gte') { next = next.gte(column, value); continue }
+    if (op === 'lt') { next = next.lt(column, value); continue }
+    if (op === 'lte') { next = next.lte(column, value); continue }
     if (op === 'ilike') {
       const pattern = asText(value).trim()
       if (!pattern) continue
@@ -576,10 +213,7 @@ function applyDefinitionFilters<T extends FilterQueryLike>(
       next = next.overlaps(column, value)
       continue
     }
-    if (op === 'is') {
-      next = next.is(column, value)
-      continue
-    }
+    if (op === 'is') { next = next.is(column, value); continue }
   }
 
   const orderBy = asRecord(definition.order_by)
@@ -592,23 +226,73 @@ function applyDefinitionFilters<T extends FilterQueryLike>(
   return next as T
 }
 
+// ---------------------------------------------------------------------------
+// Storage seed for EntityTable default preferences
+// ---------------------------------------------------------------------------
+
+function isSortDirection(value: unknown): value is 'asc' | 'desc' {
+  return value === 'asc' || value === 'desc'
+}
+
+function normalizeSortPreference(value: unknown, allowed: Set<string>): TableSort | null {
+  if (!value) return null
+  let raw: unknown = value
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    if (trimmed.includes(':')) {
+      const [idPart, dirPart] = trimmed.split(':')
+      const id = asText(idPart).trim()
+      const direction = asText(dirPart).trim().toLowerCase()
+      if (!id || !allowed.has(id) || !isSortDirection(direction)) return null
+      return { id, direction }
+    }
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try { raw = JSON.parse(trimmed) } catch { return null }
+    } else { return null }
+  }
+  if (!raw || typeof raw !== 'object') return null
+  const rec = raw as Record<string, unknown>
+  const id = asText(rec.id).trim()
+  const direction = asText(rec.direction).trim().toLowerCase()
+  if (!id || !allowed.has(id) || !isSortDirection(direction)) return null
+  return { id, direction }
+}
+
+function normalizeGroupPreference(value: unknown, allowed: Set<string>): string | null {
+  const next = asText(value).trim()
+  if (!next) return null
+  return allowed.has(next) ? next : null
+}
+
+function normalizeVisibilityList(value: unknown, allowed: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback.filter((c) => allowed.has(c))
+  const normalized = uniqueStrings(value.map((e) => asText(e)))
+  const filtered = normalized.filter((c) => allowed.has(c))
+  return filtered.length > 0 ? filtered : fallback.filter((c) => allowed.has(c))
+}
+
+function normalizeColumnOrder(value: unknown, allowed: Set<string>, fallback: string[]): string[] {
+  const preferred = Array.isArray(value)
+    ? uniqueStrings(value.map((e) => asText(e))).filter((c) => allowed.has(c))
+    : []
+  const next = [...preferred]
+  for (const c of fallback) {
+    if (!allowed.has(c) || next.includes(c)) continue
+    next.push(c)
+  }
+  return next
+}
+
 function buildStorageSeedPayload(
   page: CustomPageRow,
   allowedColumnIds: Set<string>,
   baseColumnIds: string[]
 ) {
   const defaultState = asRecord(page.default_state)
-  const fallbackVisible = baseColumnIds.filter((columnId) => allowedColumnIds.has(columnId))
-  const visibleColumns = normalizeVisibilityList(
-    defaultState.visible_columns,
-    allowedColumnIds,
-    fallbackVisible
-  )
-  const columnOrder = normalizeColumnOrder(
-    defaultState.column_order,
-    allowedColumnIds,
-    visibleColumns
-  )
+  const fallbackVisible = baseColumnIds.filter((c) => allowedColumnIds.has(c))
+  const visibleColumns = normalizeVisibilityList(defaultState.visible_columns, allowedColumnIds, fallbackVisible)
+  const columnOrder = normalizeColumnOrder(defaultState.column_order, allowedColumnIds, visibleColumns)
   const sort = normalizeSortPreference(defaultState.sort, allowedColumnIds)
   const groupBy =
     normalizeGroupPreference(defaultState.group_by, allowedColumnIds) ||
@@ -616,31 +300,25 @@ function buildStorageSeedPayload(
 
   return {
     columnOrder,
-    columnWidths:
-      defaultState.column_widths && typeof defaultState.column_widths === 'object'
-        ? defaultState.column_widths
-        : {},
+    columnWidths: defaultState.column_widths && typeof defaultState.column_widths === 'object' ? defaultState.column_widths : {},
     visibleColumns,
     sort,
     groupBy,
     view: 'list',
     pageSize: Math.max(25, Math.min(250, asInt(defaultState.page_size) || 50)),
     pinnedColumns: Array.isArray(defaultState.pinned_columns)
-      ? uniqueStrings(defaultState.pinned_columns.map((value) => asText(value))).filter((columnId) =>
-          allowedColumnIds.has(columnId)
-        )
+      ? uniqueStrings(defaultState.pinned_columns.map((v) => asText(v))).filter((c) => allowedColumnIds.has(c))
       : [],
     activeFilterColumns: Array.isArray(defaultState.active_filter_columns)
-      ? uniqueStrings(defaultState.active_filter_columns.map((value) => asText(value))).filter((columnId) =>
-          allowedColumnIds.has(columnId)
-        )
+      ? uniqueStrings(defaultState.active_filter_columns.map((v) => asText(v))).filter((c) => allowedColumnIds.has(c))
       : [],
-    activeFilters:
-      defaultState.active_filters && typeof defaultState.active_filters === 'object'
-        ? defaultState.active_filters
-        : {},
+    activeFilters: defaultState.active_filters && typeof defaultState.active_filters === 'object' ? defaultState.active_filters : {},
   }
 }
+
+// ===========================================================================
+// Component
+// ===========================================================================
 
 export default function CustomPageRuntime({
   params,
@@ -649,9 +327,8 @@ export default function CustomPageRuntime({
 }) {
   const [resolvedPageId, setResolvedPageId] = useState<number | null>(null)
   const [page, setPage] = useState<CustomPageRow | null>(null)
-  const [rows, setRows] = useState<Record<string, unknown>[]>([])
-  const [columns, setColumns] = useState<TableColumn[]>([])
-  const [config, setConfig] = useState<RuntimeEntityConfig | null>(null)
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([])
+  const [entityConfig, setEntityConfig] = useState<EntityConfigEntry | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -667,6 +344,7 @@ export default function CustomPageRuntime({
   const [queryOrderByColumn, setQueryOrderByColumn] = useState('')
   const [queryOrderDirection, setQueryOrderDirection] = useState<'asc' | 'desc'>('desc')
   const [queryLimit, setQueryLimit] = useState(String(DEFAULT_LIMIT))
+  const [cellError, setCellError] = useState<string | null>(null)
 
   useEffect(() => {
     params.then((value) => {
@@ -675,6 +353,9 @@ export default function CustomPageRuntime({
     })
   }, [params])
 
+  // -------------------------------------------------------------------------
+  // Data loading — fetch page config + apply definition filters + fetch rows
+  // -------------------------------------------------------------------------
   useEffect(() => {
     let active = true
 
@@ -689,9 +370,7 @@ export default function CustomPageRuntime({
       setError(null)
 
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!active) return
       setCurrentUserId(user?.id || null)
 
@@ -699,31 +378,30 @@ export default function CustomPageRuntime({
       if (!active) return
       if (pageResult.error || !pageResult.data) {
         setPage(null)
-        setRows([])
-        setColumns([])
-        setConfig(null)
+        setRawRows([])
+        setEntityConfig(null)
         setError(pageResult.error || 'Custom page not found.')
         setLoading(false)
         return
       }
 
       const nextPage = pageResult.data
-      const nextConfig = normalizeEntityConfig(nextPage.entity_type)
+      const nextConfig = resolveEntityConfig(nextPage.entity_type)
       if (!nextConfig) {
         setPage(nextPage)
-        setRows([])
-        setColumns([])
-        setConfig(null)
+        setRawRows([])
+        setEntityConfig(null)
         setError(`Unsupported entity type "${nextPage.entity_type}" for runtime page.`)
         setLoading(false)
         return
       }
 
-      let query = supabase.from(nextConfig.table).select('*')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase.from(nextConfig.table).select('*')
       const allowedColumnIds =
         nextConfig.schemaKey !== null
           ? getEntityColumns(nextConfig.schemaKey)
-          : new Set<string>(nextConfig.defaultColumns)
+          : new Set<string>()
 
       const definition = asRecord(nextPage.definition)
       query = applyDefinitionFilters(query, definition, allowedColumnIds)
@@ -741,44 +419,62 @@ export default function CustomPageRuntime({
       if (!active) return
       if (dataError) {
         setPage(nextPage)
-        setRows([])
-        setColumns([])
-        setConfig(nextConfig)
+        setRawRows([])
+        setEntityConfig(nextConfig)
         setError(dataError.message)
         setLoading(false)
         return
       }
 
-      const normalizedRows = ((data || []) as Record<string, unknown>[]).map((row) => ({ ...row }))
-      const initialColumns = buildInitialColumns(nextConfig, normalizedRows)
-
       setPage(nextPage)
-      setConfig(nextConfig)
-      setRows(normalizedRows)
-      setColumns(initialColumns)
+      setEntityConfig(nextConfig)
+      setRawRows((data || []) as Record<string, unknown>[])
       setLoading(false)
     }
 
     void load()
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [reloadVersion, resolvedPageId])
 
+  // -------------------------------------------------------------------------
+  // useEntityData — handles resolution, enrichment, columns, cell updates
+  // -------------------------------------------------------------------------
+  const fieldKey = entityConfig?.fieldKey || 'task' // fallback; won't render if null
+  const crossProject = true // Custom pages can span projects
+
+  const { data, columns, handleCellUpdate: hookCellUpdate } = useEntityData({
+    entity: fieldKey,
+    rows: rawRows,
+    crossProject,
+  })
+
+  // Wrap cell update to also update local rawRows for optimistic UI
+  async function handleCellUpdate(row: Record<string, unknown>, column: TableColumn, value: unknown) {
+    setCellError(null)
+    await hookCellUpdate(row, column, value)
+    const rowId = String(row.id)
+    setRawRows((prev) =>
+      prev.map((r) => String(r.id) === rowId ? { ...r, [column.id]: value } : r)
+    )
+  }
+
+  // -------------------------------------------------------------------------
+  // Preference seed from page default_state
+  // -------------------------------------------------------------------------
   const preferenceScope = useMemo(
     () => (page ? `custom_page:${page.id}` : ''),
     [page]
   )
 
   useLayoutEffect(() => {
-    if (!page || !config || !preferenceScope) return
+    if (!page || !entityConfig || !preferenceScope || columns.length === 0) return
 
     const allowedColumnIds =
-      config.schemaKey !== null
-        ? getEntityColumns(config.schemaKey)
-        : new Set<string>(columns.map((column) => column.id))
+      entityConfig.schemaKey !== null
+        ? getEntityColumns(entityConfig.schemaKey)
+        : new Set<string>(columns.map((c) => c.id))
 
-    const baseColumnIds = columns.map((column) => column.id)
+    const baseColumnIds = columns.map((c) => c.id)
     const payload = buildStorageSeedPayload(page, allowedColumnIds, baseColumnIds)
     const storageKey = `kong.table.${preferenceScope}`
 
@@ -790,22 +486,23 @@ export default function CustomPageRuntime({
     } catch {
       // ignore local storage failures
     }
-  }, [columns, config, page, preferenceScope])
+  }, [columns, entityConfig, page, preferenceScope])
 
+  // -------------------------------------------------------------------------
+  // Configure Query dialog state
+  // -------------------------------------------------------------------------
   const canSaveDefaults = Boolean(page && currentUserId && page.owner_id === currentUserId)
   const canConfigureQuery = canSaveDefaults
+
   const filterColumnOptions = useMemo(() => {
-    if (!config) return []
-    if (config.schemaKey) {
-      return getEntitySchema(config.schemaKey).fields
-        .filter((field) => !field.virtual && field.column)
-        .map((field) => ({
-          value: field.column as string,
-          label: field.name || toTitleCaseColumn(field.column as string),
-        }))
+    if (!entityConfig) return []
+    if (entityConfig.schemaKey) {
+      return getEntitySchema(entityConfig.schemaKey).fields
+        .filter((f) => !f.virtual && f.column)
+        .map((f) => ({ value: f.column as string, label: f.name || toTitleCaseColumn(f.column as string) }))
     }
-    return columns.map((column) => ({ value: column.id, label: column.label }))
-  }, [columns, config])
+    return columns.map((c) => ({ value: c.id, label: c.label }))
+  }, [columns, entityConfig])
 
   function openConfigureQuery() {
     if (!page) return
@@ -814,9 +511,7 @@ export default function CustomPageRuntime({
     const orderBy = asRecord(definition.order_by)
     const parsedProjectId = asInt(definition.project_id)
     const parsedProjectIds = Array.isArray(definition.project_ids)
-      ? definition.project_ids
-          .map((entry) => asInt(entry))
-          .filter((entry): entry is number => entry !== null && entry > 0)
+      ? definition.project_ids.map((e) => asInt(e)).filter((e): e is number => e !== null && e > 0)
       : []
 
     setQueryProjectId(parsedProjectId === null ? '' : String(parsedProjectId))
@@ -853,21 +548,12 @@ export default function CustomPageRuntime({
     const normalizedOperator = normalizeEditorFilterOperator(queryFilterOperator)
     const filterValue = parseFilterInputValue(queryFilterValue, normalizedOperator)
     if (filterColumn && filterValue !== null) {
-      definition.filters = [
-        {
-          column: filterColumn,
-          op: normalizedOperator,
-          value: filterValue,
-        },
-      ]
+      definition.filters = [{ column: filterColumn, op: normalizedOperator, value: filterValue }]
     }
 
     const orderByColumn = queryOrderByColumn.trim()
     if (orderByColumn) {
-      definition.order_by = {
-        column: orderByColumn,
-        direction: queryOrderDirection,
-      }
+      definition.order_by = { column: orderByColumn, direction: queryOrderDirection }
     }
 
     const result = await updateCustomPage(page.id, { definition })
@@ -879,14 +565,12 @@ export default function CustomPageRuntime({
     }
 
     setConfigureOpen(false)
-    if (result.data) {
-      setPage(result.data)
-    }
-    setReloadVersion((previous) => previous + 1)
+    if (result.data) setPage(result.data)
+    setReloadVersion((prev) => prev + 1)
   }
 
   function handleRefreshData() {
-    setReloadVersion((previous) => previous + 1)
+    setReloadVersion((prev) => prev + 1)
   }
 
   async function handleSaveDefaults() {
@@ -916,16 +600,13 @@ export default function CustomPageRuntime({
 
     const result = await updateCustomPage(page.id, { default_state: payload })
     setIsSavingDefaults(false)
-
-    if (result.error) {
-      setError(result.error)
-      return
-    }
-
-    if (result.data) {
-      setPage(result.data)
-    }
+    if (result.error) { setError(result.error); return }
+    if (result.data) setPage(result.data)
   }
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
 
   if (loading) {
     return (
@@ -938,7 +619,7 @@ export default function CustomPageRuntime({
     )
   }
 
-  if (!page || !config) {
+  if (!page || !entityConfig) {
     return (
       <ApexPageShell title="Custom Page">
         <ApexEmptyState
@@ -959,8 +640,8 @@ export default function CustomPageRuntime({
     )
   }
 
-  const rowCount = rows.length
-  const datasetLabel = config.label
+  const rowCount = data.length
+  const datasetLabel = entityConfig.label
 
   return (
     <>
@@ -1016,6 +697,11 @@ export default function CustomPageRuntime({
             {error}
           </div>
         ) : null}
+        {cellError ? (
+          <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            {cellError}
+          </div>
+        ) : null}
 
         <div className="mb-4 rounded-md border border-border bg-card/20 px-4 py-3 text-xs text-muted-foreground">
           {datasetLabel} • {rowCount} rows • visibility: {page.visibility} • scope: {page.scope_type}
@@ -1023,14 +709,16 @@ export default function CustomPageRuntime({
 
         <EntityTable
           columns={columns}
-          data={rows}
-          entityType={config.entityType}
+          data={data}
+          entityType={entityConfig.entityType}
           preferenceScope={preferenceScope}
           csvExportFilename={`custom-page-${page.slug || page.id}`}
+          onCellUpdate={handleCellUpdate}
+          onCellUpdateError={setCellError}
           groupBy={normalizeGroupPreference(
             asRecord(page.default_state).group_by || asRecord(page.default_state).groupBy,
-            new Set(columns.map((column) => column.id))
-          )}
+            new Set(columns.map((c) => c.id))
+          ) ?? undefined}
         />
       </ApexPageShell>
 
@@ -1056,7 +744,7 @@ export default function CustomPageRuntime({
                   type="number"
                   min={1}
                   value={queryProjectId}
-                  onChange={(event) => setQueryProjectId(event.target.value)}
+                  onChange={(e) => setQueryProjectId(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="7"
                 />
@@ -1067,7 +755,7 @@ export default function CustomPageRuntime({
                 <input
                   type="text"
                   value={queryProjectIdsCsv}
-                  onChange={(event) => setQueryProjectIdsCsv(event.target.value)}
+                  onChange={(e) => setQueryProjectIdsCsv(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="7, 9, 12"
                 />
@@ -1079,13 +767,13 @@ export default function CustomPageRuntime({
                 <span className="mb-1.5 block text-foreground/80">Filter Column</span>
                 <select
                   value={queryFilterColumn}
-                  onChange={(event) => setQueryFilterColumn(event.target.value)}
+                  onChange={(e) => setQueryFilterColumn(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">None</option>
-                  {filterColumnOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {filterColumnOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -1095,12 +783,12 @@ export default function CustomPageRuntime({
                 <span className="mb-1.5 block text-foreground/80">Operator</span>
                 <select
                   value={queryFilterOperator}
-                  onChange={(event) => setQueryFilterOperator(event.target.value)}
+                  onChange={(e) => setQueryFilterOperator(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  {FILTER_OPERATOR_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {FILTER_OPERATOR_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -1111,7 +799,7 @@ export default function CustomPageRuntime({
                 <input
                   type="text"
                   value={queryFilterValue}
-                  onChange={(event) => setQueryFilterValue(event.target.value)}
+                  onChange={(e) => setQueryFilterValue(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder={queryFilterOperator === 'in' ? 'anim, comp' : 'anim'}
                 />
@@ -1123,13 +811,13 @@ export default function CustomPageRuntime({
                 <span className="mb-1.5 block text-foreground/80">Order By</span>
                 <select
                   value={queryOrderByColumn}
-                  onChange={(event) => setQueryOrderByColumn(event.target.value)}
+                  onChange={(e) => setQueryOrderByColumn(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Default</option>
-                  {filterColumnOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {filterColumnOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -1139,9 +827,7 @@ export default function CustomPageRuntime({
                 <span className="mb-1.5 block text-foreground/80">Direction</span>
                 <select
                   value={queryOrderDirection}
-                  onChange={(event) =>
-                    setQueryOrderDirection(event.target.value === 'asc' ? 'asc' : 'desc')
-                  }
+                  onChange={(e) => setQueryOrderDirection(e.target.value === 'asc' ? 'asc' : 'desc')}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="desc">Desc</option>
@@ -1157,7 +843,7 @@ export default function CustomPageRuntime({
                 min={1}
                 max={MAX_LIMIT}
                 value={queryLimit}
-                onChange={(event) => setQueryLimit(event.target.value)}
+                onChange={(e) => setQueryLimit(e.target.value)}
                 className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </label>

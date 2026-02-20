@@ -24,6 +24,7 @@ export default async function ShotPostsRoute({
     .from('shots')
     .select('id, name, sequence_id')
     .eq('id', shotId)
+    .is('deleted_at', null)
     .single()
 
   if (!shot) {
@@ -35,12 +36,14 @@ export default async function ShotPostsRoute({
       .from('projects')
       .select('id, name, code')
       .eq('id', projectId)
+      .is('deleted_at', null)
       .single(),
     shot.sequence_id
       ? supabase
           .from('sequences')
           .select('id, name')
           .eq('id', shot.sequence_id)
+          .is('deleted_at', null)
           .single()
       : Promise.resolve({ data: null }),
   ])

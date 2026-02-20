@@ -206,37 +206,44 @@ export function CreatePublishedFileDialog({
         .from('assets')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('name'),
       supabase
         .from('shots')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('sequences')
         .select('id, name, code')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('code'),
       supabase
         .from('notes')
         .select('id, subject')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(200),
       supabase
         .from('tasks')
         .select('id, name, entity_type, entity_id')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false }),
       supabase
         .from('versions')
         .select('id, code, version_number, entity_type, entity_id')
         .eq('project_id', projectId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false }),
       supabase
         .from('projects')
         .select('name, code')
         .eq('id', projectId)
+        .is('deleted_at', null)
         .maybeSingle(),
       listStatusNames('published_file'),
       listTagNames(),

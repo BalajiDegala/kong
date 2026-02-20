@@ -33,6 +33,7 @@ export default async function SequenceLayout({
     )
     .eq('id', sequenceId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!sequence) {
@@ -43,6 +44,7 @@ export default async function SequenceLayout({
     .from('sequences')
     .select('id, code, name')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('code', { ascending: true })
 
   const title = `${sequence.code}${sequence.name ? ` · ${sequence.name}` : ''}`

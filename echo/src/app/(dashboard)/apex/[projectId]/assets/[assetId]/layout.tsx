@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { EntityDetailHeader } from '@/components/apex/entity-detail-header'
-import { appendAutoHeaderFields } from '@/lib/apex/entity-header-fields'
-import { applyFieldOptionMap, loadEntityFieldOptionMap } from '@/lib/apex/entity-field-options'
+import { buildDetailFields } from '@/lib/fields/detail-builder'
 import { AssetTabs } from '@/components/layout/asset-tabs'
 
 export default async function AssetLayout({
@@ -35,6 +34,7 @@ export default async function AssetLayout({
     )
     .eq('id', assetId)
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (!asset) {
@@ -45,6 +45,7 @@ export default async function AssetLayout({
     .from('assets')
     .select('id, code, name')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('code', { ascending: true })
 
   const sequenceLabel = asset.sequence
@@ -56,86 +57,22 @@ export default async function AssetLayout({
     id: String(option.id),
     label: `${option.code || `Asset ${option.id}`}${option.name ? ` · ${option.name}` : ''}`,
   }))
-  const fieldOptionMap = await loadEntityFieldOptionMap(supabase, 'asset')
-  const fields = applyFieldOptionMap(
-    appendAutoHeaderFields(
-      'asset',
-      asset as Record<string, unknown>,
-      [
-      {
-        id: 'status',
-        label: 'Status',
-        type: 'text',
-        value: asset.status || null,
-        editable: true,
-        column: 'status',
-      },
-      {
-        id: 'asset_type',
-        label: 'Type',
-        type: 'text',
-        value: asset.asset_type || null,
-        editable: true,
-        column: 'asset_type',
-      },
-      {
-        id: 'task_template',
-        label: 'Template',
-        type: 'text',
-        value: asset.task_template || null,
-        editable: true,
-        column: 'task_template',
-      },
-      {
-        id: 'sequence',
-        label: 'Sequence',
-        type: 'readonly',
-        value: sequenceLabel,
-      },
-      {
-        id: 'shot',
-        label: 'Shot',
-        type: 'readonly',
-        value: shotLabel,
-      },
-      {
-        id: 'client_name',
-        label: 'Client Name',
-        type: 'text',
-        value: asset.client_name || null,
-        editable: true,
-        column: 'client_name',
-      },
-      {
-        id: 'dd_client_name',
-        label: 'DD Client Name',
-        type: 'text',
-        value: asset.dd_client_name || null,
-        editable: true,
-        column: 'dd_client_name',
-      },
-      {
-        id: 'keep',
-        label: 'Keep',
-        type: 'boolean',
-        value: Boolean(asset.keep),
-        editable: true,
-        column: 'keep',
-      },
-      {
-        id: 'outsource',
-        label: 'Outsource',
-        type: 'boolean',
-        value: Boolean(asset.outsource),
-        editable: true,
-        column: 'outsource',
-      },
-    ],
-      {
-        excludeColumns: ['sequence', 'shot'],
-      }
-    ),
-    fieldOptionMap
+
+  const { fields } = await buildDetailFields({
+    entity: 'asset',
+    row: asset as Record<string, unknown>,
+    supabase,
+    projectId,
+    manualFields: ['status', 'asset_type', 'task_template', 'client_name', 'dd_client_name', 'keep', 'outsource'],
+    excludeFields: ['sequence_id', 'shot_id'],
+  })
+
+  // Insert computed sequence and shot labels after task_template
+  const templateIndex = fields.findIndex((f) => f.id === 'task_template')
+  const insertAt = templateIndex >= 0 ? templateIndex + 1 : fields.length
+  fields.splice(insertAt, 0,
+    { id: 'sequence', label: 'Sequence', type: 'readonly' as const, value: sequenceLabel },
+    { id: 'shot', label: 'Shot', type: 'readonly' as const, value: shotLabel },
   )
 
   return (
